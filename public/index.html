@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strive</title>
+    <link rel="icon" href="images/strive-title.png?v=1" type="image/png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom styles for calendar */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.25rem; /* Default gap for mobile */
+        }
+        .calendar-day {
+            aspect-ratio: 1;
+            min-height: 40px; /* Default size for mobile */
+        }
+        /* Modal backdrop */
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        .dark .spinner {
+            border-color: #4b5563; /* dark:border-gray-600 */
+            border-top-color: #3b82f6; /* dark:border-top-blue-500 */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Custom scrollbar hiding */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen dark">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-white dark:bg-gray-900 flex items-center justify-center z-50">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- App Container -->
+    <div id="app" class="hidden">
+        <!-- Auth Pages -->
+        <div id="auth-page" class="hidden min-h-screen flex items-center justify-center p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-md">
+                <div class="flex justify-center items-center mb-6">
+                    <img src="/images/strive-logo.png" alt="Strive Logo" class="h-16 w-16 mr-3">
+                    <h1 class="text-3xl font-bold text-blue-600">Welcome to Strive</h1>
+                </div>
+                
+                <!-- Login Form -->
+                <div id="login-form">
+                    <h2 class="text-xl font-semibold mb-4 dark:text-gray-100">Login</h2>
+                    <input type="email" id="login-email" placeholder="Email" class="w-full p-3 border dark:border-gray-600 rounded-lg mb-3 bg-transparent dark:text-gray-200 dark:placeholder-gray-400">
+                    <input type="password" id="login-password" placeholder="Password" class="w-full p-3 border dark:border-gray-600 rounded-lg mb-4 bg-transparent dark:text-gray-200 dark:placeholder-gray-400">
+                    <button onclick="auth.login()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold mb-3 hover:bg-blue-700">
+                        Login
+                    </button>
+
+                    <div class="my-4 flex items-center">
+                        <div class="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                        <span class="flex-shrink mx-4 text-gray-500 dark:text-gray-400 text-sm">OR</span>
+                        <div class="flex-grow border-t border-gray-300 dark:border-gray-600"></div>
+                    </div>
+
+                    <button onclick="auth.signInWithGoogle()" class="w-full bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-3 rounded-lg font-semibold border dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center justify-center">
+                        <svg class="w-5 h-5 mr-2" viewBox="0 0 48 48"><path fill="#4285F4" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#34A853" d="M43.611,20.083H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l5.657,5.657C40.074,36.336,44,30.659,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FBBC05" d="M10.21,28.641c-0.581-1.77-0.903-3.655-0.903-5.641s0.322-3.871,0.903-5.641l-5.657-5.657C2.353,15.56,1,19.63,1,24s1.353,8.44,3.65,11.951L10.21,28.641z"></path><path fill="#EA4335" d="M24,48c5.268,0,9.946-1.753,13.291-4.664l-5.657-5.657c-1.716,1.154-3.915,1.823-6.634,1.823c-5.223,0-9.659-3.35-11.303-7.951l-5.657,5.657C7.953,42.44,15.325,48,24,48z"></path><path fill="none" d="M1,1h46v46H1z"></path></svg>
+                        Sign in with Google
+                    </button>
+
+                    <p class="text-center text-gray-600 mt-4">
+                        Don't have an account? 
+                        <button onclick="auth.showSignup()" class="text-blue-600 font-semibold">Sign up</button>
+                    </p>
+                </div>
+
+                <!-- Signup Form -->
+                <div id="signup-form" class="hidden">
+                    <h2 class="text-xl font-semibold mb-4 dark:text-gray-100">Sign Up</h2>
+                    <input type="email" id="signup-email" placeholder="Email" class="w-full p-3 border dark:border-gray-600 rounded-lg mb-3 bg-transparent dark:text-gray-200 dark:placeholder-gray-400">
+                    <input type="password" id="signup-password" placeholder="Password (min 6 characters)" class="w-full p-3 border dark:border-gray-600 rounded-lg mb-4 bg-transparent dark:text-gray-200 dark:placeholder-gray-400">
+                    <button onclick="auth.signup()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold mb-3 hover:bg-blue-700">
+                        Sign Up
+                    </button>
+                    <p class="text-center text-gray-600 dark:text-gray-400">
+                        Already have an account? 
+                        <button onclick="auth.showLogin()" class="text-blue-600 font-semibold">Login</button>
+                    </p>
+                </div>
+
+                <div id="auth-error" class="hidden mt-4 p-3 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg text-sm"></div>
+            </div>
+        </div>
+
+        <!-- Main App (After Login) -->
+        <div id="main-app" class="hidden">
+            <!-- Header -->
+            <header class="bg-blue-600 text-white p-4 shadow-lg">
+                <div class="max-w-4xl mx-auto flex justify-between items-center relative">
+                    <div class="flex items-center">
+                        <img src="images/strive-logo.png" alt="Strive Logo" class="h-8 w-8 mr-3">
+                        <h1 class="text-2xl font-bold">Strive</h1>
+                    </div>
+                    <div class="flex items-center">
+                        <!-- Desktop Logout Button -->
+                        <button onclick="auth.logout()" class="bg-blue-700 px-4 py-2 rounded-lg hover:bg-blue-800 hidden md:block">
+                            Logout
+                        </button>
+                        <!-- Hamburger Button -->
+                        <button id="hamburger-btn" onclick="navigation.toggleMobileMenu()" class="md:hidden p-2 rounded-md hover:bg-blue-700">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-4 6h4"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Navigation -->
+            <nav id="desktop-nav" class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-40 hidden md:block">
+                <div class="max-w-4xl mx-auto flex overflow-x-auto">
+                    <button onclick="navigation.showPage('workout')" data-page="workout" class="nav-btn flex-1 px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700/50 border-b-2 border-transparent">
+                        Log Workout
+                    </button>
+                    <button onclick="navigation.showPage('dashboard')" data-page="dashboard" class="nav-btn flex-1 px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700/50 border-b-2 border-transparent">
+                        Dashboard
+                    </button>
+                    <button onclick="navigation.showPage('exercises')" data-page="exercises" class="nav-btn flex-1 px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700/50 border-b-2 border-transparent">
+                        Exercises
+                    </button>
+                    <button onclick="navigation.showPage('calendar')" data-page="calendar" class="nav-btn flex-1 px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700/50 border-b-2 border-transparent">
+                        Calendar
+                    </button>
+                </div>
+            </nav>
+
+            <!-- Mobile Menu -->
+            <div id="mobile-menu" class="hidden md:hidden bg-white dark:bg-gray-800 shadow-lg">
+                <a href="#" onclick="navigation.showPage('workout', true); return false;" class="block py-3 px-4 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Log Workout</a>
+                <a href="#" onclick="navigation.showPage('dashboard', true); return false;" class="block py-3 px-4 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Dashboard</a>
+                <a href="#" onclick="navigation.showPage('exercises', true); return false;" class="block py-3 px-4 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Exercises</a>
+                <a href="#" onclick="navigation.showPage('calendar', true); return false;" class="block py-3 px-4 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Calendar</a>
+                <a href="#" onclick="auth.logout(); return false;" class="block py-3 px-4 text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 border-t dark:border-gray-700">Logout</a>
+            </div>
+
+            <!-- Page Content -->
+            <main class="max-w-4xl mx-auto p-4 pb-20">
+                <!-- Dashboard Page -->
+                <div id="page-dashboard" class="page-content hidden">
+                    <!-- Header -->
+                    <div class="mb-6">
+                        <h2 class="text-3xl font-bold dark:text-gray-100" id="dashboard-welcome">Welcome back!</h2>
+                        <p class="text-gray-500 dark:text-gray-400">Here's a snapshot of your progress.</p>
+                    </div>
+
+                    <!-- Grid for Stats & Insights -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                        <!-- Today's Workout Card -->
+                        <div id="today-workout-status" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg flex flex-col justify-between">
+                            <!-- Content is dynamically loaded -->
+                        </div>
+
+                        <!-- Weekly Workouts Card -->
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+                            <h3 class="font-semibold text-gray-500 dark:text-gray-400">Workouts This Week</h3>
+                            <div id="week-stats" class="mt-2"></div>
+                        </div>
+
+                        <!-- Weekly Volume Card -->
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+                            <h3 class="font-semibold text-gray-500 dark:text-gray-400">Total Volume This Week</h3>
+                            <div id="week-volume" class="mt-2"></div>
+                        </div>
+
+                        <!-- Insights Card -->
+                        <div class="md:col-span-2 lg:col-span-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 rounded-xl shadow-lg">
+                            <h3 class="font-bold text-lg mb-2">Your Weekly Insight</h3>
+                            <p id="weekly-insight" class="text-blue-100">Loading your personalized remarks...</p>
+                        </div>
+                    </div>
+
+                    <!-- Charts and Recent Workouts -->
+                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <div class="lg:col-span-3 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><canvas id="workout-chart"></canvas></div>
+                        <div id="daily-volume-container" class="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+                            <h3 class="text-lg font-semibold mb-4 dark:text-gray-200">Daily Volume (kgs)</h3>
+                            <canvas id="volume-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exercise Library Page -->
+                <div id="page-exercises" class="page-content hidden">
+                    <div class="mb-6">
+                        <h2 class="text-2xl md:text-3xl font-bold dark:text-gray-100">Exercise Library</h2>
+                        <p class="text-gray-500 dark:text-gray-400">Browse, search, and manage your exercises.</p>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 md:p-6 mb-6">
+                        <div class="flex flex-col md:flex-row gap-4">
+                            <input type="text" id="exercise-search" placeholder="Search exercises by name..."
+                                   class="flex-grow p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200 dark:placeholder-gray-400"
+                                   oninput="exerciseManager.filterExercises()">
+                            <button onclick="exerciseManager.showAddModal()" class="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-blue-700 whitespace-nowrap">+ Add Custom</button>
+                        </div>
+                        <div id="exercise-categories" class="flex flex-nowrap gap-2 mt-4 overflow-x-auto no-scrollbar pb-2">
+                            <button onclick="exerciseManager.filterByCategory(event, 'Abs')" class="category-filter px-3 py-1.5 text-sm font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Abs</button>
+                            <button onclick="exerciseManager.filterByCategory(event, 'Back')" class="category-filter px-3 py-1.5 text-sm font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Back</button>
+                            <button onclick="exerciseManager.filterByCategory(event, 'Biceps')" class="category-filter px-3 py-1.5 text-sm font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Biceps</button>
+                            <button onclick="exerciseManager.filterByCategory(event, 'Cardio')" class="category-filter px-3 py-1.5 text-sm font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Cardio</button>
+                            <button onclick="exerciseManager.filterByCategory(event, 'Chest')" class="category-filter px-3 py-1.5 text-sm font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Chest</button>
+                            <button onclick="exerciseManager.filterByCategory(event, 'Flexibility')" class="category-filter px-3 py-1.5 text-sm font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Flexibility</button>
+                            <button onclick="exerciseManager.filterByCategory(event, 'Lats')" class="category-filter px-3 py-1.5 text-sm font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Lats</button>
+                            <button onclick="exerciseManager.filterByCategory(event, 'Legs')" class="category-filter px-3 py-1.5 text-sm font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Legs</button>
+                            <button onclick="exerciseManager.filterByCategory(event, 'Shoulders')" class="category-filter px-3 py-1.5 text-sm font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Shoulders</button>
+                            <button onclick="exerciseManager.filterByCategory(event, 'Strength')" class="category-filter px-3 py-1.5 text-sm font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Strength</button>
+                            <button onclick="exerciseManager.filterByCategory(event, 'Traps')" class="category-filter px-3 py-1.5 text-sm font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Traps</button>
+                            <button onclick="exerciseManager.filterByCategory(event, 'Triceps')" class="category-filter px-3 py-1.5 text-sm font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Triceps</button>
+                        </div>
+                    </div>
+
+                    <div id="exercise-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                </div>
+
+                <!-- Workout Entry Page -->
+                <div id="page-workout" class="page-content hidden">
+                    <!-- Header with Date -->
+                    <div class="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold dark:text-gray-100">Log Workout</h2>
+                            <p class="text-gray-500 dark:text-gray-400">Log or edit a workout for a specific day.</p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <label for="workout-date" class="sr-only">Date</label>
+                            <input type="date" id="workout-date" onchange="workoutLogger.loadWorkoutForDate()" class="w-full md:w-auto p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:[color-scheme:dark]">
+                        </div>
+                    </div>
+
+                    <!-- Main Content Card -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+                        <div id="workout-exercises" class="space-y-4 mb-6">
+                            <!-- Exercises will be dynamically inserted here -->
+                        </div>
+
+                        <button onclick="workoutLogger.showExerciseSelector()" class="w-full flex items-center justify-center gap-2 bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 mb-4">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                            Add Exercise
+                        </button>
+                        <button onclick="workoutLogger.saveWorkout()" id="save-workout-btn" class="w-full bg-green-600 text-white p-4 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                            Save Workout
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Calendar Page -->
+                <div id="page-calendar" class="page-content hidden">
+                    <div class="mb-6">
+                        <h2 class="text-2xl md:text-3xl font-bold dark:text-gray-100">Calendar</h2>
+                        <p class="text-gray-500 dark:text-gray-400">Review your past Activities.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Calendar View -->
+                        <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 md:p-6">
+                            <div class="flex justify-between items-center mb-4 md:mb-6">
+                                <button onclick="calendar.prevMonth()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    <svg class="w-6 h-6 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                                </button>
+                                <h3 id="calendar-month" class="text-xl font-bold dark:text-gray-200"></h3>
+                                <button onclick="calendar.nextMonth()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    <svg class="w-6 h-6 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                </button>
+                            </div>
+                            
+                            <div class="calendar-grid text-center text-xs md:text-sm mb-2 md:mb-3">
+                                <div class="font-bold text-red-500 dark:text-red-400">Sun</div>
+                                <div class="font-semibold text-gray-600 dark:text-gray-400">Mon</div>
+                                <div class="font-semibold text-gray-600 dark:text-gray-400">Tue</div>
+                                <div class="font-semibold text-gray-600 dark:text-gray-400">Wed</div>
+                                <div class="font-semibold text-gray-600 dark:text-gray-400">Thu</div>
+                                <div class="font-semibold text-gray-600 dark:text-gray-400">Fri</div>
+                                <div class="font-semibold text-gray-600 dark:text-gray-400">Sat</div>
+                            </div>
+                            
+                            <div id="calendar-days" class="calendar-grid"></div>
+                        </div>
+
+                        <!-- Workout Detail View -->
+                        <div id="calendar-workout-detail" class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 md:p-6 lg:col-span-1">
+                            <!-- Details will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add Custom Exercise Modal -->
+    <div id="add-exercise-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold dark:text-gray-100">Add Custom Exercise</h3>
+                    <button onclick="exerciseManager.closeAddModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl">
+                        ×
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold mb-2 dark:text-gray-300">Exercise Name</label>
+                        <input type="text" id="new-exercise-name" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200 dark:placeholder-gray-400" placeholder="e.g., Bicep Curls">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold mb-2 dark:text-gray-300">Category</label>
+                        <select id="new-exercise-category" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200">
+                            <option value="strength">Strength</option>
+                            <option value="cardio">Cardio</option>
+                            <option value="flexibility">Flexibility</option>
+                            <option value="chest">Chest</option>
+                            <option value="back">Back</option>
+                            <option value="biceps">Biceps</option>
+                            <option value="triceps">Triceps</option>
+                            <option value="shoulders">Shoulders</option>
+                            <option value="legs">Legs</option>
+                            <option value="abs">Abs</option>
+                            <option value="lats">Lats</option>
+                            <option value="traps">Traps</option>
+                        </select>
+                    </div>
+                    
+                    <div class="dark:text-gray-300">
+                        <label class="block text-sm font-semibold mb-2">Tracking Fields</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center">
+                                <input type="checkbox" id="field-reps" class="mr-2" checked>
+                                Reps
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" id="field-sets" class="mr-2" checked>
+                                Sets
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" id="field-duration" class="mr-2">
+                                Duration
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" id="field-weight" class="mr-2">
+                                Weight
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button onclick="exerciseManager.addCustomExercise()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700">
+                        Add Exercise
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exercise Selector Modal -->
+    <div id="exercise-selector-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold dark:text-gray-100">Select Exercise</h3>
+                    <button onclick="workoutLogger.closeExerciseSelector()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl">
+                        ×
+                    </button>
+                </div>
+                
+                <input type="text" id="selector-search" placeholder="Search..." 
+                       class="w-full p-3 border dark:border-gray-600 rounded-lg mb-4 bg-transparent dark:text-gray-200 dark:placeholder-gray-400"
+                       oninput="workoutLogger.filterSelectorExercises()">
+                
+                <div id="selector-exercise-list" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exercise Details Modal -->
+    <div id="exercise-details-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 id="detail-exercise-name" class="text-xl font-bold dark:text-gray-100"></h3>
+                    <button onclick="workoutLogger.closeExerciseDetails()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl">
+                        ×
+                    </button>
+                </div>
+                
+                <div id="exercise-detail-inputs" class="space-y-4 mb-4"></div>
+                
+                <button onclick="workoutLogger.addExerciseToWorkout()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700">
+                    Add to Workout
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert/Confirm Modal -->
+    <div id="custom-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full">
+            <div class="p-6 text-center">
+                <h3 id="modal-title" class="text-xl font-bold dark:text-gray-100 mb-2"></h3>
+                <p id="modal-message" class="text-gray-600 dark:text-gray-400 mb-6"></p>
+                <div id="modal-input-container" class="hidden mb-4">
+                    <input type="text" id="modal-input" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200 dark:placeholder-gray-400" placeholder="Optional reason">
+                </div>
+                <div id="modal-buttons" class="flex justify-center gap-4">
+                    <!-- Buttons will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Firebase SDK -->
+    <script src="firebase-config.js"></script>
+    <script src="exercises-db.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, deleteDoc, addDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration - REPLACE WITH YOUR CONFIG
+        // This is now loaded from firebase-config.js
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const authInstance = getAuth(app);
+        const db = getFirestore(app);
+
+        // Make Firebase available globally
+        window.firebase = {
+            auth: authInstance,
+            db: db,
+            authMethods: { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup },
+            firestoreMethods: { collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, deleteDoc, addDoc }
+        };
+
+        // Global state
+        window.appState = {
+            currentUser: null,
+            apiExercises: [], // Cache for API exercises
+            customExercises: [],
+            allExercises: [],
+            currentWorkout: [],
+            selectedExercise: null,
+            workouts: {},
+            currentCalendarMonth: new Date(),
+            isEditing: false
+        };
+
+        // UI Module for custom modals
+        window.ui = {
+            showConfirm({ title, message, onConfirm, confirmText = 'Confirm', cancelText = 'Cancel', confirmClass = 'bg-red-600 hover:bg-red-700', inputOptions = null }) {
+                document.getElementById('modal-title').textContent = title;
+                document.getElementById('modal-message').textContent = message;
+
+                const inputContainer = document.getElementById('modal-input-container');
+                const modalInput = document.getElementById('modal-input');
+
+                if (inputOptions) {
+                    inputContainer.classList.remove('hidden');
+                    modalInput.type = inputOptions.type || 'text';
+                    modalInput.placeholder = inputOptions.placeholder || '';
+                    modalInput.value = inputOptions.defaultValue || '';
+                } else {
+                    inputContainer.classList.add('hidden');
+                    modalInput.value = ''; // Clear previous value
+                }
+                const buttonsDiv = document.getElementById('modal-buttons');
+                buttonsDiv.innerHTML = `
+                    <button id="modal-cancel-btn" class="px-6 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">${cancelText}</button>
+                    <button id="modal-confirm-btn" class="px-6 py-2 text-white rounded-lg ${confirmClass}">${confirmText}</button>
+                `;
+
+                document.getElementById('custom-modal').classList.remove('hidden');
+
+                document.getElementById('modal-confirm-btn').onclick = () => { // Pass input value to onConfirm
+                    const inputValue = inputOptions ? modalInput.value.trim() : null;
+                    this.hideModal();
+                    if (onConfirm) onConfirm(inputValue);
+                };
+                document.getElementById('modal-cancel-btn').onclick = () => this.hideModal();
+            },
+
+            showAlert({ title, message, onOk, okText = 'OK' }) {
+                document.getElementById('modal-title').textContent = title;
+                document.getElementById('modal-message').textContent = message;
+
+                const buttonsDiv = document.getElementById('modal-buttons');
+                buttonsDiv.innerHTML = `
+                    <button id="modal-ok-btn" class="px-8 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">${okText}</button>
+                `;
+
+                document.getElementById('custom-modal').classList.remove('hidden');
+
+                document.getElementById('modal-ok-btn').onclick = () => {
+                    this.hideModal();
+                    if (onOk) onOk();
+                };
+            },
+
+            showError({ title = 'Error', message }) {
+                this.showAlert({
+                    title: title,
+                    message: message,
+                    okText: 'Close'
+                });
+            },
+
+            hideModal() {
+                document.getElementById('custom-modal').classList.add('hidden');
+                document.getElementById('modal-title').textContent = '';
+                document.getElementById('modal-message').textContent = '';
+                document.getElementById('modal-buttons').innerHTML = '';
+                document.getElementById('modal-input-container').classList.add('hidden'); // Hide input
+                document.getElementById('modal-input').value = ''; // Clear input value
+            }
+        };
+
+        // Authentication module
+        window.auth = {
+            showLogin() {
+                document.getElementById('login-form').classList.remove('hidden');
+                document.getElementById('signup-form').classList.add('hidden');
+                document.getElementById('auth-error').classList.add('hidden');
+            },
+
+            showSignup() {
+                document.getElementById('login-form').classList.add('hidden');
+                document.getElementById('signup-form').classList.remove('hidden');
+                document.getElementById('auth-error').classList.add('hidden');
+            },
+
+            showError(message) {
+                const errorDiv = document.getElementById('auth-error');
+                errorDiv.textContent = message;
+                errorDiv.classList.remove('hidden');
+            },
+
+            async login() {
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+
+                if (!email || !password) {
+                    this.showError('Please enter email and password');
+                    return;
+                }
+
+                try {
+                    await window.firebase.authMethods.signInWithEmailAndPassword(
+                        window.firebase.auth, email, password
+                    );
+                } catch (error) {
+                    this.showError(error.message);
+                }
+            },
+
+            async signup() {
+                const email = document.getElementById('signup-email').value;
+                const password = document.getElementById('signup-password').value;
+
+                if (!email || !password) {
+                    this.showError('Please enter email and password');
+                    return;
+                }
+
+                if (password.length < 6) {
+                    this.showError('Password must be at least 6 characters');
+                    return;
+                }
+
+                try {
+                    await window.firebase.authMethods.createUserWithEmailAndPassword(
+                        window.firebase.auth, email, password
+                    );
+                } catch (error) {
+                    this.showError(error.message);
+                }
+            },
+
+            async signInWithGoogle() {
+                const provider = new window.firebase.authMethods.GoogleAuthProvider();
+                try {
+                    await window.firebase.authMethods.signInWithPopup(window.firebase.auth, provider);
+                } catch (error) {
+                    this.showError(error.message);
+                    console.error('Google sign-in error:', error);
+                }
+            },
+
+            async logout() {
+                try {
+                    await window.firebase.authMethods.signOut(window.firebase.auth);
+                } catch (error) {
+                    console.error('Logout error:', error);
+                }
+            }
+        };
+
+        // Navigation module
+        window.navigation = {
+            showPage(pageName, fromMobile = false) {
+                // Hide all pages
+                document.querySelectorAll('.page-content').forEach(page => {
+                    page.classList.add('hidden');
+                });
+
+                // Show selected page
+                document.getElementById(`page-${pageName}`).classList.remove('hidden');
+
+                // Update nav buttons
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    if (btn.dataset.page === pageName) {
+                        btn.classList.add('border-blue-600', 'dark:border-blue-400', 'text-blue-600', 'dark:text-blue-400');
+                        btn.classList.remove('border-transparent', 'text-gray-600', 'dark:text-gray-300');
+                    } else {
+                        btn.classList.remove('border-blue-600', 'dark:border-blue-400', 'text-blue-600', 'dark:text-blue-400');
+                        btn.classList.add('border-transparent', 'text-gray-600', 'dark:text-gray-300');
+                    }
+                });
+
+                // Load page-specific data
+                if (pageName === 'dashboard') dashboard.load();
+                if (pageName === 'exercises') exerciseManager.load();
+                if (pageName === 'workout') workoutLogger.load();
+                if (pageName === 'calendar') calendar.load();
+
+                // Close mobile menu if a link is clicked from it
+                if (fromMobile) {
+                    this.closeMobileMenu();
+                }
+            },
+
+            toggleMobileMenu() {
+                document.getElementById('mobile-menu').classList.toggle('hidden');
+            },
+
+            closeMobileMenu() {
+                document.getElementById('mobile-menu').classList.add('hidden');
+            }
+        };
+
+        // Exercise Manager module
+        window.exerciseManager = {
+            currentFilter: null,
+            apiDataLoaded: false, // Flag to check if API data has been fetched
+
+            async load() {
+                // Fetch from API only once
+                if (!this.apiDataLoaded) {
+                    await this.loadApiExercises();
+                }
+                await this.loadCustomExercises();
+                this.updateExerciseList();
+            },
+
+            async loadApiExercises() {
+                const listDiv = document.getElementById('exercise-list');
+                listDiv.innerHTML = `
+                    <div class="lg:col-span-3 text-center py-16">
+                        <div class="spinner mx-auto"></div>
+                        <p class="mt-4 text-gray-500 dark:text-gray-400">Loading exercise library...</p>
+                    </div>
+                `;
+
+                // Use a timeout to allow the UI to update with the loading spinner
+                await new Promise(resolve => setTimeout(resolve, 50));
+
+                try {
+                    // The freeExercises data is loaded from exercises-db.js
+                    if (window.freeExercises && window.freeExercises.length > 0) {
+                        // Transform API data to match your app's format
+                        window.appState.apiExercises = window.freeExercises.map(ex => ({
+                            name: ex.name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), // Capitalize name
+                            category: ex.bodyPart,
+                            fields: ['reps', 'sets', 'weight'] // Default fields for API exercises
+                        }));
+                        this.apiDataLoaded = true; // Mark as loaded
+                    } else {
+                        throw new Error("Exercise database not found or is empty.");
+                    }
+                } catch (error) {
+                    console.error('Error loading exercises from local DB:', error);
+                    listDiv.innerHTML = `<div class="lg:col-span-3 text-center py-16 text-red-500">Failed to load exercise library.</div>`;
+                }
+            },
+
+            async loadCustomExercises() {
+                const userId = window.appState.currentUser.uid;
+                const exercisesRef = window.firebase.firestoreMethods.collection(
+                    window.firebase.db, `users/${userId}/exercises`
+                );
+                const snapshot = await window.firebase.firestoreMethods.getDocs(exercisesRef);
+                
+                window.appState.customExercises = [];
+                snapshot.forEach(doc => {
+                    window.appState.customExercises.push({ id: doc.id, ...doc.data(), isCustom: true });
+                });
+
+                // Combine predefined and custom exercises
+                window.appState.allExercises = [ // Use apiExercises instead of predefinedExercises
+                    ...window.appState.apiExercises,
+                    ...window.appState.customExercises
+                ];
+            },
+
+            filterByCategory(event, category) {
+                this.currentFilter = category;
+                
+                // Update button styles
+                document.querySelectorAll('.category-filter').forEach(btn => {
+                    btn.classList.remove('bg-blue-600', 'text-white', 'dark:bg-blue-500');
+                    btn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+                });
+                event.target.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+                event.target.classList.add('bg-blue-600', 'text-white');
+
+                this.updateExerciseList();
+            },
+
+            filterExercises() {
+                this.updateExerciseList();
+            },
+
+            updateExerciseList() {
+                const searchTerm = document.getElementById('exercise-search').value.toLowerCase();
+                const listDiv = document.getElementById('exercise-list');
+                listDiv.innerHTML = '';
+
+                let exercises = window.appState.allExercises;
+                
+                if (this.currentFilter) {
+                    exercises = exercises.filter(ex => ex.category.toLowerCase() === this.currentFilter.toLowerCase());
+                }
+
+                if (!searchTerm && !this.currentFilter) {
+                    listDiv.innerHTML = `
+                        <div class="lg:col-span-3 text-center py-16 border-2 border-dashed dark:border-gray-700 rounded-lg">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <h3 class="mt-2 text-lg font-semibold text-gray-900 dark:text-gray-100">Find an Exercise</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Use the search bar or select a category to find an exercise.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                if (searchTerm) {
+                    exercises = exercises.filter(ex => 
+                        ex.name.toLowerCase().includes(searchTerm)
+                    );
+                }
+                
+                // Limit results to prevent crashing the browser with too many elements
+                const exercisesToShow = exercises.slice(0, 100);
+
+                if (exercises.length === 0) {
+                    listDiv.innerHTML = `
+                        <div class="lg:col-span-3 text-center py-16 border-2 border-dashed dark:border-gray-700 rounded-lg">
+                             <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">No Exercises Found</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Try adjusting your search or filter.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                exercisesToShow.forEach(exercise => {
+                    const div = document.createElement('div');
+                    div.className = 'bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg flex flex-col justify-between';
+                    div.innerHTML = `
+                        <div>
+                            <div class="flex justify-between items-start">
+                                <h4 class="font-bold text-lg dark:text-gray-200">${exercise.name}</h4>
+                                ${exercise.isCustom ? '<span title="Custom Exercise" class="text-blue-500"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.27 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path></svg></span>' : ''}
+                            </div>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 capitalize">${exercise.category}</p>
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-4 border-t dark:border-gray-700 pt-2">
+                            Tracks: ${exercise.fields.join(', ')}
+                        </div>
+                    `;
+                    listDiv.appendChild(div);
+                });
+
+                if (exercises.length > 100) {
+                    const moreResultsDiv = document.createElement('div');
+                    moreResultsDiv.className = 'lg:col-span-3 text-center text-sm text-gray-500 dark:text-gray-400 mt-4';
+                    moreResultsDiv.textContent = `Showing 100 of ${exercises.length} results. Keep typing to refine your search.`;
+                    listDiv.appendChild(moreResultsDiv);
+                }
+            },
+
+            showAddModal() {
+                document.getElementById('add-exercise-modal').classList.remove('hidden');
+            },
+
+            closeAddModal() {
+                document.getElementById('add-exercise-modal').classList.add('hidden');
+                // Reset form
+                document.getElementById('new-exercise-name').value = '';
+                document.getElementById('new-exercise-category').value = 'strength';
+                document.getElementById('field-reps').checked = true;
+                document.getElementById('field-sets').checked = true;
+                document.getElementById('field-duration').checked = false;
+                document.getElementById('field-weight').checked = false;
+            },
+
+            async addCustomExercise() {
+                const name = document.getElementById('new-exercise-name').value.trim();
+                const category = document.getElementById('new-exercise-category').value;
+                
+                const fields = [];
+                if (document.getElementById('field-reps').checked) fields.push('reps');
+                if (document.getElementById('field-sets').checked) fields.push('sets');
+                if (document.getElementById('field-duration').checked) fields.push('duration');
+                if (document.getElementById('field-weight').checked) fields.push('weight');
+
+                if (!name) {
+                    ui.showAlert({ title: 'Missing Name', message: 'Please enter an exercise name.' });
+                    return;
+                }
+
+                if (fields.length === 0) {
+                    ui.showAlert({ title: 'Missing Fields', message: 'Please select at least one tracking field.' });
+                    return;
+                }
+
+                try {
+                    const userId = window.appState.currentUser.uid;
+                    const exercisesRef = window.firebase.firestoreMethods.collection(
+                        window.firebase.db, `users/${userId}/exercises`
+                    );
+                    
+                    await window.firebase.firestoreMethods.addDoc(exercisesRef, {
+                        name,
+                        category,
+                        fields
+                    });
+
+                    this.closeAddModal();
+                    await this.load();
+                    ui.showAlert({ title: 'Success', message: 'Your custom exercise has been added!' });
+                } catch (error) {
+                    console.error('Error adding exercise:', error);
+                    ui.showError({ message: 'Failed to add the exercise. Please try again.' });
+                }
+            }
+        };
+
+        // Workout Logger module
+        window.workoutLogger = {
+            async load() {
+                // Load all workouts into memory so we can check them
+                await calendar.loadWorkouts();
+
+                // Only reset the form if we are NOT in an editing session.
+                if (!window.appState.isEditing) {
+                    const dateInput = document.getElementById('workout-date');
+                    // If the date input is empty, set it to today
+                    if (!dateInput.value) {
+                        const today = new Date().toISOString().split('T')[0];
+                        document.getElementById('workout-date').value = today;
+                    }
+                    // Load data for the currently selected date
+                    this.loadWorkoutForDate();
+                } else {
+                    // If we are editing, the data is already loaded. Just display it.
+                    this.updateWorkoutDisplay();
+                }
+            },
+
+            loadWorkoutForDate() {
+                const dateInput = document.getElementById('workout-date');
+                const date = dateInput.value;
+
+                const existingWorkout = window.appState.workouts[date];
+
+                if (existingWorkout && !existingWorkout.isRestDay) {
+                    window.appState.currentWorkout = [...existingWorkout.exercises];
+                    window.appState.isEditing = true;
+                } else {
+                    window.appState.currentWorkout = [];
+                    window.appState.isEditing = false;
+                }
+                this.updateWorkoutDisplay();
+            },
+
+            showExerciseSelector() {
+                document.getElementById('exercise-selector-modal').classList.remove('hidden');
+                this.updateSelectorList();
+            },
+
+            closeExerciseSelector() {
+                document.getElementById('exercise-selector-modal').classList.add('hidden');
+            },
+
+            filterSelectorExercises() {
+                this.updateSelectorList();
+            },
+
+            updateSelectorList() {
+                const searchTerm = document.getElementById('selector-search').value.toLowerCase();
+                const listDiv = document.getElementById('selector-exercise-list');
+                
+                let exercises = window.appState.allExercises.filter(ex => 
+                    ex.name.toLowerCase().includes(searchTerm)
+                );
+
+                listDiv.innerHTML = '';
+                exercises.forEach(exercise => {
+                    const div = document.createElement('div');
+                    div.className = 'bg-gray-50 dark:bg-gray-700 p-3 rounded-lg cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600';
+                    div.innerHTML = `
+                        <h4 class="font-semibold dark:text-gray-200">${exercise.name}</h4>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 capitalize">${exercise.category}</p>
+                    `;
+                    div.onclick = () => this.selectExercise(exercise);
+                    listDiv.appendChild(div);
+                });
+            },
+
+            selectExercise(exercise) {
+                window.appState.selectedExercise = exercise;
+                this.closeExerciseSelector();
+                this.showExerciseDetails();
+            },
+
+            showExerciseDetails() {
+                const exercise = window.appState.selectedExercise;
+                document.getElementById('detail-exercise-name').textContent = exercise.name;
+                
+                const inputsDiv = document.getElementById('exercise-detail-inputs');
+                inputsDiv.innerHTML = '';
+
+                // Create inputs based on exercise fields
+                if (exercise.fields.includes('reps')) {
+                    inputsDiv.innerHTML += `
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 dark:text-gray-300">Reps</label>
+                            <input type="number" id="input-reps" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200" min="0">
+                        </div>
+                    `;
+                }
+
+                if (exercise.fields.includes('sets')) {
+                    inputsDiv.innerHTML += `
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 dark:text-gray-300">Sets</label>
+                            <input type="number" id="input-sets" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200" min="0">
+                        </div>
+                    `;
+                }
+
+                if (exercise.fields.includes('duration')) {
+                    inputsDiv.innerHTML += `
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 dark:text-gray-300">Duration (minutes)</label>
+                            <input type="number" id="input-duration" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200" min="0" step="0.5">
+                        </div>
+                    `;
+                }
+
+                if (exercise.fields.includes('weight')) {
+                    inputsDiv.innerHTML += `
+                        <div>
+                            <label class="block text-sm font-semibold mb-2 dark:text-gray-300">Weight (kgs)</label>
+                            <input type="number" id="input-weight" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200" min="0" step="0.5">
+                        </div>
+                    `;
+                }
+
+                inputsDiv.innerHTML += `
+                    <div>
+                        <label class="block text-sm font-semibold mb-2 dark:text-gray-300">Notes (optional)</label>
+                        <textarea id="input-notes" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200" rows="3"></textarea>
+                    </div>
+                `;
+
+                document.getElementById('exercise-details-modal').classList.remove('hidden');
+            },
+
+            closeExerciseDetails() {
+                document.getElementById('exercise-details-modal').classList.add('hidden');
+            },
+
+            addExerciseToWorkout() {
+                const exercise = window.appState.selectedExercise;
+                const newWorkoutExercise = {
+                    name: exercise.name,
+                    category: exercise.category
+                };
+
+                // Gather input values
+                if (exercise.fields.includes('reps')) {
+                    newWorkoutExercise.reps = document.getElementById('input-reps').value || '0';
+                }
+                if (exercise.fields.includes('sets')) {
+                    newWorkoutExercise.sets = document.getElementById('input-sets').value || '1';
+                }
+                if (exercise.fields.includes('duration')) {
+                    newWorkoutExercise.duration = document.getElementById('input-duration').value || '0';
+                }
+                if (exercise.fields.includes('weight')) {
+                    newWorkoutExercise.weight = document.getElementById('input-weight').value || '0';
+                }
+                
+                const notes = document.getElementById('input-notes').value.trim();
+                if (notes) {
+                    newWorkoutExercise.notes = notes;
+                }
+
+                // Check if an identical exercise already exists to combine them
+                const existingExerciseIndex = window.appState.currentWorkout.findIndex(ex => {
+                    return ex.name === newWorkoutExercise.name &&
+                           (ex.reps || '0') === (newWorkoutExercise.reps || '0') &&
+                           (ex.weight || '0') === (newWorkoutExercise.weight || '0') &&
+                           (ex.duration || '0') === (newWorkoutExercise.duration || '0') &&
+                           (ex.notes || '') === (newWorkoutExercise.notes || '');
+                });
+
+                if (existingExerciseIndex > -1) {
+                    // Found an identical exercise, so just increment the sets
+                    const existingExercise = window.appState.currentWorkout[existingExerciseIndex];
+                    const currentSets = parseInt(existingExercise.sets || '0');
+                    const setsToAdd = parseInt(newWorkoutExercise.sets || '1');
+                    existingExercise.sets = (currentSets + setsToAdd).toString();
+                } else {
+                    // It's a new exercise, so add it to the workout
+                    window.appState.currentWorkout.push(newWorkoutExercise);
+                }
+
+                this.closeExerciseDetails();
+                this.updateWorkoutDisplay();
+            },
+
+            updateWorkoutDisplay() {
+                const div = document.getElementById('workout-exercises');
+                const saveBtn = document.getElementById('save-workout-btn');
+
+                if (window.appState.currentWorkout.length === 0) {
+                    div.innerHTML = `
+                        <div class="text-center py-8 border-2 border-dashed dark:border-gray-600 rounded-lg">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            <h3 class="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100">No exercises added</h3>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding an exercise to your workout.</p>
+                        </div>
+                    `;
+                    saveBtn.disabled = true;
+                    saveBtn.classList.add('hidden'); // Hide save button when no exercises
+                    return;
+                }
+
+                saveBtn.disabled = false;
+                saveBtn.classList.remove('hidden'); // Show save button
+                div.innerHTML = '';
+
+                window.appState.currentWorkout.forEach((exercise, index) => {
+                    const exerciseDiv = document.createElement('div');
+                    exerciseDiv.className = 'bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg';
+
+                    let detailsHTML = '<div class="text-sm text-gray-600 dark:text-gray-400 mt-2">';
+                    if (exercise.reps) detailsHTML += `<span class="mr-3">Reps: ${exercise.reps}</span>`;
+                    if (exercise.sets) detailsHTML += `<span class="mr-3">Sets: ${exercise.sets}</span>`;
+                    if (exercise.duration) detailsHTML += `<span class="mr-3">Duration: ${exercise.duration} min</span>`;
+                    if (exercise.weight) detailsHTML += `<span class="mr-3">Weight: ${exercise.weight}</span>`;
+                    detailsHTML += '</div>';
+
+                    if (exercise.notes) {
+                        detailsHTML += `<p class="text-sm text-gray-500 dark:text-gray-400 mt-2 italic">${exercise.notes}</p>`;
+                    }
+
+                    exerciseDiv.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <h4 class="font-semibold dark:text-gray-200">${exercise.name}</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 capitalize">${exercise.category}</p>
+                                ${detailsHTML}
+                            </div>
+                            <button onclick="workoutLogger.removeExercise(${index})" class="text-red-500 hover:text-red-600 ml-2 p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                    div.appendChild(exerciseDiv);
+                });
+
+                // Show editing indicator if editing
+                if (window.appState.isEditing) {
+                    const editIndicator = document.createElement('div');
+                    editIndicator.className = 'bg-yellow-100 dark:bg-yellow-900/50 border border-yellow-300 dark:border-yellow-700 rounded-lg p-3 mt-4';
+                    editIndicator.innerHTML = `
+                        <p class="text-yellow-800 dark:text-yellow-200 text-sm font-semibold">Editing existing workout</p>
+                        <p class="text-yellow-700 dark:text-yellow-300 text-xs">Changes will update the existing workout for this date</p>
+                    `;
+                    div.appendChild(editIndicator);
+                }
+            },
+
+            removeExercise(index) {
+                window.appState.currentWorkout.splice(index, 1);
+                this.updateWorkoutDisplay();
+            },
+
+            async saveWorkout() {
+                const date = document.getElementById('workout-date').value;
+                
+                if (!date) {
+                    ui.showAlert({ title: 'No Date Selected', message: 'Please select a date for your workout.' });
+                    return;
+                }
+
+                if (window.appState.currentWorkout.length === 0) {
+                    ui.showAlert({ title: 'Empty Workout', message: 'Please add at least one exercise before saving.' });
+                    return;
+                }
+
+                try {
+                    const userId = window.appState.currentUser.uid;
+                    const workoutRef = window.firebase.firestoreMethods.doc(
+                        window.firebase.db, `users/${userId}/workouts/${date}`
+                    );
+
+                    await window.firebase.firestoreMethods.setDoc(workoutRef, {
+                        date: date,
+                        createdAt: new Date().toISOString(),
+                        exercises: window.appState.currentWorkout
+                    });
+
+                    ui.showAlert({
+                        title: 'Workout Saved!',
+                        message: 'Your workout has been successfully logged.',
+                        onOk: () => {
+                            this.load();
+                            window.appState.isEditing = false; // IMPORTANT: Reset editing state after saving
+                            navigation.showPage('dashboard');
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error saving workout:', error);
+                    ui.showError({ message: 'Failed to save the workout. Please try again.' });
+                }
+            }
+        };
+
+        // Dashboard module
+        window.dashboard = {
+            chartInstance: null,
+            todayIntensityChart: null,
+            volumeChartInstance: null,
+            async load() {
+                await this.loadTodayWorkout();
+                await this.loadWeekStats();
+                await this.loadCharts();
+            },
+            async loadTodayWorkout() {
+                const today = new Date().toISOString().split('T')[0];
+                const userId = window.appState.currentUser.uid;
+                const workoutRef = window.firebase.firestoreMethods.doc(
+                    window.firebase.db, `users/${userId}/workouts/${today}`
+                );
+
+                try {
+                    const docSnap = await window.firebase.firestoreMethods.getDoc(workoutRef);
+                    const statusDiv = document.getElementById('today-workout-status');
+
+                    if (docSnap.exists()) {
+                        const workout = docSnap.data();
+                        const exerciseCount = workout.exercises ? workout.exercises.length : 0;
+                        statusDiv.innerHTML = `
+                            <h3 class="font-semibold text-gray-500 dark:text-gray-400">Today's Workout</h3>
+                            <p class="text-2xl font-bold text-green-500 mt-2">Completed!</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${exerciseCount} exercises logged.</p>
+                        `;
+                    } else {
+                        statusDiv.innerHTML = `
+                            <p class="text-gray-500 dark:text-gray-400">No workout logged for today yet. Let's get it!</p>
+                            <button onclick="navigation.showPage('workout')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+                                Log Workout
+                            </button>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('Error loading today workout:', error);
+                }
+            },
+            async loadWeekStats() {
+                const userId = window.appState.currentUser.uid;
+                const { collection, getDocs } = window.firebase.firestoreMethods;
+
+                const workoutsRef = collection(
+                    window.firebase.db, `users/${userId}/workouts`
+                );
+
+                try {
+                    const snapshot = await window.firebase.firestoreMethods.getDocs(workoutsRef);
+                    
+                    // Get current week dates
+                    const now = new Date();
+                    const weekStart = new Date(now);
+                    weekStart.setDate(now.getDate() - now.getDay());
+                    weekStart.setHours(0, 0, 0, 0);
+
+                    const lastWeekStart = new Date(weekStart);
+                    lastWeekStart.setDate(weekStart.getDate() - 7);
+
+                    let weekCount = 0;
+                    let lastWeekCount = 0;
+                    let totalVolume = 0;
+                    let categoryCounts = {};
+
+                    snapshot.forEach(doc => {
+                        const workoutDate = new Date(doc.id + 'T00:00:00');
+                        const workout = doc.data();
+
+                        if (workoutDate >= weekStart) {
+                            if (!workout.isRestDay) {
+                                weekCount++;
+                                // Calculate volume and categories
+                                workout.exercises.forEach(ex => {
+                                    totalVolume += (parseFloat(ex.sets) || 0) * (parseFloat(ex.reps) || 0) * (parseFloat(ex.weight) || 0);
+                                    categoryCounts[ex.category] = (categoryCounts[ex.category] || 0) + 1;
+                                });
+                            }
+                        } else if (workoutDate >= lastWeekStart) {
+                            if (!workout.isRestDay) lastWeekCount++;
+                        }
+                    });
+
+                    document.getElementById('week-stats').innerHTML = `
+                        <p class="text-4xl font-bold text-blue-600 dark:text-blue-400">${weekCount}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">sessions</p>
+                    `;
+
+                    document.getElementById('week-volume').innerHTML = `
+                        <p class="text-4xl font-bold text-blue-600 dark:text-blue-400">${Math.round(totalVolume).toLocaleString()}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">kgs lifted</p>
+                    `;
+
+                    this.generateInsights(weekCount, lastWeekCount, categoryCounts);
+
+                } catch (error) {
+                    console.error('Error loading week stats:', error);
+                }
+            },
+
+            generateInsights(current, previous, categories) {
+                let insight = '';
+                if (current > previous) {
+                    insight = `Great job! You've completed ${current - previous} more workout(s) than last week. Keep up the momentum!`;
+                } else if (current > 0 && current === previous) {
+                    insight = `Excellent consistency! You've matched last week's ${current} workouts.`;
+                } else if (current > 0) {
+                    insight = `You've logged ${current} workout(s) this week. Stay consistent to reach your goals!`;
+                } else {
+                    insight = "It's a new week! Time to plan your workouts and start strong.";
+                }
+                document.getElementById('weekly-insight').textContent = insight;
+            },
+
+            async loadCharts() {
+                const userId = window.appState.currentUser.uid;
+                const workoutsRef = window.firebase.firestoreMethods.collection(
+                    window.firebase.db, `users/${userId}/workouts`
+                );
+
+                try {
+                    const snapshot = await window.firebase.firestoreMethods.getDocs(workoutsRef);
+                    
+                    const now = new Date();
+                    const weekStart = new Date(now);
+                    weekStart.setDate(now.getDate() - now.getDay()); // Sunday
+                    weekStart.setHours(0, 0, 0, 0);
+
+                    const weekEnd = new Date(weekStart);
+                    weekEnd.setDate(weekStart.getDate() + 6); // Saturday
+
+                    const weeklyData = [0, 0, 0, 0, 0, 0, 0]; // Sun, Mon, Tue...
+                    const weeklyVolumeData = [0, 0, 0, 0, 0, 0, 0]; // Sun, Mon, Tue...
+
+                    snapshot.forEach(doc => {
+                        const workoutDate = new Date(doc.id + 'T00:00:00'); // Use T00:00:00 to avoid timezone issues
+                        if (workoutDate >= weekStart && workoutDate <= weekEnd) {
+                            const workoutData = doc.data();
+                            const dayOfWeek = workoutDate.getDay(); // 0 for Sunday, 1 for Monday...
+                            if (workoutData.exercises && workoutData.exercises.length > 0) {
+                                weeklyData[dayOfWeek] += workoutData.exercises.length;
+                            }
+
+                            if (workoutData.exercises && !workoutData.isRestDay) {
+                                let dailyVolume = 0;
+                                workoutData.exercises.forEach(ex => {
+                                    dailyVolume += (parseFloat(ex.sets) || 0) * (parseFloat(ex.reps) || 0) * (parseFloat(ex.weight) || 0);
+                                });
+                                weeklyVolumeData[dayOfWeek] += dailyVolume;
+                            }
+                        }
+                    });
+ 
+                    const workoutCtx = document.getElementById('workout-chart').getContext('2d');
+                    
+                    if (this.chartInstance) {
+                        this.chartInstance.destroy();
+                    }
+
+                    this.chartInstance = new Chart(workoutCtx, {
+                        type: 'line',
+                        data: {
+                            labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+                            datasets: [{
+                                label: 'Exercises Logged This Week',
+                                fill: true,
+                                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                data: weeklyData,
+                                borderColor: 'rgba(59, 130, 246, 1)',
+                                borderWidth: 2,
+                                tension: 0.4, // Makes the line slightly curved
+                                pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                                pointBorderColor: '#fff',
+                                pointHoverBackgroundColor: '#fff',
+                                pointHoverBorderColor: 'rgba(59, 130, 246, 1)',
+                                fill: false
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                            }
+                        }
+                    });
+
+                    const volumeCtx = document.getElementById('volume-chart').getContext('2d');
+                    if (this.volumeChartInstance) {
+                        this.volumeChartInstance.destroy();
+                    }
+
+                    this.volumeChartInstance = new Chart(volumeCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+                            datasets: [{
+                                label: 'Total Volume (kgs)',
+                                data: weeklyVolumeData,
+                                backgroundColor: 'rgba(34, 197, 94, 0.6)', // green-500
+                                borderColor: 'rgba(34, 197, 94, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: { scales: { y: { beginAtZero: true } } }
+                    });
+                } catch (error) {
+                    console.error('Error loading charts:', error);
+                }
+            },
+
+            formatDate(dateStr) {
+                const date = new Date(dateStr);
+                const today = new Date().toISOString().split('T')[0];
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+                if (dateStr === today) return 'Today';
+                if (dateStr === yesterdayStr) return 'Yesterday';
+                
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            }
+        };
+
+        // Calendar module
+        window.calendar = {
+            async load() {
+                await this.loadWorkouts();
+                this.renderCalendar();
+            },
+
+            async loadWorkouts() {
+                const userId = window.appState.currentUser.uid;
+                const workoutsRef = window.firebase.firestoreMethods.collection(
+                    window.firebase.db, `users/${userId}/workouts`
+                );
+
+                try {
+                    const snapshot = await window.firebase.firestoreMethods.getDocs(workoutsRef);
+                    window.appState.workouts = {};
+                    
+                    snapshot.forEach(doc => {
+                        window.appState.workouts[doc.id] = doc.data();
+                    });
+                } catch (error) {
+                    console.error('Error loading workouts:', error);
+                }
+            },
+
+            renderCalendar() {
+                const month = window.appState.currentCalendarMonth;
+                const year = month.getFullYear();
+                const monthIndex = month.getMonth();
+                const today = new Date();
+
+                // Update header
+                document.getElementById('calendar-month').textContent = 
+                    month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+                // Get first day and number of days in month
+                const firstDay = new Date(year, monthIndex, 1).getDay();
+                const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+
+                const daysDiv = document.getElementById('calendar-days');
+                daysDiv.innerHTML = '';
+
+                // Add empty cells for days before month starts
+                for (let i = 0; i < firstDay; i++) {
+                    const emptyDiv = document.createElement('div');
+                    emptyDiv.className = 'calendar-day';
+                    daysDiv.appendChild(emptyDiv);
+                }
+
+                // Add day cells
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const workoutData = window.appState.workouts[dateStr];
+                    const isToday = day === today.getDate() && monthIndex === today.getMonth() && year === today.getFullYear();
+                    
+                    const dayDiv = document.createElement('div');
+                    let dayClasses = 'calendar-day flex items-center justify-center rounded-lg cursor-pointer transition-all duration-200 ';
+                    if (workoutData && workoutData.isRestDay) {
+                        dayClasses += 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 font-bold hover:ring-2 hover:ring-amber-400';
+                    } else if (workoutData && workoutData.exercises && workoutData.exercises.length > 0) {
+                        dayClasses += 'bg-blue-600 text-white font-bold hover:ring-2 hover:ring-blue-400';
+                    } else {
+                        dayClasses += 'bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700';
+                    }
+
+                    if (isToday) {
+                        dayClasses += ' ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-800 ring-blue-500';
+                    } else {
+                        dayClasses += ' dark:text-gray-300';
+                    }
+                    dayDiv.className = dayClasses;
+                    dayDiv.textContent = day;
+                    dayDiv.onclick = () => this.showWorkoutDetail(dateStr);
+                    
+                    daysDiv.appendChild(dayDiv);
+                }
+            },
+
+            async showWorkoutDetail(dateStr) {
+                const detailDiv = document.getElementById('calendar-workout-detail');
+                const workout = window.appState.workouts[dateStr];
+                detailDiv.classList.remove('hidden'); // Always show the container
+
+                if (!workout) {
+                    detailDiv.innerHTML = `
+                        <h3 class="text-lg font-bold mb-3 dark:text-gray-200">${this.formatDate(dateStr)}</h3>
+                        <p class="text-gray-600 dark:text-gray-400 mb-4">No activity logged for this day.</p>
+                        <div class="flex gap-2">
+                            <button onclick="calendar.createWorkoutForDate('${dateStr}')" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                                Log Workout
+                            </button>
+                            <button onclick="calendar.markAsRestDay('${dateStr}')" class="flex-1 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700">
+                                Mark as Rest Day
+                            </button>
+                        </div>
+                    `;
+                } else if (workout.isRestDay) {
+                    detailDiv.innerHTML = `
+                        <h3 class="text-lg font-bold mb-3 dark:text-gray-200">${this.formatDate(dateStr)}</h3>
+                        <p class="text-amber-600 dark:text-amber-400 font-semibold mb-4">This day was marked as a rest day.</p>
+                        ${workout.reason ? `<p class="text-gray-600 dark:text-gray-400 mb-4 italic">Reason: ${workout.reason}</p>` : ''}
+                        <button onclick="calendar.deleteWorkout('${dateStr}')" class="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">Remove Rest Day</button>
+                    `;
+                } else { // It's a workout day
+                    let exercisesHTML = '';
+                    // Ensure workout.exercises is an array before iterating
+                    const exercises = Array.isArray(workout.exercises) ? workout.exercises : [];
+
+                    workout.exercises.forEach(exercise => {
+                        let details = [];
+                        if (exercise.reps) details.push(`${exercise.reps} reps`);
+                        if (exercise.sets) details.push(`${exercise.sets} sets`);
+                        if (exercise.duration) details.push(`${exercise.duration} min`);
+                        if (exercise.weight) details.push(`${exercise.weight} kgs`);
+                        
+                        exercisesHTML += `
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                                <h4 class="font-semibold dark:text-gray-200">${exercise.name}</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">${details.join(' • ')}</p>
+                                ${exercise.notes ? `<p class="text-sm text-gray-500 dark:text-gray-400 italic mt-1">${exercise.notes}</p>` : ''}
+                            </div>
+                        `;
+                    });
+
+                    detailDiv.innerHTML = `
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold dark:text-gray-200">${this.formatDate(dateStr)}</h3>
+                            <button onclick="calendar.deleteWorkout('${dateStr}')" class="text-red-600 hover:text-red-700 text-sm">
+                                Delete
+                            </button>
+                        </div>
+                        <div class="mb-4 space-y-3">
+                            ${exercisesHTML}
+                        </div>
+                        <button onclick="calendar.editWorkout('${dateStr}')" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                            Edit Workout
+                        </button>
+                    `;
+                }
+            },
+
+            createWorkoutForDate(dateStr) {
+                document.getElementById('workout-date').value = dateStr;
+                window.appState.currentWorkout = [];
+                navigation.showPage('workout');
+            },
+
+            async markAsRestDay(dateStr) {
+                ui.showConfirm({
+                    title: 'Mark as Rest Day?',
+                    message: 'Do you want to mark this day as a rest day?',
+                    confirmText: 'Yes, Mark Rest Day',
+                    confirmClass: 'bg-amber-500 hover:bg-amber-600', // Use amber for rest day actions
+                    inputOptions: {
+                        type: 'text',
+                        placeholder: 'Optional: Reason for rest day (e.g., recovery, injury)',
+                        defaultValue: ''
+                    },
+                    onConfirm: async (reason) => {
+                        try {
+                            const userId = window.appState.currentUser.uid;
+                            const workoutRef = window.firebase.firestoreMethods.doc(window.firebase.db, `users/${userId}/workouts/${dateStr}`);
+                            const dataToSave = { isRestDay: true, createdAt: new Date().toISOString() };
+                            if (reason) dataToSave.reason = reason;
+                            await window.firebase.firestoreMethods.setDoc(workoutRef, dataToSave);
+                            await this.load();
+                            this.showWorkoutDetail(dateStr); // Refresh the detail view
+                        } catch (error) {
+                            console.error('Error marking rest day:', error);
+                            ui.showError({ message: 'Failed to mark as rest day. Please try again.' });
+                        }
+                    }
+                });
+            },
+
+            async editWorkout(dateStr) {
+                const workout = window.appState.workouts[dateStr];
+                document.getElementById('workout-date').value = dateStr;
+                window.appState.currentWorkout = [...workout.exercises];
+                window.appState.isEditing = true;
+                navigation.showPage('workout');
+                workoutLogger.updateWorkoutDisplay();
+            },
+
+            async deleteWorkout(dateStr) {
+                ui.showConfirm({
+                    title: 'Delete Workout?',
+                    message: 'Are you sure you want to permanently delete this workout log? This action cannot be undone.',
+                    onConfirm: async () => {
+                        try {
+                            const userId = window.appState.currentUser.uid;
+                            const workoutRef = window.firebase.firestoreMethods.doc(
+                                window.firebase.db, `users/${userId}/workouts/${dateStr}`
+                            );
+                            
+                            await window.firebase.firestoreMethods.deleteDoc(workoutRef);
+                            await this.load();
+                            this.showWorkoutDetail(dateStr); // Refresh the detail view
+                        } catch (error) {
+                            console.error('Error deleting workout:', error);
+                            ui.showError({ message: 'Failed to delete workout. Please try again.' });
+                        }
+                    }
+                });
+            },
+
+            prevMonth() {
+                window.appState.currentCalendarMonth.setMonth(
+                    window.appState.currentCalendarMonth.getMonth() - 1
+                );
+                this.renderCalendar();
+            },
+
+            nextMonth() {
+                window.appState.currentCalendarMonth.setMonth(
+                    window.appState.currentCalendarMonth.getMonth() + 1
+                );
+                this.renderCalendar();
+            },
+
+            formatDate(dateStr) {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('en-US', { 
+                    weekday: 'long',
+                    month: 'long', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                });
+            }
+        };
+
+        // Initialize app
+        window.firebase.authMethods.onAuthStateChanged(window.firebase.auth, async (user) => {
+            document.getElementById('loading-screen').classList.add('hidden');
+            
+            if (user) {
+                window.appState.currentUser = user;
+                
+                // Load the main exercise library
+                // We do this here so it's ready for all pages
+                await exerciseManager.loadApiExercises();
+
+                // Load custom exercises
+                await exerciseManager.loadCustomExercises();
+                
+                // Show main app
+                document.getElementById('app').classList.remove('hidden');
+                document.getElementById('auth-page').classList.add('hidden');
+                document.getElementById('main-app').classList.remove('hidden');
+                
+                // Show dashboard by default
+                navigation.showPage('dashboard');
+            } else {
+                window.appState.currentUser = null;
+                
+                // Show auth page
+                document.getElementById('app').classList.remove('hidden');
+                document.getElementById('auth-page').classList.remove('hidden');
+                document.getElementById('main-app').classList.add('hidden');
+                auth.showLogin();
+            }
+        });
+    </script>
+</body>
+</html>
