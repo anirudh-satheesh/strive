@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Profile — Strive</title>
+  <link rel="icon" href="images/strive-title.png?v=1" type="image/png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen text-gray-800 dark:text-gray-100">
+  <header class="bg-blue-600 text-white p-4 shadow">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="images/strive-logo.png" alt="Strive" class="h-8 w-8">
+        <h1 class="text-xl font-bold">Profile</h1>
+      </div>
+      <nav class="flex items-center gap-3">
+        <a href="index.html" class="bg-white text-blue-600 px-3 py-2 rounded-lg font-semibold hover:bg-gray-100">Back</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Custom Alert/Confirm Modal -->
+  <div id="custom-modal" class="hidden fixed inset-0 z-[100] bg-black bg-opacity-60 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full">
+      <div class="p-6 text-center">
+        <h3 id="modal-title" class="text-xl font-bold dark:text-gray-100 mb-2"></h3>
+        <p id="modal-message" class="text-gray-600 dark:text-gray-400 mb-6"></p>
+        <div id="modal-buttons" class="flex justify-center gap-4">
+          <!-- Buttons will be dynamically inserted here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="max-w-4xl mx-auto p-6">
+    <section class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-6 flex flex-col md:flex-row gap-6 items-center">
+      <div class="flex-shrink-0">
+        <div class="h-28 w-28 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-3xl font-bold text-white">A</div>
+      </div>
+      <div class="flex-1">
+        <div class="flex items-center justify-between">
+          <div class="text-right w-full">
+            <div class="flex items-center gap-2">
+              <button id="viewProgressBtn" class="inline-block bg-white text-blue-600 px-3 py-2 rounded-lg font-semibold hover:bg-gray-100">View Progress</button>
+              <button id="manageCustomsBtn" class="inline-block bg-white text-blue-600 px-3 py-2 rounded-lg font-semibold hover:bg-gray-100">Manage Customs</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-6">
+      <h3 class="font-semibold text-lg mb-4">Top Exercises (Lifetime)</h3>
+      <div id="top-exercises" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Top exercises will be rendered here -->
+        <div class="col-span-1 p-4 border-dashed border-2 dark:border-gray-700 rounded-lg text-center text-sm text-gray-500">No exercise data yet</div>
+      </div>
+    </section>
+
+    <!-- Weekly Insights Charts -->
+    <section class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-6">
+      <h3 class="font-semibold text-lg mb-4">Weekly Insights</h3>
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div class="lg:col-span-3 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+          <canvas id="workout-chart"></canvas>
+        </div>
+        <div class="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+          <h3 class="text-lg font-semibold mb-4 dark:text-gray-200">Daily Volume (kgs)</h3>
+          <canvas id="volume-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dashboard (hidden until View Progress clicked) -->
+    <section id="profileDashboard" class="hidden">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
+        <div class="mb-6">
+          <h2 class="text-3xl font-bold dark:text-gray-100">Progress</h2>
+          <p class="text-gray-500 dark:text-gray-400">Snapshot of your recent activity.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          <div id="today-workout-status" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg flex flex-col justify-between"></div>
+          <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+            <h3 class="font-semibold text-gray-500 dark:text-gray-400">Total Workouts</h3>
+            <div id="lifetime-stats" class="mt-2"></div>
+          </div>
+          <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+            <h3 class="font-semibold text-gray-500 dark:text-gray-400">Total Volume</h3>
+            <div id="lifetime-volume" class="mt-2"></div>
+          </div>
+          <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+            <h3 class="font-semibold text-gray-500 dark:text-gray-400">Workouts This Month</h3>
+            <div id="monthly-stats" class="mt-2"></div>
+          </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 rounded-xl shadow-lg mb-6">
+          <h3 class="font-bold text-lg mb-2">Insights</h3>
+          <p id="insights" class="text-blue-100">Keep crushing it! You're building amazing progress.</p>
+        </div>
+
+        <div class="mt-4 flex justify-end">
+          <button id="closeProgressBtn" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg">Close</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Logout button at bottom of page -->
+    <div class="mt-8 pb-6 text-center">
+      <button id="pageLogoutBtn" class="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition">Logout</button>
+    </div>
+
+    <!-- Add Custom Exercise Modal -->
+    <div id="add-exercise-modal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-60 flex items-center justify-center p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold dark:text-gray-100">Add Custom Exercise</h3>
+            <button id="closeAddModalBtn" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl">×</button>
+          </div>
+          
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-semibold mb-2 dark:text-gray-300">Exercise Name</label>
+              <input type="text" id="new-exercise-name" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200 dark:placeholder-gray-400" placeholder="e.g., Bicep Curls">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-semibold mb-2 dark:text-gray-300">Category</label>
+              <select id="new-exercise-category" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200">
+                <option value="strength">Strength</option>
+                <option value="cardio">Cardio</option>
+                <option value="flexibility">Flexibility</option>
+                <option value="chest">Chest</option>
+                <option value="back">Back</option>
+                <option value="biceps">Biceps</option>
+                <option value="triceps">Triceps</option>
+                <option value="shoulders">Shoulders</option>
+                <option value="legs">Legs</option>
+                <option value="abs">Abs</option>
+                <option value="lats">Lats</option>
+                <option value="traps">Traps</option>
+              </select>
+            </div>
+            
+            <div class="dark:text-gray-300">
+              <label class="block text-sm font-semibold mb-2">Tracking Fields</label>
+              <div class="space-y-2">
+                <label class="flex items-center">
+                  <input type="checkbox" id="field-reps" class="mr-2" checked>
+                  Reps
+                </label>
+                <label class="flex items-center">
+                  <input type="checkbox" id="field-sets" class="mr-2" checked>
+                  Sets
+                </label>
+                <label class="flex items-center">
+                  <input type="checkbox" id="field-duration" class="mr-2">
+                  Duration
+                </label>
+                <label class="flex items-center">
+                  <input type="checkbox" id="field-weight" class="mr-2">
+                  Weight
+                </label>
+              </div>
+            </div>
+            
+            <button id="saveCustomExerciseBtn" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700">Add Exercise</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manage Customs Modal -->
+    <div id="manage-customs-modal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-60 flex items-center justify-center p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full">
+        <div class="p-6 text-center">
+          <h3 class="text-xl font-bold dark:text-gray-100 mb-4">Manage Custom Exercises</h3>
+          <p class="text-gray-600 dark:text-gray-400 mb-6">What would you like to do?</p>
+          <div class="space-y-3">
+            <button id="addCustomExerciseBtn" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700">
+              Add Custom Exercise
+            </button>
+            <button id="viewCustomsListBtn" class="w-full bg-green-600 text-white p-3 rounded-lg font-semibold hover:bg-green-700">
+              View Custom Exercises
+            </button>
+          </div>
+          <button id="cancelManageModalBtn" class="w-full mt-3 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 p-2 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Custom Exercises Modal -->
+    <div id="customs-list-modal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-60 flex items-center justify-center p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold dark:text-gray-100">Custom Exercises</h3>
+            <button id="closeCustomsListBtn" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl">×</button>
+          </div>
+          <div id="customs-list-content" class="space-y-2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- About section removed per request -->
+  </main>
+
+  <script src="firebase-config.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, collection, doc, getDoc, getDocs, addDoc, deleteDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    try {
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+
+      const viewBtn = document.getElementById('viewProgressBtn');
+      const closeBtn = document.getElementById('closeProgressBtn');
+      const dashboardEl = document.getElementById('profileDashboard');
+
+      async function loadTodayWorkout(uid) {
+        const today = new Date().toISOString().split('T')[0];
+        try {
+          const workoutRef = doc(db, `users/${uid}/workouts/${today}`);
+          const snap = await getDoc(workoutRef);
+          const statusDiv = document.getElementById('today-workout-status');
+          if (snap.exists()) {
+            const workout = snap.data();
+            const exerciseCount = workout.exercises ? workout.exercises.length : 0;
+            statusDiv.innerHTML = `
+              <h3 class="font-semibold text-gray-500 dark:text-gray-400">Today's Workout</h3>
+              <p class="text-2xl font-bold text-green-500 mt-2">Completed!</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${exerciseCount} exercises logged.</p>
+            `;
+          } else {
+            statusDiv.innerHTML = `
+              <p class="text-gray-500 dark:text-gray-400">No workout logged for today yet. Let's get it!</p>
+              <button onclick="window.location.href='index.html'" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">Log Workout</button>
+            `;
+          }
+        } catch (e) { console.error('loadTodayWorkout', e); }
+      }
+
+      async function loadLifetimeStats(uid) {
+        try {
+          const workoutsRef = collection(db, `users/${uid}/workouts`);
+          const snapshot = await getDocs(workoutsRef);
+
+          let totalWorkouts = 0;
+          let totalVolume = 0;
+          let monthlyWorkouts = 0;
+
+          const now = new Date();
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          monthStart.setHours(0,0,0,0);
+
+          snapshot.forEach(docSnap => {
+            const id = docSnap.id;
+            const workout = docSnap.data();
+            
+            if (!workout.isRestDay) {
+              totalWorkouts++;
+              (workout.exercises || []).forEach(ex => {
+                totalVolume += (parseFloat(ex.sets) || 0) * (parseFloat(ex.reps) || 0) * (parseFloat(ex.weight) || 0);
+              });
+            }
+            
+            const workoutDate = new Date(id + 'T00:00:00');
+            if (workoutDate >= monthStart && !workout.isRestDay) {
+              monthlyWorkouts++;
+            }
+          });
+
+          document.getElementById('lifetime-stats').innerHTML = `<p class="text-4xl font-bold text-blue-600 dark:text-blue-400">${totalWorkouts}</p><p class="text-sm text-gray-500 dark:text-gray-400">sessions</p>`;
+          document.getElementById('lifetime-volume').innerHTML = `<p class="text-4xl font-bold text-blue-600 dark:text-blue-400">${Math.round(totalVolume).toLocaleString()}</p><p class="text-sm text-gray-500 dark:text-gray-400">kgs lifted</p>`;
+          document.getElementById('monthly-stats').innerHTML = `<p class="text-4xl font-bold text-green-600 dark:text-green-400">${monthlyWorkouts}</p><p class="text-sm text-gray-500 dark:text-gray-400">this month</p>`;
+        } catch (e) { console.error('loadLifetimeStats', e); }
+      }
+
+      async function loadTopExercises(uid) {
+        try {
+          const snaps = await getDocs(collection(db, `users/${uid}/workouts`));
+          const agg = {}; // name -> { totalReps, totalSets, totalWeight }
+
+          snaps.forEach(snap => {
+            const w = snap.data();
+            if (!w || !Array.isArray(w.exercises)) return;
+            w.exercises.forEach(ex => {
+              const name = ex.name || 'Unknown';
+              const sets = parseInt(ex.sets || '0');
+              const reps = parseInt(ex.reps || '0');
+              const weight = parseFloat(ex.weight || '0');
+
+              if (!agg[name]) agg[name] = { totalReps: 0, totalSets: 0, totalWeight: 0 };
+              agg[name].totalSets += sets;
+              agg[name].totalReps += sets * reps; // total reps across sets
+              agg[name].totalWeight += sets * reps * (isNaN(weight) ? 0 : weight); // cumulative weight lifted
+            });
+          });
+
+          const items = Object.keys(agg).map(name => ({ name, ...agg[name] }));
+          // Sort by totalReps desc
+          items.sort((a,b) => b.totalReps - a.totalReps);
+
+          const top = items.slice(0,3);
+          const container = document.getElementById('top-exercises');
+          container.innerHTML = '';
+
+          if (top.length === 0) {
+            container.innerHTML = `<div class="col-span-1 p-4 border-dashed border-2 dark:border-gray-700 rounded-lg text-center text-sm text-gray-500">No exercises recorded yet</div>`;
+            return;
+          }
+
+          top.forEach((it, idx) => {
+            const weightText = it.totalWeight ? `${Math.round(it.totalWeight).toLocaleString()} kgs` : '-';
+            const repsText = it.totalReps ? `${it.totalReps}` : '-';
+            const setsText = it.totalSets ? `${it.totalSets}` : '-';
+
+            const gradients = [
+              'from-blue-500 to-cyan-500',
+              'from-purple-500 to-pink-500',
+              'from-orange-500 to-red-500'
+            ];
+            const gradient = gradients[idx] || 'from-gray-500 to-gray-600';
+            const medals = ['🥇', '🥈', '🥉'];
+
+            const card = document.createElement('div');
+            card.className = `relative overflow-hidden rounded-2xl shadow-2xl transform transition-all duration-300 hover:scale-105 hover:shadow-3xl cursor-pointer h-full`;
+            card.innerHTML = `
+              <div class="absolute inset-0 bg-gradient-to-br ${gradient} opacity-90"></div>
+              <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+              
+              <div class="relative p-6 h-full flex flex-col justify-between text-white">
+                <div class="flex items-start justify-between mb-4 min-h-0">
+                  <div class="min-w-0 flex-1">
+                    <div class="text-5xl font-bold mb-2">🥇</div>
+                    <h4 class="font-black text-lg sm:text-2xl tracking-tight break-words line-clamp-2">${it.name}</h4>
+                  </div>
+                </div>
+                
+                <div class="bg-white/20 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/30">
+                  <div class="grid grid-cols-3 gap-2 sm:gap-3">
+                    <div class="text-center">
+                      <div class="text-xs font-semibold text-white/80 mb-1 uppercase tracking-wider">Total Reps</div>
+                      <div class="font-black text-white whitespace-nowrap overflow-hidden" style="font-size: clamp(0.875rem, 3vw, 2rem);">${repsText}</div>
+                    </div>
+                    <div class="text-center border-l border-r border-white/30">
+                      <div class="text-xs font-semibold text-white/80 mb-1 uppercase tracking-wider">Total Sets</div>
+                      <div class="font-black text-white whitespace-nowrap overflow-hidden" style="font-size: clamp(0.875rem, 3vw, 2rem);">${setsText}</div>
+                    </div>
+                    <div class="text-center">
+                      <div class="text-xs font-semibold text-white/80 mb-1 uppercase tracking-wider">Weight</div>
+                      <div class="font-black text-white whitespace-nowrap overflow-hidden" style="font-size: clamp(0.75rem, 2.5vw, 1.5rem);">${Math.round(it.totalWeight).toLocaleString()}</div>
+                      <div class="text-xs text-white/70">kgs</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+            
+            // Apply medal emoji to the correct position
+            card.innerHTML = card.innerHTML.replace('🥇', medals[idx]);
+
+            container.appendChild(card);
+          });
+
+        } catch (err) {
+          console.error('loadTopExercises failed', err);
+        }
+      }
+
+      let chartInstance = null;
+      let volumeChartInstance = null;
+
+      async function loadCharts(uid) {
+        try {
+          const workoutsRef = collection(db, `users/${uid}/workouts`);
+          const snapshot = await getDocs(workoutsRef);
+          
+          const now = new Date();
+          const weekStart = new Date(now);
+          weekStart.setDate(now.getDate() - now.getDay()); // Sunday
+          weekStart.setHours(0, 0, 0, 0);
+
+          const weekEnd = new Date(weekStart);
+          weekEnd.setDate(weekStart.getDate() + 6); // Saturday
+
+          const weeklyData = [0, 0, 0, 0, 0, 0, 0]; // Sun, Mon, Tue...
+          const weeklyVolumeData = [0, 0, 0, 0, 0, 0, 0]; // Sun, Mon, Tue...
+
+          snapshot.forEach(doc => {
+            const workoutDate = new Date(doc.id + 'T00:00:00');
+            if (workoutDate >= weekStart && workoutDate <= weekEnd) {
+              const workoutData = doc.data();
+              const dayOfWeek = workoutDate.getDay();
+              if (workoutData.exercises && workoutData.exercises.length > 0) {
+                weeklyData[dayOfWeek] += workoutData.exercises.length;
+              }
+
+              if (workoutData.exercises && !workoutData.isRestDay) {
+                let dailyVolume = 0;
+                workoutData.exercises.forEach(ex => {
+                  dailyVolume += (parseFloat(ex.sets) || 0) * (parseFloat(ex.reps) || 0) * (parseFloat(ex.weight) || 0);
+                });
+                weeklyVolumeData[dayOfWeek] += dailyVolume;
+              }
+            }
+          });
+ 
+          const workoutCtx = document.getElementById('workout-chart').getContext('2d');
+          
+          if (chartInstance) {
+            chartInstance.destroy();
+          }
+
+          chartInstance = new Chart(workoutCtx, {
+            type: 'line',
+            data: {
+              labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+              datasets: [{
+                label: 'Exercises Logged This Week',
+                fill: true,
+                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                data: weeklyData,
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 2,
+                tension: 0.4,
+                pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(59, 130, 246, 1)',
+                fill: false
+              }]
+            },
+            options: {
+              scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+              }
+            }
+          });
+
+          const volumeCtx = document.getElementById('volume-chart').getContext('2d');
+          if (volumeChartInstance) {
+            volumeChartInstance.destroy();
+          }
+
+          volumeChartInstance = new Chart(volumeCtx, {
+            type: 'bar',
+            data: {
+              labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+              datasets: [{
+                label: 'Total Volume (kgs)',
+                data: weeklyVolumeData,
+                backgroundColor: 'rgba(34, 197, 94, 0.6)',
+                borderColor: 'rgba(34, 197, 94, 1)',
+                borderWidth: 1
+              }]
+            },
+            options: { scales: { y: { beginAtZero: true } } }
+          });
+        } catch (err) {
+          console.error('loadCharts failed:', err);
+        }
+      }
+
+      async function loadDashboardForUser(uid) {
+        await loadTodayWorkout(uid);
+        await loadLifetimeStats(uid);
+      }
+
+      viewBtn.addEventListener('click', async () => {
+        if (!auth.currentUser) { window.location.href = 'index.html'; return; }
+        dashboardEl.classList.remove('hidden');
+        await loadDashboardForUser(auth.currentUser.uid);        dashboardEl.scrollIntoView({ behavior: 'smooth' });
+      });
+
+      closeBtn.addEventListener('click', () => {
+        dashboardEl.classList.add('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      
+      const manageCustomsBtn = document.getElementById('manageCustomsBtn');
+      
+      manageCustomsBtn.addEventListener('click', async () => {
+        customExerciseManager.showManageModal();
+      });
+
+      // UI Module for custom modals
+      window.ui = {
+        showConfirm({ title, message, onConfirm, confirmText = 'Confirm', cancelText = 'Cancel', confirmClass = 'bg-red-600 hover:bg-red-700' }) {
+          document.getElementById('modal-title').textContent = title;
+          document.getElementById('modal-message').textContent = message;
+
+          const buttonsDiv = document.getElementById('modal-buttons');
+          buttonsDiv.innerHTML = `
+            <button id="modal-cancel-btn" class="px-6 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500">${cancelText}</button>
+            <button id="modal-confirm-btn" class="px-6 py-2 text-white rounded-lg ${confirmClass}">${confirmText}</button>
+          `;
+
+          document.getElementById('custom-modal').classList.remove('hidden');
+
+          document.getElementById('modal-confirm-btn').onclick = () => {
+            this.hideModal();
+            if (onConfirm) onConfirm();
+          };
+          document.getElementById('modal-cancel-btn').onclick = () => this.hideModal();
+        },
+
+        showAlert({ title, message, onOk, okText = 'OK' }) {
+          document.getElementById('modal-title').textContent = title;
+          document.getElementById('modal-message').textContent = message;
+
+          const buttonsDiv = document.getElementById('modal-buttons');
+          buttonsDiv.innerHTML = `
+            <button id="modal-ok-btn" class="px-8 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">${okText}</button>
+          `;
+
+          document.getElementById('custom-modal').classList.remove('hidden');
+
+          document.getElementById('modal-ok-btn').onclick = () => {
+            this.hideModal();
+            if (onOk) onOk();
+          };
+        },
+
+        hideModal() {
+          document.getElementById('custom-modal').classList.add('hidden');
+        }
+      };
+
+      // Custom Exercise Manager module
+      const customExerciseManager = {
+        showManageModal() {
+          document.getElementById('manage-customs-modal').classList.remove('hidden');
+        },
+
+        closeManageModal() {
+          document.getElementById('manage-customs-modal').classList.add('hidden');
+        },
+
+        showAddModal() {
+          document.getElementById('add-exercise-modal').classList.remove('hidden');
+        },
+
+        closeAddModal() {
+          document.getElementById('add-exercise-modal').classList.add('hidden');
+          // Reset form
+          document.getElementById('new-exercise-name').value = '';
+          document.getElementById('new-exercise-category').value = 'strength';
+          document.getElementById('field-reps').checked = true;
+          document.getElementById('field-sets').checked = true;
+          document.getElementById('field-duration').checked = false;
+          document.getElementById('field-weight').checked = false;
+        },
+
+        async addCustomExercise() {
+          if (!auth || !auth.currentUser) {
+            ui.showAlert({ title: 'Error', message: 'You must be logged in to add exercises.' });
+            return;
+          }
+          
+          const name = document.getElementById('new-exercise-name').value.trim();
+          const category = document.getElementById('new-exercise-category').value;
+          
+          const fields = [];
+          if (document.getElementById('field-reps').checked) fields.push('reps');
+          if (document.getElementById('field-sets').checked) fields.push('sets');
+          if (document.getElementById('field-duration').checked) fields.push('duration');
+          if (document.getElementById('field-weight').checked) fields.push('weight');
+
+          if (!name) {
+            ui.showAlert({ title: 'Missing Name', message: 'Please enter an exercise name.' });
+            return;
+          }
+
+          if (fields.length === 0) {
+            ui.showAlert({ title: 'Missing Fields', message: 'Please select at least one tracking field.' });
+            return;
+          }
+
+          try {
+            const exercisesRef = collection(db, `users/${auth.currentUser.uid}/exercises`);
+            await addDoc(exercisesRef, { 
+              name, 
+              category, 
+              fields,
+              createdAt: new Date().toISOString(),
+              type: 'custom'
+            });
+            
+            this.closeAddModal();
+            ui.showAlert({ 
+              title: 'Success', 
+              message: `"${name}" has been added to your custom exercises!` 
+            });
+          } catch (error) {
+            console.error('Error adding exercise:', error);
+            ui.showAlert({ 
+              title: 'Error', 
+              message: 'Failed to add the exercise. Please try again.' 
+            });
+          }
+        },
+
+        async showCustomsList() {
+          try {
+            const exercisesRef = collection(db, `users/${auth.currentUser.uid}/exercises`);
+            const snapshot = await getDocs(exercisesRef);
+            
+            const listContent = document.getElementById('customs-list-content');
+            listContent.innerHTML = '';
+            
+            if (snapshot.empty) {
+              listContent.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">No custom exercises yet.</p>';
+              document.getElementById('customs-list-modal').classList.remove('hidden');
+              return;
+            }
+            
+            snapshot.forEach(docSnap => {
+              const ex = docSnap.data();
+              const exDiv = document.createElement('div');
+              exDiv.className = 'flex justify-between items-center p-3 bg-gray-100 dark:bg-gray-700 rounded-lg';
+              exDiv.innerHTML = `
+                <div>
+                  <p class="font-semibold dark:text-gray-200">${ex.name}</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">${ex.category} • ${(ex.fields || []).join(', ')}</p>
+                </div>
+                <button data-id="${docSnap.id}" class="delete-exercise-btn text-red-600 hover:text-red-800 font-bold">Delete</button>
+              `;
+              // Add click event listener for delete buttons
+              exDiv.querySelector('.delete-exercise-btn').addEventListener('click', (e) => {
+                const docId = e.target.getAttribute('data-id');
+                customExerciseManager.deleteCustom(docId);
+              });
+              listContent.appendChild(exDiv);
+            });
+            
+            document.getElementById('customs-list-modal').classList.remove('hidden');
+          } catch (error) {
+            console.error('Error loading customs:', error);
+            ui.showAlert({ title: 'Error', message: 'Failed to load custom exercises.' });
+          }
+        },
+
+        closeCustomsList() {
+          document.getElementById('customs-list-modal').classList.add('hidden');
+        },
+
+        deleteCustom(docId) {
+          ui.showConfirm({
+            title: 'Delete Exercise?',
+            message: 'Are you sure you want to permanently delete this custom exercise?',
+            onConfirm: async () => {
+              try {
+                const exerciseRef = doc(db, `users/${auth.currentUser.uid}/exercises/${docId}`);
+                await deleteDoc(exerciseRef);
+                this.showCustomsList(); // Refresh the list
+              } catch (error) {
+                console.error('Error deleting exercise:', error);
+                ui.showAlert({ title: 'Error', message: 'Failed to delete the exercise.' });
+              }
+            }
+          });
+        }
+      };
+
+      window.customExerciseManager = customExerciseManager;
+
+      // Add event listeners for modal buttons
+      document.addEventListener('DOMContentLoaded', function() {
+        // Manage Customs Modal buttons
+        document.getElementById('addCustomExerciseBtn')?.addEventListener('click', () => {
+          customExerciseManager.closeManageModal();
+          customExerciseManager.showAddModal();
+        });
+        
+        document.getElementById('viewCustomsListBtn')?.addEventListener('click', () => {
+          customExerciseManager.closeManageModal();
+          customExerciseManager.showCustomsList();
+        });
+        
+        document.getElementById('cancelManageModalBtn')?.addEventListener('click', () => {
+          customExerciseManager.closeManageModal();
+        });
+        
+        // Add Exercise Modal buttons
+        document.getElementById('closeAddModalBtn')?.addEventListener('click', () => {
+          customExerciseManager.closeAddModal();
+        });
+        
+        document.getElementById('saveCustomExerciseBtn')?.addEventListener('click', () => {
+          customExerciseManager.addCustomExercise();
+        });
+        
+        // Customs List Modal buttons
+        document.getElementById('closeCustomsListBtn')?.addEventListener('click', () => {
+          customExerciseManager.closeCustomsList();
+        });
+      });
+
+      // Logout handlers
+      async function handleLogout() {
+        ui.showConfirm({
+          title: 'Log out?',
+          message: 'Are you sure you want to log out of your account?',
+          confirmText: 'Log out',
+          confirmClass: 'bg-red-600 hover:bg-red-700',
+          onConfirm: async () => {
+            try {
+              await signOut(auth);
+              window.location.href = 'index.html';
+            } catch (err) {
+              console.error('Logout failed:', err);
+              ui.showAlert({
+                title: 'Error',
+                message: 'Failed to log out. Please try again.',
+                okText: 'Close'
+              });
+            }
+          }
+        });
+      }
+
+      const pageLogoutBtn = document.getElementById('pageLogoutBtn');
+      if (pageLogoutBtn) pageLogoutBtn.addEventListener('click', handleLogout);
+
+      // Load Top Exercises and Charts when signed in
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          // Ensure DOM is ready
+          setTimeout(async () => {
+            try {
+              await loadTopExercises(user.uid);
+            } catch (err) {
+              console.error('Top exercises error:', err);
+            }
+            try {
+              await loadCharts(user.uid);
+            } catch (err) {
+              console.error('Charts error:', err);
+            }
+
+          }, 100);
+        } else {
+          console.log('No user authenticated');
+          window.location.href = 'index.html';
+        }
+      });
+    } catch (err) {
+      console.warn('Profile page module initialization failed:', err);
+    }
+  </script>
+</body>
+</html>

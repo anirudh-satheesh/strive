@@ -64,7 +64,7 @@
         .set-btn:active { transform: translateY(0); }
         .set-btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(37,99,235,0.12); }
         .dark .set-btn { background: #1e3a8a; box-shadow: 0 6px 12px rgba(30,58,138,0.12); }
-        .set-btn svg { width: 16x; height: 16px; }
+        .set-btn svg { width: 16px; height: 16px; }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 min-h-screen dark">
@@ -137,10 +137,10 @@
                         <h1 class="text-2xl font-bold">Strive</h1>
                     </div>
                     <div class="flex items-center">
-                        <!-- Desktop Logout Button -->
-                        <button onclick="auth.logout()" class="bg-blue-700 px-4 py-2 rounded-lg hover:bg-blue-800 hidden md:block">
-                            Logout
-                        </button>
+                        <!-- Desktop Profile Button -->
+                        <a href="profile.html" class="bg-emerald-600 px-4 py-2 rounded-lg hover:bg-emerald-700 hidden md:block text-white font-semibold">
+                            Profile
+                        </a>
                         <!-- Hamburger Button -->
                         <button id="hamburger-btn" onclick="navigation.toggleMobileMenu()" class="md:hidden p-2 rounded-md hover:bg-blue-700">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-4 6h4"></path></svg>
@@ -155,9 +155,6 @@
                     <button onclick="navigation.showPage('workout')" data-page="workout" class="nav-btn flex-1 px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700/50 border-b-2 border-transparent">
                         Log Workout
                     </button>
-                    <button onclick="navigation.showPage('dashboard')" data-page="dashboard" class="nav-btn flex-1 px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700/50 border-b-2 border-transparent">
-                        Dashboard
-                    </button>
                     <button onclick="navigation.showPage('exercises')" data-page="exercises" class="nav-btn flex-1 px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700/50 border-b-2 border-transparent">
                         Exercises
                     </button>
@@ -170,58 +167,13 @@
             <!-- Mobile Menu -->
             <div id="mobile-menu" class="hidden md:hidden bg-white dark:bg-gray-800 shadow-lg">
                 <a href="#" onclick="navigation.showPage('workout', true); return false;" class="block py-3 px-4 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Log Workout</a>
-                <a href="#" onclick="navigation.showPage('dashboard', true); return false;" class="block py-3 px-4 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Dashboard</a>
                 <a href="#" onclick="navigation.showPage('exercises', true); return false;" class="block py-3 px-4 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Exercises</a>
                 <a href="#" onclick="navigation.showPage('calendar', true); return false;" class="block py-3 px-4 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Calendar</a>
-                <a href="#" onclick="auth.logout(); return false;" class="block py-3 px-4 text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 border-t dark:border-gray-700">Logout</a>
+                <a href="profile.html" class="block py-3 px-4 bg-emerald-600 text-white font-semibold hover:bg-emerald-700 border-t dark:border-gray-700">Profile</a>
             </div>
 
             <!-- Page Content -->
             <main class="max-w-4xl mx-auto p-4 pb-20">
-                <!-- Dashboard Page -->
-                <div id="page-dashboard" class="page-content hidden">
-                    <!-- Header -->
-                    <div class="mb-6">
-                        <h2 class="text-3xl font-bold dark:text-gray-100" id="dashboard-welcome">Welcome back!</h2>
-                        <p class="text-gray-500 dark:text-gray-400">Here's a snapshot of your progress.</p>
-                    </div>
-
-                    <!-- Grid for Stats & Insights -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                        <!-- Today's Workout Card -->
-                        <div id="today-workout-status" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg flex flex-col justify-between">
-                            <!-- Content is dynamically loaded -->
-                        </div>
-
-                        <!-- Weekly Workouts Card -->
-                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
-                            <h3 class="font-semibold text-gray-500 dark:text-gray-400">Workouts This Week</h3>
-                            <div id="week-stats" class="mt-2"></div>
-                        </div>
-
-                        <!-- Weekly Volume Card -->
-                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
-                            <h3 class="font-semibold text-gray-500 dark:text-gray-400">Total Volume This Week</h3>
-                            <div id="week-volume" class="mt-2"></div>
-                        </div>
-
-                        <!-- Insights Card -->
-                        <div class="md:col-span-2 lg:col-span-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 rounded-xl shadow-lg">
-                            <h3 class="font-bold text-lg mb-2">Your Weekly Insight</h3>
-                            <p id="weekly-insight" class="text-blue-100">Loading your personalized remarks...</p>
-                        </div>
-                    </div>
-
-                    <!-- Charts and Recent Workouts -->
-                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                        <div class="lg:col-span-3 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg"><canvas id="workout-chart"></canvas></div>
-                        <div id="daily-volume-container" class="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
-                            <h3 class="text-lg font-semibold mb-4 dark:text-gray-200">Daily Volume (kgs)</h3>
-                            <canvas id="volume-chart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Exercise Library Page -->
                 <div id="page-exercises" class="page-content hidden">
                     <div class="mb-6">
@@ -234,7 +186,6 @@
                             <input type="text" id="exercise-search" placeholder="Search exercises by name..."
                                    class="flex-grow p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200 dark:placeholder-gray-400"
                                    oninput="exerciseManager.filterExercises()">
-                            <button onclick="exerciseManager.showAddModal()" class="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-blue-700 whitespace-nowrap">+ Add Custom</button>
                         </div>
                         <div id="exercise-categories" class="flex flex-nowrap gap-2 mt-4 overflow-x-auto no-scrollbar pb-2">
                             <button onclick="exerciseManager.filterByCategory(event, 'Abs')" class="category-filter px-3 py-1.5 text-sm font-semibold rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Abs</button>
@@ -328,87 +279,18 @@
         </div>
     </div>
 
-    <!-- Add Custom Exercise Modal -->
-    <div id="add-exercise-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold dark:text-gray-100">Add Custom Exercise</h3>
-                    <button onclick="exerciseManager.closeAddModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl">
-                        ×
-                    </button>
-                </div>
-                
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-semibold mb-2 dark:text-gray-300">Exercise Name</label>
-                        <input type="text" id="new-exercise-name" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200 dark:placeholder-gray-400" placeholder="e.g., Bicep Curls">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-semibold mb-2 dark:text-gray-300">Category</label>
-                        <select id="new-exercise-category" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200">
-                            <option value="strength">Strength</option>
-                            <option value="cardio">Cardio</option>
-                            <option value="flexibility">Flexibility</option>
-                            <option value="chest">Chest</option>
-                            <option value="back">Back</option>
-                            <option value="biceps">Biceps</option>
-                            <option value="triceps">Triceps</option>
-                            <option value="shoulders">Shoulders</option>
-                            <option value="legs">Legs</option>
-                            <option value="abs">Abs</option>
-                            <option value="lats">Lats</option>
-                            <option value="traps">Traps</option>
-                        </select>
-                    </div>
-                    
-                    <div class="dark:text-gray-300">
-                        <label class="block text-sm font-semibold mb-2">Tracking Fields</label>
-                        <div class="space-y-2">
-                            <label class="flex items-center">
-                                <input type="checkbox" id="field-reps" class="mr-2" checked>
-                                Reps
-                            </label>
-                            <label class="flex items-center">
-                                <input type="checkbox" id="field-sets" class="mr-2" checked>
-                                Sets
-                            </label>
-                            <label class="flex items-center">
-                                <input type="checkbox" id="field-duration" class="mr-2">
-                                Duration
-                            </label>
-                            <label class="flex items-center">
-                                <input type="checkbox" id="field-weight" class="mr-2">
-                                Weight
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <button onclick="exerciseManager.addCustomExercise()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700">
-                        Add Exercise
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Exercise Selector Modal -->
     <div id="exercise-selector-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] flex flex-col">
+            <div class="p-4 border-b dark:border-gray-700">
+                <div class="flex justify-between items-center mb-3">
                     <h3 class="text-xl font-bold dark:text-gray-100">Select Exercise</h3>
-                    <button onclick="workoutLogger.closeExerciseSelector()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl">
-                        ×
-                    </button>
+                    <button onclick="workoutLogger.closeExerciseSelector()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl">×</button>
                 </div>
-                
-                <input type="text" id="selector-search" placeholder="Search..." 
-                       class="w-full p-3 border dark:border-gray-600 rounded-lg mb-4 bg-transparent dark:text-gray-200 dark:placeholder-gray-400"
-                       oninput="workoutLogger.filterSelectorExercises()">
-                
-                <div id="selector-exercise-list" class="space-y-2"></div>
+                <input type="text" id="selector-search" oninput="workoutLogger.filterSelectorExercises()" placeholder="Search..." class="w-full p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200 dark:placeholder-gray-400">
+            </div>
+            <div id="selector-exercise-list" class="p-4 space-y-2 overflow-y-auto">
+                <!-- Exercise list will be populated here -->
             </div>
         </div>
     </div>
@@ -419,21 +301,31 @@
             <div class="p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 id="detail-exercise-name" class="text-xl font-bold dark:text-gray-100"></h3>
-                    <button onclick="workoutLogger.closeExerciseDetails()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl">
-                        ×
-                    </button>
+                    <button onclick="workoutLogger.closeExerciseDetails()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl">×</button>
                 </div>
-                
-                <div id="exercise-detail-inputs" class="space-y-4 mb-4"></div>
-                
-                <button onclick="workoutLogger.addExerciseToWorkout()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700">
-                    Add to Workout
-                </button>
+                <div id="exercise-detail-inputs" class="space-y-4 mb-6">
+                    <!-- Dynamic inputs for reps, sets, weight, etc. will be inserted here -->
+                </div>
+                <button onclick="workoutLogger.addExerciseToWorkout()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700">Add to Workout</button>
             </div>
         </div>
     </div>
 
     <!-- Custom Alert/Confirm Modal -->
+    <div id="custom-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full">
+            <div class="p-6 text-center">
+                <h3 id="modal-title" class="text-xl font-bold dark:text-gray-100 mb-2"></h3>
+                <p id="modal-message" class="text-gray-600 dark:text-gray-400 mb-6"></p>
+                <div id="modal-input-container" class="hidden mb-4">
+                    <input type="text" id="modal-input" class="w-full p-3 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200 dark:placeholder-gray-400" placeholder="Optional reason">
+                </div>
+                <div id="modal-buttons" class="flex justify-center gap-4">
+                    <!-- Buttons will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="custom-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full">
             <div class="p-6 text-center">
@@ -670,7 +562,6 @@
                 });
 
                 // Load page-specific data
-                if (pageName === 'dashboard') dashboard.load();
                 if (pageName === 'exercises') exerciseManager.load();
                 if (pageName === 'workout') workoutLogger.load();
                 if (pageName === 'calendar') calendar.load();
@@ -1111,7 +1002,7 @@
 
                     let detailsHTML = '<div class="text-sm text-gray-600 dark:text-gray-400 mt-2">';
                     if (exercise.reps) detailsHTML += `<span class="mr-3">Reps: ${exercise.reps}</span>`;
-                    if (exercise.sets) detailsHTML += `<span class="mr-3">Sets: ${exercise.sets} <button onclick="workoutLogger.incrementSets(${index})" aria-label="Add set" title="Add set" class="set-btn ml-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/></svg></button></span>`;
+                    if (exercise.sets) detailsHTML += `<span class="mr-3">Sets: <button onclick="workoutLogger.decrementSets(${index})" aria-label="Remove set" title="Remove set" class="set-btn mr-2"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 20 20\" fill=\"currentColor\" class=\"w-4 h-4\"><path fill-rule=\"evenodd\" d=\"M4 10a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1z\" clip-rule=\"evenodd\"/></svg></button> ${exercise.sets} <button onclick="workoutLogger.incrementSets(${index})" aria-label="Add set" title="Add set" class="set-btn ml-2"><svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 20 20\" fill=\"currentColor\" class=\"w-4 h-4\"><path fill-rule=\"evenodd\" d=\"M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z\" clip-rule=\"evenodd\"/></svg></button></span>`;
                     if (exercise.duration) detailsHTML += `<span class="mr-3">Duration: ${exercise.duration} min</span>`;
                     if (exercise.weight) detailsHTML += `<span class="mr-3">Weight: ${exercise.weight}</span>`;
                     detailsHTML += '</div>';
@@ -1164,6 +1055,15 @@
                 this.updateWorkoutDisplay();
             },
 
+            decrementSets(index) {
+                const ex = window.appState.currentWorkout[index];
+                if (!ex) return;
+                const current = parseInt(ex.sets || '0');
+                const next = Math.max(0, current - 1);
+                ex.sets = String(next);
+                this.updateWorkoutDisplay();
+            },
+
             async saveWorkout() {
                 const date = document.getElementById('workout-date').value;
                 
@@ -1194,238 +1094,14 @@
                         message: 'Your workout has been successfully logged.',
                         onOk: () => {
                             this.load();
-                            window.appState.isEditing = false; // IMPORTANT: Reset editing state after saving
-                            navigation.showPage('dashboard');
+                            window.appState.isEditing = false;
+                            navigation.showPage('workout');
                         }
                     });
                 } catch (error) {
                     console.error('Error saving workout:', error);
                     ui.showError({ message: 'Failed to save the workout. Please try again.' });
                 }
-            }
-        };
-
-        // Dashboard module
-        window.dashboard = {
-            chartInstance: null,
-            todayIntensityChart: null,
-            volumeChartInstance: null,
-            async load() {
-                await this.loadTodayWorkout();
-                await this.loadWeekStats();
-                await this.loadCharts();
-            },
-            async loadTodayWorkout() {
-                const today = new Date().toISOString().split('T')[0];
-                const userId = window.appState.currentUser.uid;
-                const workoutRef = window.firebase.firestoreMethods.doc(
-                    window.firebase.db, `users/${userId}/workouts/${today}`
-                );
-
-                try {
-                    const docSnap = await window.firebase.firestoreMethods.getDoc(workoutRef);
-                    const statusDiv = document.getElementById('today-workout-status');
-
-                    if (docSnap.exists()) {
-                        const workout = docSnap.data();
-                        const exerciseCount = workout.exercises ? workout.exercises.length : 0;
-                        statusDiv.innerHTML = `
-                            <h3 class="font-semibold text-gray-500 dark:text-gray-400">Today's Workout</h3>
-                            <p class="text-2xl font-bold text-green-500 mt-2">Completed!</p>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${exerciseCount} exercises logged.</p>
-                        `;
-                    } else {
-                        statusDiv.innerHTML = `
-                            <p class="text-gray-500 dark:text-gray-400">No workout logged for today yet. Let's get it!</p>
-                            <button onclick="navigation.showPage('workout')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
-                                Log Workout
-                            </button>
-                        `;
-                    }
-                } catch (error) {
-                    console.error('Error loading today workout:', error);
-                }
-            },
-            async loadWeekStats() {
-                const userId = window.appState.currentUser.uid;
-                const { collection, getDocs } = window.firebase.firestoreMethods;
-
-                const workoutsRef = collection(
-                    window.firebase.db, `users/${userId}/workouts`
-                );
-
-                try {
-                    const snapshot = await window.firebase.firestoreMethods.getDocs(workoutsRef);
-                    
-                    // Get current week dates
-                    const now = new Date();
-                    const weekStart = new Date(now);
-                    weekStart.setDate(now.getDate() - now.getDay());
-                    weekStart.setHours(0, 0, 0, 0);
-
-                    const lastWeekStart = new Date(weekStart);
-                    lastWeekStart.setDate(weekStart.getDate() - 7);
-
-                    let weekCount = 0;
-                    let lastWeekCount = 0;
-                    let totalVolume = 0;
-                    let categoryCounts = {};
-
-                    snapshot.forEach(doc => {
-                        const workoutDate = new Date(doc.id + 'T00:00:00');
-                        const workout = doc.data();
-
-                        if (workoutDate >= weekStart) {
-                            if (!workout.isRestDay) {
-                                weekCount++;
-                                // Calculate volume and categories
-                                workout.exercises.forEach(ex => {
-                                    totalVolume += (parseFloat(ex.sets) || 0) * (parseFloat(ex.reps) || 0) * (parseFloat(ex.weight) || 0);
-                                    categoryCounts[ex.category] = (categoryCounts[ex.category] || 0) + 1;
-                                });
-                            }
-                        } else if (workoutDate >= lastWeekStart) {
-                            if (!workout.isRestDay) lastWeekCount++;
-                        }
-                    });
-
-                    document.getElementById('week-stats').innerHTML = `
-                        <p class="text-4xl font-bold text-blue-600 dark:text-blue-400">${weekCount}</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">sessions</p>
-                    `;
-
-                    document.getElementById('week-volume').innerHTML = `
-                        <p class="text-4xl font-bold text-blue-600 dark:text-blue-400">${Math.round(totalVolume).toLocaleString()}</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">kgs lifted</p>
-                    `;
-
-                    this.generateInsights(weekCount, lastWeekCount, categoryCounts);
-
-                } catch (error) {
-                    console.error('Error loading week stats:', error);
-                }
-            },
-
-            generateInsights(current, previous, categories) {
-                let insight = '';
-                if (current > previous) {
-                    insight = `Great job! You've completed ${current - previous} more workout(s) than last week. Keep up the momentum!`;
-                } else if (current > 0 && current === previous) {
-                    insight = `Excellent consistency! You've matched last week's ${current} workouts.`;
-                } else if (current > 0) {
-                    insight = `You've logged ${current} workout(s) this week. Stay consistent to reach your goals!`;
-                } else {
-                    insight = "It's a new week! Time to plan your workouts and start strong.";
-                }
-                document.getElementById('weekly-insight').textContent = insight;
-            },
-
-            async loadCharts() {
-                const userId = window.appState.currentUser.uid;
-                const workoutsRef = window.firebase.firestoreMethods.collection(
-                    window.firebase.db, `users/${userId}/workouts`
-                );
-
-                try {
-                    const snapshot = await window.firebase.firestoreMethods.getDocs(workoutsRef);
-                    
-                    const now = new Date();
-                    const weekStart = new Date(now);
-                    weekStart.setDate(now.getDate() - now.getDay()); // Sunday
-                    weekStart.setHours(0, 0, 0, 0);
-
-                    const weekEnd = new Date(weekStart);
-                    weekEnd.setDate(weekStart.getDate() + 6); // Saturday
-
-                    const weeklyData = [0, 0, 0, 0, 0, 0, 0]; // Sun, Mon, Tue...
-                    const weeklyVolumeData = [0, 0, 0, 0, 0, 0, 0]; // Sun, Mon, Tue...
-
-                    snapshot.forEach(doc => {
-                        const workoutDate = new Date(doc.id + 'T00:00:00'); // Use T00:00:00 to avoid timezone issues
-                        if (workoutDate >= weekStart && workoutDate <= weekEnd) {
-                            const workoutData = doc.data();
-                            const dayOfWeek = workoutDate.getDay(); // 0 for Sunday, 1 for Monday...
-                            if (workoutData.exercises && workoutData.exercises.length > 0) {
-                                weeklyData[dayOfWeek] += workoutData.exercises.length;
-                            }
-
-                            if (workoutData.exercises && !workoutData.isRestDay) {
-                                let dailyVolume = 0;
-                                workoutData.exercises.forEach(ex => {
-                                    dailyVolume += (parseFloat(ex.sets) || 0) * (parseFloat(ex.reps) || 0) * (parseFloat(ex.weight) || 0);
-                                });
-                                weeklyVolumeData[dayOfWeek] += dailyVolume;
-                            }
-                        }
-                    });
- 
-                    const workoutCtx = document.getElementById('workout-chart').getContext('2d');
-                    
-                    if (this.chartInstance) {
-                        this.chartInstance.destroy();
-                    }
-
-                    this.chartInstance = new Chart(workoutCtx, {
-                        type: 'line',
-                        data: {
-                            labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-                            datasets: [{
-                                label: 'Exercises Logged This Week',
-                                fill: true,
-                                backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                                data: weeklyData,
-                                borderColor: 'rgba(59, 130, 246, 1)',
-                                borderWidth: 2,
-                                tension: 0.4, // Makes the line slightly curved
-                                pointBackgroundColor: 'rgba(59, 130, 246, 1)',
-                                pointBorderColor: '#fff',
-                                pointHoverBackgroundColor: '#fff',
-                                pointHoverBorderColor: 'rgba(59, 130, 246, 1)',
-                                fill: false
-                            }]
-                        },
-                        options: {
-                            scales: {
-                                y: { beginAtZero: true, ticks: { stepSize: 1 } }
-                            }
-                        }
-                    });
-
-                    const volumeCtx = document.getElementById('volume-chart').getContext('2d');
-                    if (this.volumeChartInstance) {
-                        this.volumeChartInstance.destroy();
-                    }
-
-                    this.volumeChartInstance = new Chart(volumeCtx, {
-                        type: 'bar',
-                        data: {
-                            labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-                            datasets: [{
-                                label: 'Total Volume (kgs)',
-                                data: weeklyVolumeData,
-                                backgroundColor: 'rgba(34, 197, 94, 0.6)', // green-500
-                                borderColor: 'rgba(34, 197, 94, 1)',
-                                borderWidth: 1
-                            }]
-                        },
-                        options: { scales: { y: { beginAtZero: true } } }
-                    });
-                } catch (error) {
-                    console.error('Error loading charts:', error);
-                }
-            },
-
-            formatDate(dateStr) {
-                const date = new Date(dateStr);
-                const today = new Date().toISOString().split('T')[0];
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
-                const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-                if (dateStr === today) return 'Today';
-                if (dateStr === yesterdayStr) return 'Yesterday';
-                
-                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             }
         };
 
@@ -1552,7 +1228,10 @@
                                     ${exercise.notes ? `<p class="text-sm text-gray-500 dark:text-gray-400 italic mt-1">${exercise.notes}</p>` : ''}
                                 </div>
                                 <div class="flex flex-col items-end ml-3">
-                                    <button onclick="calendar.incrementSets('${dateStr}', ${i})" aria-label="Add set" title="Add set" class="set-btn mb-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/></svg></button>
+                                    <div class="flex items-center gap-2">
+                                        <button onclick="calendar.decrementSets('${dateStr}', ${i})" aria-label="Remove set" title="Remove set" class="set-btn"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M4 10a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1z" clip-rule="evenodd"/></svg></button>
+                                        <button onclick="calendar.incrementSets('${dateStr}', ${i})" aria-label="Add set" title="Add set" class="set-btn"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/></svg></button>
+                                    </div>
                                 </div>
                             </div>
                         `;
@@ -1642,6 +1321,30 @@
                     ui.showError({ message: 'Failed to update sets. Please try again.' });
                 }
             },
+            async decrementSets(dateStr, index) {
+                try {
+                    const workout = window.appState.workouts[dateStr];
+                    if (!workout || !Array.isArray(workout.exercises) || !workout.exercises[index]) return;
+                    const ex = workout.exercises[index];
+                    const current = parseInt(ex.sets || '0');
+                    ex.sets = String(Math.max(0, current - 1));
+
+                    const userId = window.appState.currentUser.uid;
+                    const workoutRef = window.firebase.firestoreMethods.doc(window.firebase.db, `users/${userId}/workouts/${dateStr}`);
+                    await window.firebase.firestoreMethods.setDoc(workoutRef, {
+                        ...workout,
+                        exercises: workout.exercises,
+                        createdAt: workout.createdAt || new Date().toISOString()
+                    });
+
+                    // Refresh local cache and UI
+                    await this.load();
+                    this.showWorkoutDetail(dateStr);
+                } catch (error) {
+                    console.error('Error decrementing sets:', error);
+                    ui.showError({ message: 'Failed to update sets. Please try again.' });
+                }
+            },
 
             async deleteWorkout(dateStr) {
                 ui.showConfirm({
@@ -1709,8 +1412,8 @@
                 document.getElementById('auth-page').classList.add('hidden');
                 document.getElementById('main-app').classList.remove('hidden');
                 
-                // Show dashboard by default
-                navigation.showPage('dashboard');
+                // Show calendar by default
+                navigation.showPage('calendar');
             } else {
                 window.appState.currentUser = null;
                 
