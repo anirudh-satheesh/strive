@@ -28,7 +28,7 @@
         <h3 id="modal-title" class="text-xl font-bold dark:text-gray-100 mb-2"></h3>
         <p id="modal-message" class="text-gray-600 dark:text-gray-400 mb-6"></p>
         <div id="modal-buttons" class="flex justify-center gap-4">
-          <!-- Buttons will be dynamically inserted here -->
+          
         </div>
       </div>
     </div>
@@ -54,7 +54,7 @@
     <section class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-6">
       <h3 class="font-semibold text-lg mb-4">Top Exercises (Lifetime)</h3>
       <div id="top-exercises" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <!-- Top exercises will be rendered here -->
+        <!-- Top exercises -->
         <div class="col-span-1 p-4 border-dashed border-2 dark:border-gray-700 rounded-lg text-center text-sm text-gray-500">No exercise data yet</div>
       </div>
     </section>
@@ -67,13 +67,19 @@
           <canvas id="workout-chart"></canvas>
         </div>
         <div class="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
-          <h3 class="text-lg font-semibold mb-4 dark:text-gray-200">Daily Volume (kgs)</h3>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold dark:text-gray-200">Daily Volume (kgs)</h3>
+            <div class="text-right">
+              <p class="text-xs text-gray-500 dark:text-gray-400">Weekly Total</p>
+              <p id="weekly-total-volume" class="text-2xl font-bold text-green-600 dark:text-green-400">0</p>
+            </div>
+          </div>
           <canvas id="volume-chart"></canvas>
         </div>
       </div>
     </section>
 
-    <!-- Dashboard (hidden until View Progress clicked) -->
+    <!-- Dashboard -->
     <section id="profileDashboard" class="hidden">
       <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
         <div class="mb-6">
@@ -108,7 +114,7 @@
       </div>
     </section>
 
-    <!-- Logout button at bottom of page -->
+    <!-- Logout button -->
     <div class="mt-8 pb-6 text-center">
       <button id="pageLogoutBtn" class="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition">Logout</button>
     </div>
@@ -208,7 +214,6 @@
       </div>
     </div>
 
-    <!-- About section removed per request -->
   </main>
 
   <script src="firebase-config.js"></script>
@@ -301,12 +306,16 @@
 
               if (!agg[name]) agg[name] = { totalReps: 0, totalSets: 0, totalWeight: 0 };
               agg[name].totalSets += sets;
-              agg[name].totalReps += sets * reps; // total reps across sets
-              agg[name].totalWeight += sets * reps * (isNaN(weight) ? 0 : weight); // cumulative weight lifted
+              agg[name].totalReps += sets * reps;
+              agg[name].totalWeight += sets * reps * (isNaN(weight) ? 0 : weight);
             });
           });
 
           const items = Object.keys(agg).map(name => ({ name, ...agg[name] }));
+          
+          console.log('Aggregated Exercise Data:', agg);
+          console.log('Top 3 Exercises:', items.sort((a,b) => b.totalReps - a.totalReps).slice(0,3));
+          
           // Sort by totalReps desc
           items.sort((a,b) => b.totalReps - a.totalReps);
 
@@ -366,7 +375,6 @@
               </div>
             `;
             
-            // Apply medal emoji to the correct position
             card.innerHTML = card.innerHTML.replace('🥇', medals[idx]);
 
             container.appendChild(card);
@@ -422,35 +430,42 @@
           }
 
           chartInstance = new Chart(workoutCtx, {
-            type: 'line',
-            data: {
-              labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-              datasets: [{
-                label: 'Exercises Logged This Week',
-                fill: true,
-                backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                data: weeklyData,
-                borderColor: 'rgba(59, 130, 246, 1)',
-                borderWidth: 2,
-                tension: 0.4,
-                pointBackgroundColor: 'rgba(59, 130, 246, 1)',
-                pointBorderColor: '#fff',
-                pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: 'rgba(59, 130, 246, 1)',
-                fill: false
-              }]
-            },
-            options: {
-              scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1 } }
-              }
+          type: 'line',
+          data: {
+            labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+            datasets: [{
+              label: 'Exercises Logged This Week',
+              fill: true,
+              backgroundColor: 'rgba(16, 185, 129, 0.2)', // emerald-500 at 20%
+              data: weeklyData,
+              borderColor: '#10B981', // emerald line
+              borderWidth: 2,
+              tension: 0.4,
+
+              // 🌿 Emerald pointer colors
+              pointBackgroundColor: '#10B981',
+              pointBorderColor: '#fff',
+              pointHoverBackgroundColor: '#fff',
+              pointHoverBorderColor: '#10B981',
+
+              fill: false
+            }]
+          },
+          options: {
+            scales: {
+              y: { beginAtZero: true, ticks: { stepSize: 1 } }
             }
-          });
+          }
+        });
 
           const volumeCtx = document.getElementById('volume-chart').getContext('2d');
           if (volumeChartInstance) {
             volumeChartInstance.destroy();
           }
+
+          // Calculate weekly total volume
+          const weeklyTotal = weeklyVolumeData.reduce((sum, vol) => sum + vol, 0);
+          document.getElementById('weekly-total-volume').textContent = Math.round(weeklyTotal).toLocaleString();
 
           volumeChartInstance = new Chart(volumeCtx, {
             type: 'bar',
@@ -749,6 +764,22 @@
             }
 
           }, 100);
+
+          // Refresh top exercises and charts when page regains focus
+          let focusListener = async () => {
+            if (auth.currentUser) {
+              // Add small delay to ensure Firestore has synced new data
+              setTimeout(async () => {
+                try {
+                  await loadTopExercises(auth.currentUser.uid);
+                  await loadCharts(auth.currentUser.uid);
+                } catch (err) {
+                  console.error('Refresh error:', err);
+                }
+              }, 300);
+            }
+          };
+          window.addEventListener('focus', focusListener);
         } else {
           console.log('No user authenticated');
           window.location.href = 'index.html';

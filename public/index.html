@@ -55,15 +55,15 @@
             width: 34px;
             height: 34px;
             border-radius: 9999px;
-            background: #2563eb; /* blue-600 */
+            background: #059669; /* emerald-600 */
             color: #fff;
             border: none;
             cursor: pointer;
-            box-shadow: 0 6px 12px rgba(37,99,235,0.12);
+            box-shadow: 0 6px 12px rgba(5,150,105,0.12);
         }
         .set-btn:active { transform: translateY(0); }
-        .set-btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(37,99,235,0.12); }
-        .dark .set-btn { background: #1e3a8a; box-shadow: 0 6px 12px rgba(30,58,138,0.12); }
+        .set-btn:focus { outline: none; box-shadow: 0 0 0 4px rgba(5,150,105,0.12); }
+        .dark .set-btn { background: #065f46; box-shadow: 0 6px 12px rgba(6,95,70,0.12); }
         .set-btn svg { width: 16px; height: 16px; }
     </style>
 </head>
@@ -226,11 +226,11 @@
                             <!-- Exercises will be dynamically inserted here -->
                         </div>
 
-                        <button onclick="workoutLogger.showExerciseSelector()" class="w-full flex items-center justify-center gap-2 bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 mb-4">
+                        <button onclick="workoutLogger.showExerciseSelector()" class="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white p-3 rounded-lg font-semibold hover:bg-emerald-800 mb-4">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                             Add Exercise
                         </button>
-                        <button onclick="workoutLogger.saveWorkout()" id="save-workout-btn" class="w-full bg-green-600 text-white p-4 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                        <button onclick="workoutLogger.saveWorkout()" id="save-workout-btn" class="w-full bg-green-800 text-white p-4 rounded-lg font-semibold hover:bg-green-900 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
                             Save Workout
                         </button>
                     </div>
@@ -306,7 +306,7 @@
                 <div id="exercise-detail-inputs" class="space-y-4 mb-6">
                     <!-- Dynamic inputs for reps, sets, weight, etc. will be inserted here -->
                 </div>
-                <button onclick="workoutLogger.addExerciseToWorkout()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700">Add to Workout</button>
+                <button onclick="workoutLogger.addExerciseToWorkout()" class="w-full bg-emerald-600 text-white p-3 rounded-lg font-semibold hover:bg-emerald-700">Add to Workout</button>
             </div>
         </div>
     </div>
@@ -553,10 +553,10 @@
                 // Update nav buttons
                 document.querySelectorAll('.nav-btn').forEach(btn => {
                     if (btn.dataset.page === pageName) {
-                        btn.classList.add('border-blue-600', 'dark:border-blue-400', 'text-blue-600', 'dark:text-blue-400');
+                        btn.classList.add('border-emerald-600', 'dark:border-emerald-400', 'text-emerald-600', 'dark:text-emerald-400');
                         btn.classList.remove('border-transparent', 'text-gray-600', 'dark:text-gray-300');
                     } else {
-                        btn.classList.remove('border-blue-600', 'dark:border-blue-400', 'text-blue-600', 'dark:text-blue-400');
+                        btn.classList.remove('border-emerald-600', 'dark:border-emerald-400', 'text-emerald-600', 'dark:text-emerald-400');
                         btn.classList.add('border-transparent', 'text-gray-600', 'dark:text-gray-300');
                     }
                 });
@@ -849,7 +849,7 @@
                 listDiv.innerHTML = '';
                 exercises.forEach(exercise => {
                     const div = document.createElement('div');
-                    div.className = 'bg-gray-50 dark:bg-gray-700 p-3 rounded-lg cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-600';
+                    div.className = 'bg-gray-50 dark:bg-gray-700 p-3 rounded-lg cursor-pointer hover:bg-emerald-50 dark:hover:bg-gray-600';
                     div.innerHTML = `
                         <h4 class="font-semibold dark:text-gray-200">${exercise.name}</h4>
                         <p class="text-sm text-gray-600 dark:text-gray-400 capitalize">${exercise.category}</p>
@@ -1165,13 +1165,13 @@
                     if (workoutData && workoutData.isRestDay) {
                         dayClasses += 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 font-bold hover:ring-2 hover:ring-amber-400';
                     } else if (workoutData && workoutData.exercises && workoutData.exercises.length > 0) {
-                        dayClasses += 'bg-blue-600 text-white font-bold hover:ring-2 hover:ring-blue-400';
+                        dayClasses += 'bg-emerald-600 text-white font-bold hover:ring-2 hover:ring-emerald-400';
                     } else {
                         dayClasses += 'bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700';
                     }
 
                     if (isToday) {
-                        dayClasses += ' ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-800 ring-blue-500';
+                        dayClasses += ' ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-800 ring-emerald-500';
                     } else {
                         dayClasses += ' dark:text-gray-300';
                     }
@@ -1193,7 +1193,7 @@
                         <h3 class="text-lg font-bold mb-3 dark:text-gray-200">${this.formatDate(dateStr)}</h3>
                         <p class="text-gray-600 dark:text-gray-400 mb-4">No activity logged for this day.</p>
                         <div class="flex gap-2">
-                            <button onclick="calendar.createWorkoutForDate('${dateStr}')" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                            <button onclick="calendar.createWorkoutForDate('${dateStr}')" class="flex-1 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
                                 Log Workout
                             </button>
                             <button onclick="calendar.markAsRestDay('${dateStr}')" class="flex-1 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700">
@@ -1247,7 +1247,7 @@
                         <div class="mb-4 space-y-3">
                             ${exercisesHTML}
                         </div>
-                        <button onclick="calendar.editWorkout('${dateStr}')" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        <button onclick="calendar.editWorkout('${dateStr}')" class="w-full bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
                             Edit Workout
                         </button>
                     `;
