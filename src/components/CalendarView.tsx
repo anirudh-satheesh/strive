@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Dumbbell, Moon, X } from 'lucide-react';
 import { WorkoutService } from '../services/workoutService';
-import { auth, db } from '../services/firebase';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { auth } from '../services/firebase';
 import type { Workout } from '../types';
 import { useNotification } from '../context/NotificationContext';
 
@@ -95,10 +94,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
 
         if (!confirmed) return;
 
+        // Re-check state after async confirm
+        if (!auth.currentUser || !selectedDate) return;
+
         setSavingRestDay(true);
         try {
-            const workoutRef = doc(db, `users/${auth.currentUser.uid}/workouts/${selectedDate}`);
-            await deleteDoc(workoutRef);
+            await WorkoutService.deleteWorkout(auth.currentUser.uid, selectedDate);
             setWorkouts(prev => {
                 const updated = { ...prev };
                 delete updated[selectedDate];

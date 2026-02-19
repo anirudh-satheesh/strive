@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { ExerciseService } from '../services/exerciseService';
 import type { Exercise } from '../types';
@@ -11,7 +11,9 @@ export const ExerciseLibrary: React.FC = () => {
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const categories = Array.from(new Set(exercises.map(ex => ex.category))).sort();
+    const categories = useMemo(() =>
+        Array.from(new Set(exercises.map(ex => ex.category))).sort()
+        , [exercises]);
 
     useEffect(() => {
         const loadExercises = async () => {

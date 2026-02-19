@@ -19,6 +19,8 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
     const [saving, setSaving] = useState(false);
     const { showToast, confirm } = useNotification();
 
+    const closeSelector = React.useCallback(() => setIsSelectorOpen(false), []);
+
     // Sync date when initialDate prop changes
     useEffect(() => {
         if (initialDate) {
@@ -273,7 +275,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
             {isSelectorOpen && (
                 <ExerciseSelector
                     onSelect={addExercise}
-                    onClose={() => setIsSelectorOpen(false)}
+                    onClose={closeSelector}
                 />
             )}
         </div>

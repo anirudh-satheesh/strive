@@ -17,6 +17,11 @@ export const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({ onSelect, on
 
     const modalRef = useRef<HTMLDivElement>(null);
     const lastActiveElement = useRef<HTMLElement | null>(null);
+    const onCloseRef = useRef(onClose);
+
+    useEffect(() => {
+        onCloseRef.current = onClose;
+    }, [onClose]);
 
     useEffect(() => {
         const load = async () => {
@@ -27,7 +32,6 @@ export const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({ onSelect, on
             try {
                 const all = await ExerciseService.getAllExercises(auth.currentUser.uid);
                 setExercises(all);
-                setFiltered(all);
             } catch (error) {
                 console.error('Error loading exercises:', error);
             } finally {
@@ -43,7 +47,7 @@ export const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({ onSelect, on
         input?.focus();
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
+            if (e.key === 'Escape') onCloseRef.current();
             if (e.key === 'Tab' && modalRef.current) {
                 const focusable = modalRef.current.querySelectorAll(
                     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -70,7 +74,7 @@ export const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({ onSelect, on
             window.removeEventListener('keydown', handleKeyDown);
             lastActiveElement.current?.focus();
         };
-    }, [onClose]);
+    }, []);
 
     useEffect(() => {
         setFiltered(
@@ -84,12 +88,16 @@ export const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({ onSelect, on
     return (
         <div
             className="fixed inset-0 z-[60] bg-black/80 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="exercise-selector-title"
             ref={modalRef}
+            onClick={onClose}
         >
-            <div className="bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md h-[85vh] sm:h-auto sm:max-h-[90vh] flex flex-col border-t sm:border dark:border-zinc-800 overflow-hidden">
+            <div
+                className="bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md h-[85vh] sm:h-auto sm:max-h-[90vh] flex flex-col border-t sm:border dark:border-zinc-800 overflow-hidden"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="exercise-selector-title"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="p-6 border-b dark:border-zinc-800 bg-white dark:bg-zinc-900/50">
                     <div className="flex justify-between items-center mb-6">
                         <h3 id="exercise-selector-title" className="text-2xl font-black dark:text-gray-100 uppercase tracking-tight">Select Exercise</h3>
@@ -109,7 +117,6 @@ export const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({ onSelect, on
                             className="w-full pl-12 pr-4 py-4 border dark:border-zinc-700/50 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 dark:text-gray-100 font-bold placeholder:text-zinc-500 focus:ring-4 focus:ring-cyan-500/10 outline-none transition-all"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            autoFocus
                         />
                     </div>
                 </div>

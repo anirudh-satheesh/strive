@@ -9,10 +9,12 @@ import { ProfileView } from './components/ProfileView';
 import { CalendarView } from './components/CalendarView';
 import { NotificationProvider } from './context/NotificationContext';
 
+export type Page = 'workout' | 'exercises' | 'calendar' | 'profile';
+
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activePage, setActivePage] = useState('workout');
+  const [activePage, setActivePage] = useState<Page>('workout');
   const [workoutDate, setWorkoutDate] = useState<string | null>(null);
 
   useEffect(() => {
@@ -29,6 +31,7 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('Failed to log out:', error);
     } finally {
+      setWorkoutDate(null);
       setActivePage('workout');
     }
   };

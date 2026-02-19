@@ -1,14 +1,15 @@
 import React from 'react';
 import { User, Dumbbell, BookOpen, CalendarDays } from 'lucide-react';
+import type { Page } from '../App';
 
 interface LayoutProps {
     children: React.ReactNode;
-    activePage: string;
-    setActivePage: (page: string) => void;
+    activePage: Page;
+    setActivePage: (page: Page) => void;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children, activePage, setActivePage }) => {
-    const navItems = [
+    const navItems: { id: Page; label: string; icon: any }[] = [
         { id: 'workout', label: 'Log Workout', icon: Dumbbell },
         { id: 'exercises', label: 'Exercises', icon: BookOpen },
         { id: 'calendar', label: 'Calendar', icon: CalendarDays },

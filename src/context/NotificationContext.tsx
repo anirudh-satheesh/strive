@@ -32,7 +32,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     } | null>(null);
 
     const showToast = useCallback((message: string, type: NotificationType = 'success') => {
-        const id = Math.random().toString(36).substr(2, 9);
+        const id = Math.random().toString(36).slice(2, 11);
         setToasts(prev => [...prev, { id, message, type }]);
         setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
@@ -95,10 +95,15 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             {children}
 
             {/* Toast Container */}
-            <div className="fixed bottom-20 md:bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
+            <div
+                className="fixed bottom-20 md:bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none"
+                aria-live="polite"
+                aria-atomic="false"
+            >
                 {toasts.map(toast => (
                     <div
                         key={toast.id}
+                        role={toast.type === 'error' || toast.type === 'warning' ? 'alert' : 'status'}
                         className={`
                             pointer-events-auto flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md animate-[slide-in_0.3s_ease-out]
                             ${toast.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : ''}
@@ -115,6 +120,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                         <button
                             onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
                             className="ml-2 opacity-50 hover:opacity-100 transition-opacity"
+                            aria-label="Dismiss notification"
                         >
                             <X size={16} />
                         </button>
