@@ -32,9 +32,9 @@ export const Auth: React.FC = () => {
     return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-md">
-                <div className="flex justify-center items-center mb-6">
-                    <img src="/images/strive-logo.png" alt="Strive Logo" className="h-16 w-16 mr-3" />
-                    <h1 className="text-3xl font-bold text-blue-600">Welcome to Strive</h1>
+                <div className="flex flex-col sm:flex-row justify-center items-center mb-6 gap-2 sm:gap-0">
+                    <img src="/images/strive-logo.png" alt="Strive Logo" className="h-12 w-12 sm:h-16 sm:w-16 sm:mr-3" />
+                    <h1 className="text-xl sm:text-3xl font-bold text-blue-600 text-center">Welcome to Strive</h1>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">

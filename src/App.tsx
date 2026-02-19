@@ -7,11 +7,13 @@ import { WorkoutLog } from './components/WorkoutLog';
 import { ExerciseLibrary } from './components/ExerciseLibrary';
 import { ProfileView } from './components/ProfileView';
 import { CalendarView } from './components/CalendarView';
+import { NotificationProvider } from './context/NotificationContext';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState('workout');
+  const [workoutDate, setWorkoutDate] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = AuthService.onAuthStateChanged((u) => {
@@ -26,10 +28,22 @@ const App: React.FC = () => {
     setActivePage('workout');
   };
 
+  const handleNavigateToWorkout = (date: string) => {
+    setWorkoutDate(date);
+    setActivePage('workout');
+  };
+
+  // Clear workoutDate when navigating away from workout page
+  useEffect(() => {
+    if (activePage !== 'workout') {
+      setWorkoutDate(null);
+    }
+  }, [activePage]);
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 shadow-lg shadow-cyan-500/20"></div>
       </div>
     );
   }
@@ -39,16 +53,17 @@ const App: React.FC = () => {
   }
 
   return (
-    <Layout
-      activePage={activePage}
-      setActivePage={setActivePage}
-      onLogout={handleLogout}
-    >
-      {activePage === 'workout' && <WorkoutLog />}
-      {activePage === 'exercises' && <ExerciseLibrary />}
-      {activePage === 'calendar' && <CalendarView />}
-      {activePage === 'profile' && <ProfileView onLogout={handleLogout} />}
-    </Layout>
+    <NotificationProvider>
+      <Layout
+        activePage={activePage}
+        setActivePage={setActivePage}
+      >
+        {activePage === 'workout' && <WorkoutLog initialDate={workoutDate} />}
+        {activePage === 'exercises' && <ExerciseLibrary />}
+        {activePage === 'calendar' && <CalendarView onNavigateToWorkout={handleNavigateToWorkout} />}
+        {activePage === 'profile' && <ProfileView onLogout={handleLogout} />}
+      </Layout>
+    </NotificationProvider>
   );
 };
 

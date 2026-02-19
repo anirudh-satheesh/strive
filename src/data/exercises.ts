@@ -24,7 +24,7 @@ export const PREDEFINED_EXERCISES: Exercise[] = [
     // Biceps
     { id: "0292", name: "Barbell Incline Curl", category: "Biceps", fields: ["reps", "sets", "weight"] },
     { id: "0265", name: "Biceps Curl", category: "Biceps", fields: ["reps", "sets", "weight"] },
-    { id: "3010", name: "Concentration Curls", category: "Biceps", fields: ["reps", "sets", "weight"] },
+    { id: "3011", name: "Concentration Curls", category: "Biceps", fields: ["reps", "sets", "weight"] },
     { id: "0287", name: "Hammer Curl", category: "Biceps", fields: ["reps", "sets", "weight"] },
     { id: "0348", name: "Preacher Curl", category: "Biceps", fields: ["reps", "sets", "weight"] },
 

@@ -1,4 +1,4 @@
-import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { PREDEFINED_EXERCISES } from '../data/exercises';
 import type { Exercise } from '../types';
@@ -33,5 +33,10 @@ export const ExerciseService = {
             createdAt: new Date().toISOString()
         });
         return docRef.id;
+    },
+
+    async deleteCustomExercise(userId: string, exerciseId: string): Promise<void> {
+        const exerciseRef = doc(db, `users/${userId}/exercises/${exerciseId}`);
+        await deleteDoc(exerciseRef);
     }
 };

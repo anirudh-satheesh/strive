@@ -1,13 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+
+  /* Modern Theme Tokens */
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --primary: #0ea5e9;
+  --primary-dark: #0284c7;
+  --accent: #6366f1;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+
+  color: var(--text-main);
+  background-color: var(--bg-main);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -15,24 +26,53 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-main: #09090b;
+    /* Zinc-950 */
+    --bg-card: #18181b;
+    /* Zinc-900 */
+    --primary: #22d3ee;
+    /* Cyan-400 */
+    --primary-dark: #0891b2;
+    /* Cyan-600 */
+    --accent: #818cf8;
+    /* Indigo-400 */
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border: #27272a;
+    /* Zinc-800 */
+
+    color: var(--text-main);
+    background-color: var(--bg-main);
+  }
+}
+
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* Hide scrollbar for category filter pills */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

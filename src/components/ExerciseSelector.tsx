@@ -36,21 +36,21 @@ export const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({ onSelect, on
     }, [searchTerm, exercises]);
 
     return (
-        <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] flex flex-col">
-                <div className="p-4 border-b dark:border-gray-700">
-                    <div className="flex justify-between items-center mb-3">
-                        <h3 className="text-xl font-bold dark:text-gray-100">Select Exercise</h3>
-                        <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+        <div className="fixed inset-0 z-[60] bg-black/80 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm">
+            <div className="bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md h-[85vh] sm:h-auto sm:max-h-[90vh] flex flex-col border-t sm:border dark:border-zinc-800 overflow-hidden">
+                <div className="p-6 border-b dark:border-zinc-800 bg-white dark:bg-zinc-900/50">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-2xl font-black dark:text-gray-100 uppercase tracking-tight">Select Exercise</h3>
+                        <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors">
                             <X size={24} />
                         </button>
                     </div>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <div className="relative group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-cyan-500 transition-colors" size={20} />
                         <input
                             type="text"
-                            placeholder="Search..."
-                            className="w-full pl-10 pr-4 py-2 border dark:border-gray-600 rounded-lg bg-transparent dark:text-gray-200 outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Find your next challenge..."
+                            className="w-full pl-12 pr-4 py-4 border dark:border-zinc-700/50 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 dark:text-gray-100 font-bold placeholder:text-zinc-500 focus:ring-4 focus:ring-cyan-500/10 outline-none transition-all"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             autoFocus
@@ -58,24 +58,27 @@ export const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({ onSelect, on
                     </div>
                 </div>
 
-                <div className="p-2 space-y-1 overflow-y-auto flex-grow">
+                <div className="p-4 space-y-2 overflow-y-auto flex-grow no-scrollbar">
                     {loading ? (
-                        <div className="flex justify-center p-8">
-                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                        <div className="flex justify-center p-12">
+                            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-cyan-500 shadow-lg shadow-cyan-500/20"></div>
                         </div>
                     ) : filtered.length > 0 ? (
                         filtered.map((ex) => (
                             <button
                                 key={ex.id}
                                 onClick={() => onSelect(ex)}
-                                className="w-full text-left p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
+                                className="w-full text-left p-4 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-all group border-2 border-transparent hover:border-cyan-500/20"
                             >
-                                <p className="font-semibold dark:text-gray-200 group-hover:text-blue-500">{ex.name}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest">{ex.category}</p>
+                                <p className="font-black dark:text-gray-100 group-hover:text-cyan-400 transition-colors uppercase tracking-tight">{ex.name}</p>
+                                <p className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-1">{ex.category}</p>
                             </button>
                         ))
                     ) : (
-                        <p className="p-4 text-center text-gray-500">No exercises found.</p>
+                        <div className="p-12 text-center">
+                            <Search size={40} className="mx-auto mb-4 text-zinc-700" />
+                            <p className="text-zinc-500 font-bold uppercase tracking-widest text-xs">No exercises matched</p>
+                        </div>
                     )}
                 </div>
             </div>
