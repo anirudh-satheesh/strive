@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Save, Trash2, Calendar as CalendarIcon, Minus } from 'lucide-react';
+import { Plus, Save, Trash2, Calendar as CalendarIcon, Minus, Moon } from 'lucide-react';
 import { WorkoutService } from '../services/workoutService';
 import { auth } from '../services/firebase';
 import type { Workout, WorkoutExercise, Exercise } from '../types';
@@ -47,7 +47,8 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
         };
         setWorkout(prev => ({
             ...prev,
-            exercises: [...prev.exercises, newEx]
+            exercises: [...prev.exercises, newEx],
+            isRestDay: false
         }));
         setIsSelectorOpen(false);
     };
@@ -93,7 +94,12 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
         if (!auth.currentUser) return;
         setSaving(true);
         try {
-            await WorkoutService.saveWorkout(auth.currentUser.uid, workout);
+            const finalWorkout = {
+                ...workout,
+                isRestDay: workout.exercises.length === 0 ? workout.isRestDay : false
+            };
+            await WorkoutService.saveWorkout(auth.currentUser.uid, finalWorkout);
+            setWorkout(finalWorkout);
             showToast('Workout saved successfully!', 'success');
         } catch (error) {
             showToast('Failed to save workout', 'error');
@@ -115,7 +121,15 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-6 mb-8">
                 <div>
                     <h2 className="text-3xl sm:text-4xl font-black dark:text-gray-100 uppercase tracking-tight">Log Workout</h2>
-                    <p className="text-cyan-500 font-bold uppercase tracking-widest text-xs mt-1">Push your limits today</p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <p className="text-cyan-500 font-bold uppercase tracking-widest text-xs">Push your limits today</p>
+                        {workout.isRestDay && (
+                            <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest animate-pulse">
+                                <Moon size={10} />
+                                Rest Day
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <div className="relative group">
                     <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-cyan-500 transition-colors" size={20} />

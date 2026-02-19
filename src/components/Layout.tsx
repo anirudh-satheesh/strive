@@ -21,14 +21,18 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, setActiveP
             <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b dark:border-gray-700">
                 <div className="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
                     {/* Branding */}
-                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => setActivePage('workout')}>
+                    <button
+                        className="flex items-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-500/20 rounded-lg p-1 transition-all"
+                        onClick={() => setActivePage('workout')}
+                        aria-label="Go to Log Workout"
+                    >
                         <div className="h-9 w-9 bg-gradient-to-br from-cyan-400 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                            <img src="/images/strive-logo.png" alt="Strive Logo" className="h-6 w-6 brightness-0 invert" />
+                            <img src="/strive-logo.png" alt="Strive Logo" className="h-6 w-6 brightness-0 invert" />
                         </div>
                         <h1 className="text-xl font-black bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent tracking-tight">
                             Strive
                         </h1>
-                    </div>
+                    </button>
 
                     {/* Desktop Navigation */}
                     <nav className="hidden md:flex items-center gap-1 h-full">
@@ -69,8 +73,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, setActiveP
                                 key={item.id}
                                 onClick={() => setActivePage(item.id)}
                                 className={`flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all ${isActive
-                                        ? 'text-cyan-500 dark:text-cyan-400 scale-110'
-                                        : 'text-gray-400 dark:text-gray-500 hover:text-gray-600'
+                                    ? 'text-cyan-500 dark:text-cyan-400 scale-110'
+                                    : 'text-gray-400 dark:text-gray-500 hover:text-gray-600'
                                     }`}
                             >
                                 <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />

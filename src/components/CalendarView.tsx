@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Dumbbell, Moon, X } from 'lucide-react';
 import { WorkoutService } from '../services/workoutService';
-import { auth } from '../services/firebase';
+import { auth, db } from '../services/firebase';
+import { doc, deleteDoc } from 'firebase/firestore';
 import type { Workout } from '../types';
 import { useNotification } from '../context/NotificationContext';
 
@@ -15,16 +16,23 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
     const [loading, setLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [savingRestDay, setSavingRestDay] = useState(false);
-    const { showToast } = useNotification();
+    const { showToast, confirm } = useNotification();
 
     useEffect(() => {
         const loadWorkouts = async () => {
-            if (!auth.currentUser) return;
-            setLoading(true);
-            const all = await WorkoutService.getAllWorkouts(auth.currentUser.uid);
-            const mapped = all.reduce((acc, w) => ({ ...acc, [w.date]: w }), {} as Record<string, Workout>);
-            setWorkouts(mapped);
-            setLoading(false);
+            if (!auth.currentUser) {
+                setLoading(false);
+                return;
+            }
+            try {
+                const all = await WorkoutService.getAllWorkouts(auth.currentUser.uid);
+                const mapped = all.reduce((acc, w) => ({ ...acc, [w.date]: w }), {} as Record<string, Workout>);
+                setWorkouts(mapped);
+            } catch (error) {
+                console.error('Error loading workouts:', error);
+            } finally {
+                setLoading(false);
+            }
         };
         loadWorkouts();
     }, []);
@@ -41,7 +49,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
         setSelectedDate(null);
     };
 
-    const monthYear = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+    const monthYear = currentMonth.toLocaleString(undefined, { month: 'long', year: 'numeric' });
     const totalDays = daysInMonth(currentMonth);
     const startDay = firstDayOfMonth(currentMonth);
 
@@ -49,7 +57,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
     for (let i = 0; i < startDay; i++) days.push(null);
     for (let i = 1; i <= totalDays; i++) days.push(i);
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     const getDateStr = (day: number) =>
         `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -69,6 +78,36 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
             showToast('Enjoy your rest day!', 'success');
         } catch (error) {
             showToast('Failed to save rest day', 'error');
+        } finally {
+            setSavingRestDay(false);
+        }
+    };
+
+    const handleRemoveRestDay = async () => {
+        if (!auth.currentUser || !selectedDate) return;
+
+        const confirmed = await confirm({
+            title: 'Remove Rest Day',
+            message: 'Are you sure you want to remove this rest day?',
+            confirmText: 'Remove',
+            cancelText: 'Keep'
+        });
+
+        if (!confirmed) return;
+
+        setSavingRestDay(true);
+        try {
+            const workoutRef = doc(db, `users/${auth.currentUser.uid}/workouts/${selectedDate}`);
+            await deleteDoc(workoutRef);
+            setWorkouts(prev => {
+                const updated = { ...prev };
+                delete updated[selectedDate];
+                return updated;
+            });
+            showToast('Rest day removed', 'success');
+        } catch (error) {
+            console.error('Error removing rest day:', error);
+            showToast('Failed to remove rest day', 'error');
         } finally {
             setSavingRestDay(false);
         }
@@ -108,8 +147,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                     <button onClick={prevMonth} className="p-2 hover:bg-white/20 rounded-xl transition-all hover:scale-110">
                         <ChevronLeft size={24} strokeWidth={2.5} />
                     </button>
-                    <div className="text-center">
+                    <div className="flex flex-col items-center">
                         <h3 className="text-xl font-black uppercase tracking-widest">{monthYear}</h3>
+                        <div className="flex gap-4 mt-1 opacity-80">
+                            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-tighter">
+                                <Dumbbell size={12} strokeWidth={3} /> {monthWorkouts} Workouts
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-tighter">
+                                <Moon size={12} strokeWidth={3} /> {monthRestDays} Rest
+                            </div>
+                        </div>
                     </div>
                     <button onClick={nextMonth} className="p-2 hover:bg-white/20 rounded-xl transition-all hover:scale-110">
                         <ChevronRight size={24} strokeWidth={2.5} />
@@ -180,11 +227,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
 
             {/* Selected Date Details Panel */}
             {selectedDate && (
-                <div className="p-6 border-t dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 border-b-0 animate-[fadeIn_0.4s_ease-out]">
+                <div className="p-6 border-t dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 border-b-0 animate-[fade-in_0.4s_ease-out]">
                     <div className="flex justify-between items-center mb-6">
                         <div>
                             <h4 className="text-xl font-black dark:text-gray-100 tracking-tight">
-                                {new Date(selectedDate + 'T00:00:00').toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric' })}
+                                {new Date(selectedDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
                             </h4>
                             <div className="flex gap-2 mt-2">
                                 {selectedWorkout ? (
@@ -205,9 +252,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
 
                     {selectedWorkout ? (
                         selectedWorkout.isRestDay ? (
-                            <div className="py-8 text-center bg-emerald-500/5 rounded-3xl border border-emerald-500/10">
+                            <div className="py-8 text-center bg-emerald-500/5 rounded-3xl border border-emerald-500/10 flex flex-col items-center">
                                 <Moon size={48} className="mx-auto text-emerald-500 mb-4 animate-pulse" />
-                                <p className="text-emerald-500 font-bold tracking-wide italic">"Muscle grows during rest!"</p>
+                                <p className="text-emerald-500 font-bold tracking-wide italic mb-6">"Muscle grows during rest!"</p>
+                                <button
+                                    onClick={handleRemoveRestDay}
+                                    disabled={savingRestDay}
+                                    className="px-6 py-2 bg-zinc-950 text-white rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-zinc-800 transition-all active:scale-95 disabled:opacity-50 border border-zinc-800"
+                                >
+                                    {savingRestDay ? 'Removing...' : 'Remove Rest Day'}
+                                </button>
                             </div>
                         ) : (
                             <div className="space-y-4">

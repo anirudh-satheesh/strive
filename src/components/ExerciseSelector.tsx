@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import { ExerciseService } from '../services/exerciseService';
 import type { Exercise } from '../types';
@@ -15,16 +15,62 @@ export const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({ onSelect, on
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
 
+    const modalRef = useRef<HTMLDivElement>(null);
+    const lastActiveElement = useRef<HTMLElement | null>(null);
+
     useEffect(() => {
         const load = async () => {
-            if (!auth.currentUser) return;
-            const all = await ExerciseService.getAllExercises(auth.currentUser.uid);
-            setExercises(all);
-            setFiltered(all);
-            setLoading(false);
+            if (!auth.currentUser) {
+                setLoading(false);
+                return;
+            }
+            try {
+                const all = await ExerciseService.getAllExercises(auth.currentUser.uid);
+                setExercises(all);
+                setFiltered(all);
+            } catch (error) {
+                console.error('Error loading exercises:', error);
+            } finally {
+                setLoading(false);
+            }
         };
         load();
     }, []);
+
+    useEffect(() => {
+        lastActiveElement.current = document.activeElement as HTMLElement;
+        const input = modalRef.current?.querySelector('input');
+        input?.focus();
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+            if (e.key === 'Tab' && modalRef.current) {
+                const focusable = modalRef.current.querySelectorAll(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                );
+                const first = focusable[0] as HTMLElement;
+                const last = focusable[focusable.length - 1] as HTMLElement;
+
+                if (e.shiftKey) { // Shift + Tab
+                    if (document.activeElement === first) {
+                        e.preventDefault();
+                        last.focus();
+                    }
+                } else { // Tab
+                    if (document.activeElement === last) {
+                        e.preventDefault();
+                        first.focus();
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            lastActiveElement.current?.focus();
+        };
+    }, [onClose]);
 
     useEffect(() => {
         setFiltered(
@@ -36,12 +82,22 @@ export const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({ onSelect, on
     }, [searchTerm, exercises]);
 
     return (
-        <div className="fixed inset-0 z-[60] bg-black/80 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm">
+        <div
+            className="fixed inset-0 z-[60] bg-black/80 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="exercise-selector-title"
+            ref={modalRef}
+        >
             <div className="bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md h-[85vh] sm:h-auto sm:max-h-[90vh] flex flex-col border-t sm:border dark:border-zinc-800 overflow-hidden">
                 <div className="p-6 border-b dark:border-zinc-800 bg-white dark:bg-zinc-900/50">
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-2xl font-black dark:text-gray-100 uppercase tracking-tight">Select Exercise</h3>
-                        <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors">
+                        <h3 id="exercise-selector-title" className="text-2xl font-black dark:text-gray-100 uppercase tracking-tight">Select Exercise</h3>
+                        <button
+                            onClick={onClose}
+                            className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors"
+                            aria-label="Close exercise selector"
+                        >
                             <X size={24} />
                         </button>
                     </div>

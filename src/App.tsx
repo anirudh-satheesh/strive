@@ -24,8 +24,13 @@ const App: React.FC = () => {
   }, []);
 
   const handleLogout = async () => {
-    await AuthService.logout();
-    setActivePage('workout');
+    try {
+      await AuthService.logout();
+    } catch (error) {
+      console.error('Failed to log out:', error);
+    } finally {
+      setActivePage('workout');
+    }
   };
 
   const handleNavigateToWorkout = (date: string) => {

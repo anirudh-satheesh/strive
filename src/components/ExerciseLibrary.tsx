@@ -11,20 +11,23 @@ export const ExerciseLibrary: React.FC = () => {
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const categories = [
-        'Abs', 'Back', 'Biceps', 'Cardio', 'Chest',
-        'Flexibility', 'Lats', 'Legs', 'Shoulders',
-        'Strength', 'Traps', 'Triceps'
-    ];
+    const categories = Array.from(new Set(exercises.map(ex => ex.category))).sort();
 
     useEffect(() => {
         const loadExercises = async () => {
-            if (!auth.currentUser) return;
-            setLoading(true);
-            const all = await ExerciseService.getAllExercises(auth.currentUser.uid);
-            setExercises(all);
-            setFilteredExercises(all);
-            setLoading(false);
+            if (!auth.currentUser) {
+                setLoading(false);
+                return;
+            }
+            try {
+                const all = await ExerciseService.getAllExercises(auth.currentUser.uid);
+                setExercises(all);
+                setFilteredExercises(all);
+            } catch (error) {
+                console.error('Error loading exercises:', error);
+            } finally {
+                setLoading(false);
+            }
         };
         loadExercises();
     }, []);
