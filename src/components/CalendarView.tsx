@@ -14,7 +14,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
     const [workouts, setWorkouts] = useState<Record<string, Workout>>({});
     const [loading, setLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
-    const [savingRestDay, setSavingRestDay] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const { showToast, confirm } = useNotification();
 
     useEffect(() => {
@@ -69,7 +69,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
 
     const handleMarkRestDay = async () => {
         if (!auth.currentUser || !selectedDate) return;
-        setSavingRestDay(true);
+        setIsSaving(true);
         try {
             const restDayWorkout: Workout = { date: selectedDate, exercises: [], isRestDay: true };
             await WorkoutService.saveWorkout(auth.currentUser.uid, restDayWorkout);
@@ -78,7 +78,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
         } catch (error) {
             showToast('Failed to save rest day', 'error');
         } finally {
-            setSavingRestDay(false);
+            setIsSaving(false);
         }
     };
 
@@ -94,10 +94,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
 
         if (!confirmed) return;
 
-        // Re-check state after async confirm
-        if (!auth.currentUser || !selectedDate) return;
-
-        setSavingRestDay(true);
+        setIsSaving(true);
         try {
             await WorkoutService.deleteWorkout(auth.currentUser.uid, selectedDate);
             setWorkouts(prev => {
@@ -110,7 +107,37 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
             console.error('Error removing rest day:', error);
             showToast('Failed to remove rest day', 'error');
         } finally {
-            setSavingRestDay(false);
+            setIsSaving(false);
+        }
+    };
+
+    const handleDeleteWorkout = async () => {
+        if (!auth.currentUser || !selectedDate) return;
+
+        const confirmed = await confirm({
+            title: 'Delete Workout',
+            message: 'Are you sure you want to delete this entire workout log? This cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Keep'
+        });
+
+        if (!confirmed) return;
+
+        setIsSaving(true);
+        try {
+            await WorkoutService.deleteWorkout(auth.currentUser.uid, selectedDate);
+            setWorkouts(prev => {
+                const updated = { ...prev };
+                delete updated[selectedDate];
+                return updated;
+            });
+            showToast('Workout deleted successfully', 'success');
+            setSelectedDate(null);
+        } catch (error) {
+            console.error('Error deleting workout:', error);
+            showToast('Failed to delete workout', 'error');
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -191,8 +218,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
 
                                 if (workout) {
                                     if (workout.isRestDay) {
-                                        bgColor = 'bg-zinc-100 dark:bg-zinc-800';
-                                        borderColor = 'border-emerald-500/50';
+                                        bgColor = 'bg-emerald-500/10 dark:bg-emerald-500/20';
+                                        borderColor = 'border-emerald-500/40';
+                                        textColor = 'text-emerald-600 dark:text-emerald-400';
                                     } else {
                                         bgColor = 'bg-cyan-500/10 dark:bg-cyan-500/20';
                                         borderColor = 'border-cyan-500/40';
@@ -258,10 +286,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                                 <p className="text-emerald-500 font-bold tracking-wide italic mb-6">"Muscle grows during rest!"</p>
                                 <button
                                     onClick={handleRemoveRestDay}
-                                    disabled={savingRestDay}
+                                    disabled={isSaving}
                                     className="px-6 py-2 bg-zinc-950 text-white rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-zinc-800 transition-all active:scale-95 disabled:opacity-50 border border-zinc-800"
                                 >
-                                    {savingRestDay ? 'Removing...' : 'Remove Rest Day'}
+                                    {isSaving ? 'Removing...' : 'Remove Rest Day'}
                                 </button>
                             </div>
                         ) : (
@@ -277,12 +305,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                                         </div>
                                     </div>
                                 ))}
-                                <button
-                                    onClick={handleLogWorkout}
-                                    className="w-full mt-4 bg-zinc-100 dark:bg-zinc-800 p-4 rounded-2xl text-zinc-950 dark:text-white font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
-                                >
-                                    Edit Workout
-                                </button>
+                                <div className="grid grid-cols-2 gap-3 mt-4">
+                                    <button
+                                        onClick={handleLogWorkout}
+                                        className="bg-zinc-100 dark:bg-zinc-800 p-4 rounded-2xl text-zinc-950 dark:text-white font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95 flex-1"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={handleDeleteWorkout}
+                                        className="bg-red-500/10 text-red-500 p-4 rounded-2xl font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95 flex-1 border border-red-500/20"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
                             </div>
                         )
                     ) : (
@@ -296,11 +332,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                             </button>
                             <button
                                 onClick={handleMarkRestDay}
-                                disabled={savingRestDay}
+                                disabled={isSaving}
                                 className="flex items-center justify-center gap-3 p-6 bg-zinc-900 border border-zinc-700 text-white rounded-3xl font-black uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all disabled:opacity-50"
                             >
                                 <Moon size={24} />
-                                {savingRestDay ? 'Saving...' : 'Mark Rest Day'}
+                                {isSaving ? 'Saving...' : 'Mark Rest Day'}
                             </button>
                         </div>
                     )}

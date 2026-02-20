@@ -85,3 +85,7 @@ export const PREDEFINED_EXERCISES: Exercise[] = [
     { id: "0426", name: "Overhead Triceps Extension", category: "Triceps", fields: ["reps", "sets", "weight"] },
     { id: "0058", name: "Skull Crusher", category: "Triceps", fields: ["reps", "sets", "weight"] }
 ];
+
+export const EXERCISE_CATEGORIES = Array.from(
+    new Set(PREDEFINED_EXERCISES.map(ex => ex.category))
+).sort();
