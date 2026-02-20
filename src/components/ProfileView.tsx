@@ -69,101 +69,106 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
             if (!auth.currentUser) return;
             const userId = auth.currentUser.uid;
 
-            const [workouts, custom, profile, templateDocs] = await Promise.all([
-                WorkoutService.getAllWorkouts(userId),
-                ExerciseService.getCustomExercises(userId),
-                UserService.getProfile(userId),
-                WorkoutService.getTemplates(userId)
-            ]);
+            try {
+                const [workouts, custom, profile, templateDocs] = await Promise.all([
+                    WorkoutService.getAllWorkouts(userId),
+                    ExerciseService.getCustomExercises(userId),
+                    UserService.getProfile(userId),
+                    WorkoutService.getTemplates(userId)
+                ]);
 
-            if (profile?.displayName) {
-                setUserName(profile.displayName);
-            }
+                if (profile?.displayName) {
+                    setUserName(profile.displayName);
+                }
 
-            setCustomExercises(custom);
-            setTemplates(templateDocs);
+                setCustomExercises(custom);
+                setTemplates(templateDocs);
 
-            let totalVol = 0;
-            let totalWork = 0;
-            let monthWork = 0;
-            const now = new Date();
-            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                let totalVol = 0;
+                let totalWork = 0;
+                let monthWork = 0;
+                const now = new Date();
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-            const weekVol = new Array(7).fill(0);
-            const weekEx = new Array(7).fill(0);
-            const weekStart = new Date();
-            weekStart.setDate(now.getDate() - now.getDay());
-            weekStart.setHours(0, 0, 0, 0);
+                const weekVol = new Array(7).fill(0);
+                const weekEx = new Array(7).fill(0);
+                const weekStart = new Date();
+                weekStart.setDate(now.getDate() - now.getDay());
+                weekStart.setHours(0, 0, 0, 0);
 
-            // Exercise frequency map
-            const exerciseFreq: Record<string, number> = {};
+                // Exercise frequency map
+                const exerciseFreq: Record<string, number> = {};
 
-            // For streak calculation
-            const workoutDates = new Set<string>();
+                // For streak calculation
+                const workoutDates = new Set<string>();
 
-            // Weekly volume tracking for best week
-            const weeklyVolumes: Record<string, number> = {};
+                // Weekly volume tracking for best week
+                const weeklyVolumes: Record<string, number> = {};
 
-            workouts.forEach((w: Workout) => {
-                if (!w.isRestDay) {
-                    totalWork++;
-                    workoutDates.add(w.date);
-                    const workoutDate = new Date(w.date + 'T00:00:00');
-                    if (workoutDate >= monthStart) monthWork++;
+                workouts.forEach((w: Workout) => {
+                    if (!w.isRestDay) {
+                        totalWork++;
+                        workoutDates.add(w.date);
+                        const workoutDate = new Date(w.date + 'T00:00:00');
+                        if (workoutDate >= monthStart) monthWork++;
 
-                    let dVol = 0;
-                    w.exercises.forEach((ex: WorkoutExercise) => {
-                        const vol = (Number(ex.sets) || 0) * (Number(ex.reps) || 0) * (Number(ex.weight) || 0);
-                        dVol += vol;
-                        const reps = (Number(ex.sets) || 0) * (Number(ex.reps) || 0);
-                        exerciseFreq[ex.name] = (exerciseFreq[ex.name] || 0) + reps;
-                    });
-                    totalVol += dVol;
+                        let dVol = 0;
+                        w.exercises.forEach((ex: WorkoutExercise) => {
+                            const vol = (Number(ex.sets) || 0) * (Number(ex.reps) || 0) * (Number(ex.weight) || 0);
+                            dVol += vol;
+                            const reps = (Number(ex.sets) || 0) * (Number(ex.reps) || 0);
+                            exerciseFreq[ex.name] = (exerciseFreq[ex.name] || 0) + reps;
+                        });
+                        totalVol += dVol;
 
-                    if (workoutDate >= weekStart) {
-                        const day = workoutDate.getDay();
-                        weekVol[day] += dVol;
-                        weekEx[day] += w.exercises.length;
+                        if (workoutDate >= weekStart) {
+                            const day = workoutDate.getDay();
+                            weekVol[day] += dVol;
+                            weekEx[day] += w.exercises.length;
+                        }
+
+                        // Track weekly volumes
+                        const weekKey = getWeekKey(workoutDate);
+                        weeklyVolumes[weekKey] = (weeklyVolumes[weekKey] || 0) + dVol;
                     }
+                });
 
-                    // Track weekly volumes
-                    const weekKey = getWeekKey(workoutDate);
-                    weeklyVolumes[weekKey] = (weeklyVolumes[weekKey] || 0) + dVol;
+                // Calculate streak
+                let currentStreak = 0;
+                const todayRes = new Date();
+                todayRes.setHours(0, 0, 0, 0);
+                const checkDate = new Date(todayRes);
+                while (true) {
+                    const dateStr = checkDate.toISOString().split('T')[0];
+                    if (workoutDates.has(dateStr)) {
+                        currentStreak++;
+                        checkDate.setDate(checkDate.getDate() - 1);
+                    } else {
+                        break;
+                    }
                 }
-            });
 
-            // Calculate streak
-            let currentStreak = 0;
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const checkDate = new Date(today);
-            while (true) {
-                const dateStr = checkDate.toISOString().split('T')[0];
-                if (workoutDates.has(dateStr)) {
-                    currentStreak++;
-                    checkDate.setDate(checkDate.getDate() - 1);
-                } else {
-                    break;
-                }
+                // Top 3 exercises
+                const sortedExercises = Object.entries(exerciseFreq)
+                    .map(([name, count]) => ({ name, count }))
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 3);
+
+                // Best week volume
+                const bestWeek = Math.max(0, ...Object.values(weeklyVolumes));
+
+                setStats({ totalWorkouts: totalWork, totalVolume: totalVol, monthlyWorkouts: monthWork });
+                setWeeklyVolume(weekVol);
+                setWeeklyExercises(weekEx);
+                setStreak(currentStreak);
+                setBestWeekVolume(bestWeek);
+                setTop3Exercises(sortedExercises);
+            } catch (error) {
+                console.error('Error loading profile data:', error);
+                showToast('Failed to load profile data', 'error');
+            } finally {
+                setLoading(false);
             }
-
-            // Top 3 exercises
-            const sortedExercises = Object.entries(exerciseFreq)
-                .map(([name, count]) => ({ name, count }))
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 3);
-
-            // Best week volume
-            const bestWeek = Math.max(0, ...Object.values(weeklyVolumes));
-
-            setStats({ totalWorkouts: totalWork, totalVolume: totalVol, monthlyWorkouts: monthWork });
-            setWeeklyVolume(weekVol);
-            setWeeklyExercises(weekEx);
-            setStreak(currentStreak);
-            setBestWeekVolume(bestWeek);
-            setTop3Exercises(sortedExercises);
-
-            setLoading(false);
         };
         loadData();
     }, []);
@@ -236,13 +241,20 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
 
     const handleSaveProfile = async () => {
         if (!auth.currentUser) return;
+
+        const trimmedName = editName.trim();
+        if (!trimmedName) {
+            showToast('Name cannot be empty', 'warning');
+            return;
+        }
+
         setEditLoading(true);
         try {
             await UserService.updateUserProfile(auth.currentUser.uid, {
-                displayName: editName.trim()
+                displayName: trimmedName
             });
 
-            setUserName(editName.trim());
+            setUserName(trimmedName);
             setIsEditingProfile(false);
             showToast('Profile updated!', 'success');
         } catch (error) {

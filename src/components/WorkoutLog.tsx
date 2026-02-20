@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Save, Trash2, Calendar as CalendarIcon, Minus, Moon } from 'lucide-react';
 import { WorkoutService } from '../services/workoutService';
 import { StatsService } from '../services/statsService';
@@ -25,6 +25,8 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
     const [showSaveTemplateName, setShowSaveTemplateName] = useState(false);
     const [templateName, setTemplateName] = useState('');
     const { showToast, confirm } = useNotification();
+    const cachedPRs = useRef<Record<string, number>>({});
+    const prsLoaded = useRef(false);
 
     const closeSelector = React.useCallback(() => setIsSelectorOpen(false), []);
 
@@ -40,22 +42,41 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
             if (!auth.currentUser) return;
             setLoading(true);
 
-            const [data, allWorkouts] = await Promise.all([
-                WorkoutService.getWorkoutForDate(auth.currentUser.uid, date),
-                WorkoutService.getAllWorkouts(auth.currentUser.uid)
-            ]);
+            try {
+                // Only load all workouts once or if forced
+                if (!prsLoaded.current) {
+                    const allWorkouts = await WorkoutService.getAllWorkouts(auth.currentUser.uid);
+                    cachedPRs.current = StatsService.calculatePRs(allWorkouts);
+                    prsLoaded.current = true;
+                }
 
-            setWorkout(data || { date, exercises: [] });
+                const data = await WorkoutService.getWorkoutForDate(auth.currentUser.uid, date);
+                setWorkout(data || { date, exercises: [] });
 
-            // Calculate PRs excluding current date
-            const previousWorkouts = allWorkouts.filter(w => w.date !== date);
-            const prs = StatsService.calculatePRs(previousWorkouts);
-            setAllTimePRs(prs);
-
-            setLoading(false);
+                // Use cached PRs
+                setAllTimePRs(cachedPRs.current);
+            } catch (error) {
+                console.error("Error loading workout/PRs:", error);
+                showToast("Failed to load workout data", "error");
+            } finally {
+                setLoading(false);
+            }
         };
         loadWorkout();
     }, [date]);
+
+    // Handle Escape key for modals
+    useEffect(() => {
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setIsTemplateModalOpen(false);
+                setShowSaveTemplateName(false);
+                setIsSelectorOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
 
     const addExercise = (exercise: Exercise) => {
         const newEx: WorkoutExercise = {
@@ -100,6 +121,12 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
             setSaving(true);
             try {
                 await WorkoutService.saveWorkout(auth.currentUser.uid, updatedWorkout);
+
+                // Refresh PR cache
+                const allWorkouts = await WorkoutService.getAllWorkouts(auth.currentUser.uid);
+                cachedPRs.current = StatsService.calculatePRs(allWorkouts);
+                setAllTimePRs(cachedPRs.current);
+
                 showToast('Exercise removed permanently', 'success');
             } catch (error) {
                 console.error("Failed to persist exercise removal:", error);
@@ -119,6 +146,12 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                 isRestDay: workout.exercises.length === 0 ? workout.isRestDay : false
             };
             await WorkoutService.saveWorkout(auth.currentUser.uid, finalWorkout);
+
+            // Refresh PR cache
+            const allWorkouts = await WorkoutService.getAllWorkouts(auth.currentUser.uid);
+            cachedPRs.current = StatsService.calculatePRs(allWorkouts);
+            setAllTimePRs(cachedPRs.current);
+
             setWorkout(finalWorkout);
             showToast('Workout saved successfully!', 'success');
         } catch (error) {
@@ -163,15 +196,21 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
 
     const loadTemplates = async () => {
         if (!auth.currentUser) return;
-        const data = await WorkoutService.getTemplates(auth.currentUser.uid);
-        setTemplates(data);
-        setIsTemplateModalOpen(true);
+        try {
+            const data = await WorkoutService.getTemplates(auth.currentUser.uid);
+            setTemplates(data);
+            setIsTemplateModalOpen(true);
+        } catch (error) {
+            console.error('Failed to load templates:', error);
+            showToast('Failed to load templates', 'error');
+        }
     };
 
     const applyTemplate = (template: WorkoutTemplate) => {
+        const deepClonedExercises = template.exercises.map(ex => ({ ...ex }));
         setWorkout(prev => ({
             ...prev,
-            exercises: [...template.exercises],
+            exercises: deepClonedExercises,
             isRestDay: false
         }));
         setIsTemplateModalOpen(false);

@@ -27,10 +27,14 @@ export const Auth: React.FC = () => {
     };
 
     const handleGoogleLogin = async () => {
+        if (loading) return;
+        setLoading(true);
         try {
             await AuthService.loginWithGoogle();
         } catch (err: any) {
             setError(err.message);
+        } finally {
+            setLoading(false);
         }
     };
 

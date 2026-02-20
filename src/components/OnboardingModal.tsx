@@ -34,9 +34,43 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ userId, email,
         }
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Escape') {
+            // Flow is mandatory, but we can prevent default or log
+            e.preventDefault();
+        }
+        if (e.key === 'Tab') {
+            const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+            const modal = document.getElementById('onboarding-modal');
+            if (!modal) return;
+
+            const firstFocusable = modal.querySelectorAll(focusableElements)[0] as HTMLElement;
+            const focusables = modal.querySelectorAll(focusableElements);
+            const lastFocusable = focusables[focusables.length - 1] as HTMLElement;
+
+            if (e.shiftKey) {
+                if (document.activeElement === firstFocusable) {
+                    lastFocusable.focus();
+                    e.preventDefault();
+                }
+            } else {
+                if (document.activeElement === lastFocusable) {
+                    firstFocusable.focus();
+                    e.preventDefault();
+                }
+            }
+        }
+    };
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fade-in_0.3s]">
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-800 w-full max-w-md p-8 relative overflow-hidden">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fade-in_0.3s]"
+            onKeyDown={handleKeyDown}
+        >
+            <div
+                id="onboarding-modal"
+                className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-800 w-full max-w-md p-8 relative overflow-hidden"
+            >
                 {/* Background Decor */}
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-cyan-500 to-blue-600" />
                 <div className="absolute -top-10 -right-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />

@@ -28,6 +28,8 @@ const App: React.FC = () => {
           const profile = await UserService.getProfile(u.uid);
           if (!profile || !profile.displayName) {
             setShowOnboarding(true);
+          } else {
+            setShowOnboarding(false);
           }
         } catch (error) {
           console.error("Error fetching profile:", error);
