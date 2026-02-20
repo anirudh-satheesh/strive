@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Save, Trash2, Calendar as CalendarIcon, Minus, Moon } from 'lucide-react';
 import { WorkoutService } from '../services/workoutService';
+import { StatsService } from '../services/statsService';
 import { auth } from '../services/firebase';
-import type { Workout, WorkoutExercise, Exercise } from '../types';
+import type { Workout, WorkoutExercise, Exercise, WorkoutTemplate } from '../types';
 import { ExerciseSelector } from './ExerciseSelector';
 import { useNotification } from '../context/NotificationContext';
+import { Trophy, Copy, ClipboardList, X } from 'lucide-react';
 
 interface WorkoutLogProps {
     initialDate?: string | null;
@@ -17,6 +19,11 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [allTimePRs, setAllTimePRs] = useState<Record<string, number>>({});
+    const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
+    const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+    const [showSaveTemplateName, setShowSaveTemplateName] = useState(false);
+    const [templateName, setTemplateName] = useState('');
     const { showToast, confirm } = useNotification();
 
     const closeSelector = React.useCallback(() => setIsSelectorOpen(false), []);
@@ -32,8 +39,19 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
         const loadWorkout = async () => {
             if (!auth.currentUser) return;
             setLoading(true);
-            const data = await WorkoutService.getWorkoutForDate(auth.currentUser.uid, date);
+
+            const [data, allWorkouts] = await Promise.all([
+                WorkoutService.getWorkoutForDate(auth.currentUser.uid, date),
+                WorkoutService.getAllWorkouts(auth.currentUser.uid)
+            ]);
+
             setWorkout(data || { date, exercises: [] });
+
+            // Calculate PRs excluding current date
+            const previousWorkouts = allWorkouts.filter(w => w.date !== date);
+            const prs = StatsService.calculatePRs(previousWorkouts);
+            setAllTimePRs(prs);
+
             setLoading(false);
         };
         loadWorkout();
@@ -110,6 +128,76 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
         }
     };
 
+    const [templateSaving, setTemplateSaving] = useState(false);
+
+    const handleSaveAsTemplate = async () => {
+        if (!auth.currentUser || !templateName.trim()) return;
+
+        setTemplateSaving(true);
+        try {
+            // Sanitize exercises to ensure no undefined values
+            const sanitizedExercises = workout.exercises.map(ex => ({
+                name: ex.name || '',
+                sets: ex.sets || 0,
+                reps: ex.reps || 0,
+                weight: ex.weight || 0,
+                duration: ex.duration || 0
+            }));
+
+            await WorkoutService.saveTemplate(
+                auth.currentUser.uid,
+                templateName.trim(),
+                sanitizedExercises
+            );
+
+            showToast('Template saved successfully!', 'success');
+            setShowSaveTemplateName(false);
+            setTemplateName('');
+        } catch (error) {
+            console.error('Template save error:', error);
+            showToast('Failed to save template. Please try again.', 'error');
+        } finally {
+            setTemplateSaving(false);
+        }
+    };
+
+    const loadTemplates = async () => {
+        if (!auth.currentUser) return;
+        const data = await WorkoutService.getTemplates(auth.currentUser.uid);
+        setTemplates(data);
+        setIsTemplateModalOpen(true);
+    };
+
+    const applyTemplate = (template: WorkoutTemplate) => {
+        setWorkout(prev => ({
+            ...prev,
+            exercises: [...template.exercises],
+            isRestDay: false
+        }));
+        setIsTemplateModalOpen(false);
+        showToast(`Loaded "${template.name}"`, 'success');
+    };
+
+    const deleteTemplate = async (id: string, name: string) => {
+        if (!auth.currentUser) return;
+        const confirmed = await confirm({
+            title: 'Delete Template',
+            message: `Are you sure you want to delete "${name}"?`,
+            confirmText: 'Delete',
+            cancelText: 'Keep'
+        });
+
+        if (!confirmed) return;
+
+        try {
+            await WorkoutService.deleteTemplate(auth.currentUser.uid, id);
+            setTemplates(prev => prev.filter(t => t.id !== id));
+            showToast('Template deleted', 'success');
+        } catch (error) {
+            showToast('Failed to delete template', 'error');
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center items-center py-20">
@@ -146,19 +234,46 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
 
             <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl p-4 sm:p-8 border dark:border-zinc-800">
                 {workout.exercises.length === 0 ? (
-                    <div className="text-center py-20 bg-zinc-50 dark:bg-zinc-800/20 rounded-3xl border-2 border-dashed dark:border-zinc-800">
-                        <Plus size={48} className="mx-auto mb-4 text-zinc-700" />
+                    <div className="flex flex-col items-center justify-center py-20 bg-zinc-50 dark:bg-zinc-800/20 rounded-3xl border-2 border-dashed dark:border-zinc-800">
+                        <Plus size={48} className="mb-4 text-zinc-700" />
                         <h3 className="text-xl font-black dark:text-zinc-400 uppercase tracking-tight">Empty Log</h3>
-                        <p className="text-zinc-500 font-bold mt-1">Ready to start? Add your first exercise!</p>
+                        <p className="text-zinc-500 font-bold mt-1 mb-8">Ready to start? Add your first exercise!</p>
+
+                        <button
+                            onClick={loadTemplates}
+                            className="flex items-center gap-2 px-6 py-3 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white rounded-xl font-bold transition-all"
+                        >
+                            <ClipboardList size={18} />
+                            Load from Template
+                        </button>
                     </div>
                 ) : (
                     <div className="space-y-6">
+                        <div className="flex justify-end pr-2">
+                            <button
+                                onClick={() => setShowSaveTemplateName(true)}
+                                className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-cyan-500 hover:text-cyan-400 transition-colors"
+                            >
+                                <Copy size={14} />
+                                Save as Template
+                            </button>
+                        </div>
                         {workout.exercises.map((ex, idx) => (
                             <div key={idx} className="bg-zinc-50 dark:bg-zinc-800/40 p-4 sm:p-6 rounded-3xl border dark:border-zinc-700/50 relative group transition-all hover:border-cyan-500/30">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                                     <div className="lg:col-span-1">
                                         <div className="flex justify-between items-start mb-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block">Exercise</label>
+                                            <div className="flex flex-col">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block">Exercise</label>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="font-black dark:text-gray-100 text-lg uppercase tracking-tight">{ex.name}</p>
+                                                    {Number(ex.weight) > (allTimePRs[ex.name] || 0) && (
+                                                        <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/10 text-yellow-500 rounded-full border border-yellow-500/20 text-[8px] font-black uppercase tracking-tighter animate-bounce">
+                                                            <Trophy size={8} /> PR
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
                                             <button
                                                 onClick={() => removeExercise(idx)}
                                                 className="text-zinc-400 hover:text-red-500 transition-colors p-1"
@@ -167,7 +282,6 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                                                 <Trash2 size={16} />
                                             </button>
                                         </div>
-                                        <p className="font-black dark:text-gray-100 text-lg uppercase tracking-tight">{ex.name}</p>
                                     </div>
 
                                     <div className="grid grid-cols-3 lg:col-span-3 gap-3">
@@ -277,6 +391,73 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                     onSelect={addExercise}
                     onClose={closeSelector}
                 />
+            )}
+
+            {/* Template Selection Modal */}
+            {isTemplateModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fade-in_0.2s]">
+                    <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border dark:border-zinc-800 w-full max-w-md p-6 relative">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-black dark:text-white uppercase tracking-tight">Your Templates</h3>
+                            <button onClick={() => setIsTemplateModalOpen(false)} className="text-zinc-400 hover:text-white">
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        {templates.length === 0 ? (
+                            <div className="text-center py-10 text-zinc-500 font-bold">
+                                No templates saved yet.
+                            </div>
+                        ) : (
+                            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                                {templates.map(t => (
+                                    <div key={t.id} className="group flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border dark:border-zinc-700/50 hover:border-cyan-500/30 transition-all cursor-pointer" onClick={() => applyTemplate(t)}>
+                                        <div>
+                                            <p className="font-black dark:text-white uppercase tracking-tight">{t.name}</p>
+                                            <p className="text-[10px] text-zinc-500 font-bold uppercase">{t.exercises.length} Exercises</p>
+                                        </div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); deleteTemplate(t.id, t.name); }}
+                                            className="p-2 text-zinc-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Save Template Modal */}
+            {showSaveTemplateName && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fade-in_0.2s]">
+                    <form
+                        onSubmit={(e) => { e.preventDefault(); handleSaveAsTemplate(); }}
+                        className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border dark:border-zinc-800 w-full max-w-sm p-6 relative"
+                    >
+                        <h3 className="text-xl font-black dark:text-white uppercase tracking-tight mb-4">Template Name</h3>
+                        <input
+                            type="text"
+                            placeholder="e.g. Chest Day A"
+                            className="w-full p-4 bg-zinc-50 dark:bg-zinc-800 rounded-xl border dark:border-zinc-700 dark:text-white font-bold outline-none focus:ring-2 focus:ring-cyan-500 mb-6"
+                            value={templateName}
+                            onChange={(e) => setTemplateName(e.target.value)}
+                            autoFocus
+                        />
+                        <div className="flex gap-3">
+                            <button type="button" onClick={() => setShowSaveTemplateName(false)} className="flex-1 p-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 font-bold rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all">Cancel</button>
+                            <button
+                                type="submit"
+                                disabled={!templateName.trim() || templateSaving}
+                                className="flex-1 p-4 bg-cyan-500 text-white font-black uppercase tracking-widest rounded-xl shadow-lg shadow-cyan-500/20 active:scale-95 transition-all disabled:opacity-50"
+                            >
+                                {templateSaving ? 'Saving...' : 'Save'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             )}
         </div>
     );

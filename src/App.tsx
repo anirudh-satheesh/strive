@@ -7,6 +7,8 @@ import { WorkoutLog } from './components/WorkoutLog';
 import { ExerciseLibrary } from './components/ExerciseLibrary';
 import { ProfileView } from './components/ProfileView';
 import { CalendarView } from './components/CalendarView';
+import { OnboardingModal } from './components/OnboardingModal';
+import { UserService } from './services/userService';
 import { NotificationProvider } from './context/NotificationContext';
 
 export type Page = 'workout' | 'exercises' | 'calendar' | 'profile';
@@ -16,10 +18,21 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState<Page>('workout');
   const [workoutDate, setWorkoutDate] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChanged((u) => {
+    const unsubscribe = AuthService.onAuthStateChanged(async (u) => {
       setUser(u);
+      if (u) {
+        try {
+          const profile = await UserService.getProfile(u.uid);
+          if (!profile || !profile.displayName) {
+            setShowOnboarding(true);
+          }
+        } catch (error) {
+          console.error("Error fetching profile:", error);
+        }
+      }
       setLoading(false);
     });
     return () => unsubscribe();
@@ -71,6 +84,13 @@ const App: React.FC = () => {
         {activePage === 'calendar' && <CalendarView onNavigateToWorkout={handleNavigateToWorkout} />}
         {activePage === 'profile' && <ProfileView onLogout={handleLogout} />}
       </Layout>
+      {showOnboarding && user && (
+        <OnboardingModal
+          userId={user.uid}
+          email={user.email}
+          onComplete={() => setShowOnboarding(false)}
+        />
+      )}
     </NotificationProvider>
   );
 };

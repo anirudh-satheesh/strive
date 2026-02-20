@@ -14,9 +14,11 @@ import {
 import { Line, Bar } from 'react-chartjs-2';
 import { WorkoutService } from '../services/workoutService';
 import { ExerciseService } from '../services/exerciseService';
+import { UserService } from '../services/userService';
 import { auth } from '../services/firebase';
-import type { UserStats, Exercise } from '../types';
-import { Flame, Trophy, Medal, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { EXERCISE_CATEGORIES } from '../data/exercises';
+import type { UserStats, Exercise, Workout, WorkoutExercise, WorkoutTemplate } from '../types';
+import { Flame, Trophy, Medal, Plus, Trash2, ChevronDown, ChevronUp, Edit2, X } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 
 ChartJS.register(
@@ -50,23 +52,36 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
     const [newExCategory, setNewExCategory] = useState('Strength');
     const [customSectionOpen, setCustomSectionOpen] = useState(false);
 
-    const categories = [
-        'Abs', 'Back', 'Biceps', 'Cardio', 'Chest',
-        'Flexibility', 'Lats', 'Legs', 'Shoulders',
-        'Strength', 'Traps', 'Triceps'
-    ];
+    // Templates
+    const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
+    const [templatesSectionOpen, setTemplatesSectionOpen] = useState(false);
+
+    // User profile
+    const [userName, setUserName] = useState<string>('');
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [editName, setEditName] = useState('');
+    const [editLoading, setEditLoading] = useState(false);
+
+    const categories = EXERCISE_CATEGORIES;
 
     useEffect(() => {
         const loadData = async () => {
             if (!auth.currentUser) return;
             const userId = auth.currentUser.uid;
 
-            const [workouts, custom] = await Promise.all([
+            const [workouts, custom, profile, templateDocs] = await Promise.all([
                 WorkoutService.getAllWorkouts(userId),
-                ExerciseService.getCustomExercises(userId)
+                ExerciseService.getCustomExercises(userId),
+                UserService.getProfile(userId),
+                WorkoutService.getTemplates(userId)
             ]);
 
+            if (profile?.displayName) {
+                setUserName(profile.displayName);
+            }
+
             setCustomExercises(custom);
+            setTemplates(templateDocs);
 
             let totalVol = 0;
             let totalWork = 0;
@@ -89,7 +104,7 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
             // Weekly volume tracking for best week
             const weeklyVolumes: Record<string, number> = {};
 
-            workouts.forEach(w => {
+            workouts.forEach((w: Workout) => {
                 if (!w.isRestDay) {
                     totalWork++;
                     workoutDates.add(w.date);
@@ -97,7 +112,7 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                     if (workoutDate >= monthStart) monthWork++;
 
                     let dVol = 0;
-                    w.exercises.forEach(ex => {
+                    w.exercises.forEach((ex: WorkoutExercise) => {
                         const vol = (Number(ex.sets) || 0) * (Number(ex.reps) || 0) * (Number(ex.weight) || 0);
                         dVol += vol;
                         const reps = (Number(ex.sets) || 0) * (Number(ex.reps) || 0);
@@ -198,6 +213,51 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
         }
     };
 
+    const handleDeleteTemplate = async (templateId: string, name: string) => {
+        if (!auth.currentUser) return;
+
+        const confirmed = await confirm({
+            title: 'Delete Template',
+            message: `Are you sure you want to delete "${name}"?`,
+            confirmText: 'Delete',
+            cancelText: 'Keep'
+        });
+
+        if (!confirmed) return;
+
+        try {
+            await WorkoutService.deleteTemplate(auth.currentUser.uid, templateId);
+            setTemplates(prev => prev.filter(t => t.id !== templateId));
+            showToast('Template deleted', 'success');
+        } catch (error) {
+            showToast('Failed to delete template', 'error');
+        }
+    };
+
+    const handleSaveProfile = async () => {
+        if (!auth.currentUser) return;
+        setEditLoading(true);
+        try {
+            await UserService.updateUserProfile(auth.currentUser.uid, {
+                displayName: editName.trim()
+            });
+
+            setUserName(editName.trim());
+            setIsEditingProfile(false);
+            showToast('Profile updated!', 'success');
+        } catch (error) {
+            console.error(error);
+            showToast('Failed to update profile', 'error');
+        } finally {
+            setEditLoading(false);
+        }
+    };
+
+    const openEditProfile = () => {
+        setEditName(userName || auth.currentUser?.email?.split('@')[0] || '');
+        setIsEditingProfile(true);
+    };
+
     const lineData = {
         labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
         datasets: [{
@@ -231,12 +291,19 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
     return (
         <div className="space-y-6">
             {/* Profile Header */}
-            <section className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl overflow-hidden border dark:border-zinc-800 p-6 flex flex-col md:flex-row gap-6 items-center">
-                <div className="h-24 w-24 sm:h-32 sm:w-32 rounded-3xl bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 flex items-center justify-center text-4xl sm:text-5xl font-black text-white shadow-2xl rotate-3">
-                    <span className="-rotate-3">{auth.currentUser?.email?.[0].toUpperCase() || 'U'}</span>
+            <section className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl overflow-hidden border dark:border-zinc-800 p-6 flex flex-col md:flex-row gap-6 items-center relative">
+                <button
+                    onClick={openEditProfile}
+                    className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-cyan-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all"
+                >
+                    <Edit2 size={20} />
+                </button>
+
+                <div className="h-24 w-24 sm:h-32 sm:w-32 rounded-3xl bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 flex items-center justify-center text-4xl sm:text-5xl font-black text-white shadow-2xl rotate-3 overflow-hidden relative">
+                    <span className="-rotate-3">{userName ? userName[0].toUpperCase() : (auth.currentUser?.email?.[0].toUpperCase() || 'U')}</span>
                 </div>
                 <div className="flex-1 text-center md:text-left">
-                    <h2 className="text-2xl sm:text-3xl font-black dark:text-gray-100 tracking-tight">{auth.currentUser?.email}</h2>
+                    <h2 className="text-2xl sm:text-3xl font-black dark:text-gray-100 tracking-tight">{userName || auth.currentUser?.email}</h2>
                     <p className="text-cyan-500 font-bold uppercase tracking-widest text-sm mt-1">Strive Athlete</p>
                 </div>
             </section>
@@ -384,7 +451,7 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                                     value={newExCategory}
                                     onChange={e => setNewExCategory(e.target.value)}
                                 >
-                                    {categories.map(cat => (
+                                    {categories.map((cat: string) => (
                                         <option key={cat} value={cat}>{cat}</option>
                                     ))}
                                 </select>
@@ -417,6 +484,45 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                 )}
             </div>
 
+            {/* Manage Templates */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border dark:border-gray-700">
+                <button
+                    onClick={() => setTemplatesSectionOpen(!templatesSectionOpen)}
+                    className="w-full p-4 sm:p-6 flex justify-between items-center text-left"
+                >
+                    <h3 className="text-lg font-bold dark:text-gray-100">
+                        Manage Templates
+                        <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">({templates.length})</span>
+                    </h3>
+                    {templatesSectionOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </button>
+
+                {templatesSectionOpen && (
+                    <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
+                        {templates.length > 0 ? (
+                            <div className="space-y-2">
+                                {templates.map(t => (
+                                    <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border dark:border-gray-700">
+                                        <div>
+                                            <p className="font-semibold dark:text-gray-200">{t.name}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">{t.exercises.length} Exercises</p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleDeleteTemplate(t.id, t.name)}
+                                            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No templates saved yet.</p>
+                        )}
+                    </div>
+                )}
+            </div>
+
             {/* Logout */}
             <div className="pt-2 pb-4 flex justify-center">
                 <button
@@ -426,6 +532,43 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                     Logout
                 </button>
             </div>
+
+            {/* Edit Profile Modal */}
+            {isEditingProfile && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fade-in_0.2s]">
+                    <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border dark:border-zinc-800 w-full max-w-md p-6 relative">
+                        <button
+                            onClick={() => setIsEditingProfile(false)}
+                            className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                        >
+                            <X size={24} />
+                        </button>
+
+                        <h3 className="text-xl font-bold dark:text-white mb-6">Edit Profile</h3>
+
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Display Name</label>
+                                <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={e => setEditName(e.target.value)}
+                                    className="w-full p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800 border-2 border-transparent focus:border-cyan-500 outline-none font-bold text-zinc-900 dark:text-white transition-all"
+                                    placeholder="Enter your name"
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleSaveProfile}
+                                disabled={editLoading || !editName.trim()}
+                                className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-black uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50"
+                            >
+                                {editLoading ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

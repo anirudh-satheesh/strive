@@ -21,6 +21,13 @@ export interface Workout {
     isRestDay?: boolean;
 }
 
+export interface WorkoutTemplate {
+    id: string;
+    name: string;
+    exercises: WorkoutExercise[];
+    createdAt: string;
+}
+
 export interface UserStats {
     totalWorkouts: number;
     totalVolume: number;

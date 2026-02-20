@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { ExerciseService } from '../services/exerciseService';
+import { EXERCISE_CATEGORIES } from '../data/exercises';
 import type { Exercise } from '../types';
 import { auth } from '../services/firebase';
 
@@ -11,9 +12,17 @@ export const ExerciseLibrary: React.FC = () => {
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const categories = useMemo(() =>
-        Array.from(new Set(exercises.map(ex => ex.category))).sort()
-        , [exercises]);
+    const categories = useMemo(() => {
+        const uniqueCategories = new Set<string>();
+        exercises.forEach(ex => {
+            // Try to match with a standard category case-insensitively
+            const standardMatch = EXERCISE_CATEGORIES.find(
+                cat => cat.toLowerCase() === ex.category.trim().toLowerCase()
+            );
+            uniqueCategories.add(standardMatch || ex.category);
+        });
+        return Array.from(uniqueCategories).sort();
+    }, [exercises]);
 
     useEffect(() => {
         const loadExercises = async () => {
@@ -42,7 +51,7 @@ export const ExerciseLibrary: React.FC = () => {
             );
         }
         if (activeCategory) {
-            result = result.filter(ex => ex.category === activeCategory);
+            result = result.filter(ex => ex.category.toLowerCase() === activeCategory.toLowerCase());
         }
         setFilteredExercises(result);
     }, [searchTerm, activeCategory, exercises]);

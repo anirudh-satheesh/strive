@@ -94,9 +94,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
 
         if (!confirmed) return;
 
-        // Re-check state after async confirm
-        if (!auth.currentUser || !selectedDate) return;
-
         setSavingRestDay(true);
         try {
             await WorkoutService.deleteWorkout(auth.currentUser.uid, selectedDate);
@@ -109,6 +106,36 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
         } catch (error) {
             console.error('Error removing rest day:', error);
             showToast('Failed to remove rest day', 'error');
+        } finally {
+            setSavingRestDay(false);
+        }
+    };
+
+    const handleDeleteWorkout = async () => {
+        if (!auth.currentUser || !selectedDate) return;
+
+        const confirmed = await confirm({
+            title: 'Delete Workout',
+            message: 'Are you sure you want to delete this entire workout log? This cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Keep'
+        });
+
+        if (!confirmed) return;
+
+        setSavingRestDay(true);
+        try {
+            await WorkoutService.deleteWorkout(auth.currentUser.uid, selectedDate);
+            setWorkouts(prev => {
+                const updated = { ...prev };
+                delete updated[selectedDate];
+                return updated;
+            });
+            showToast('Workout deleted successfully', 'success');
+            setSelectedDate(null);
+        } catch (error) {
+            console.error('Error deleting workout:', error);
+            showToast('Failed to delete workout', 'error');
         } finally {
             setSavingRestDay(false);
         }
@@ -191,8 +218,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
 
                                 if (workout) {
                                     if (workout.isRestDay) {
-                                        bgColor = 'bg-zinc-100 dark:bg-zinc-800';
-                                        borderColor = 'border-emerald-500/50';
+                                        bgColor = 'bg-emerald-500/10 dark:bg-emerald-500/20';
+                                        borderColor = 'border-emerald-500/40';
+                                        textColor = 'text-emerald-600 dark:text-emerald-400';
                                     } else {
                                         bgColor = 'bg-cyan-500/10 dark:bg-cyan-500/20';
                                         borderColor = 'border-cyan-500/40';
@@ -277,12 +305,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                                         </div>
                                     </div>
                                 ))}
-                                <button
-                                    onClick={handleLogWorkout}
-                                    className="w-full mt-4 bg-zinc-100 dark:bg-zinc-800 p-4 rounded-2xl text-zinc-950 dark:text-white font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
-                                >
-                                    Edit Workout
-                                </button>
+                                <div className="grid grid-cols-2 gap-3 mt-4">
+                                    <button
+                                        onClick={handleLogWorkout}
+                                        className="bg-zinc-100 dark:bg-zinc-800 p-4 rounded-2xl text-zinc-950 dark:text-white font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95 flex-1"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={handleDeleteWorkout}
+                                        className="bg-red-500/10 text-red-500 p-4 rounded-2xl font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95 flex-1 border border-red-500/20"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
                             </div>
                         )
                     ) : (
