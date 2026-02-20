@@ -13,7 +13,20 @@ interface WorkoutLogProps {
 }
 
 export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
-    const today = new Date().toISOString().split('T')[0];
+    // helper that produces a YYYY-MM-DD string in the user's local timezone
+    const getLocalDateString = (d: Date = new Date()) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    // derive today's date (YYYY-MM-DD) each render; used when the user hasn't picked a specific day
+    const today = getLocalDateString();
+
+    // track whether the date was explicitly chosen by the user (via picker or from calendar)
+    const [isUserSelected, setIsUserSelected] = useState(false);
+
     const [date, setDate] = useState(initialDate || today);
     const [workout, setWorkout] = useState<Workout>({ date: initialDate || today, exercises: [] });
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
@@ -30,12 +43,49 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
 
     const closeSelector = React.useCallback(() => setIsSelectorOpen(false), []);
 
-    // Sync date when initialDate prop changes
+    // Sync date when initialDate prop changes (calendar navigation)
+    // also mark as user-selected so we don't auto-revert to "today"
     useEffect(() => {
         if (initialDate) {
             setDate(initialDate);
+            setIsUserSelected(true);
         }
     }, [initialDate]);
+
+    // If the user hasn't manually picked a date, keep the picker in sync with
+    // the true current day. This takes care of two scenarios:
+    // 1. Component mounts on a previous day and the date state needs an update
+    // 2. The app stays open past midnight, in which case we schedule a timer
+    //    to bump the date at the next rollover.
+    useEffect(() => {
+        if (initialDate || isUserSelected) {
+            // nothing to do when user explicitly chose a date
+            return;
+        }
+
+        // ensure we start with today's value
+        if (date !== today) {
+            setDate(today);
+        }
+
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        const scheduleNext = () => {
+            const now = new Date();
+            // calculate ms until the start of next local day
+            const msUntilMidnight =
+                new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() -
+                now.getTime();
+            timer = setTimeout(() => {
+                setDate(getLocalDateString());
+                scheduleNext(); // reschedule for the following day
+            }, msUntilMidnight + 1000); // give a 1s buffer
+        };
+
+        scheduleNext();
+        return () => {
+            if (timer) clearTimeout(timer);
+        };
+    }, [initialDate, isUserSelected, date, today]);
 
     useEffect(() => {
         const loadWorkout = async () => {
@@ -266,7 +316,10 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                         type="date"
                         className="pl-12 pr-6 py-3 border dark:border-zinc-700/50 rounded-2xl bg-white dark:bg-zinc-900 dark:text-gray-100 font-bold outline-none focus:ring-4 focus:ring-cyan-500/10 transition-all shadow-xl"
                         value={date}
-                        onChange={(e) => setDate(e.target.value)}
+                        onChange={(e) => {
+                            setDate(e.target.value);
+                            setIsUserSelected(true);
+                        }}
                     />
                 </div>
             </div>
