@@ -13,7 +13,11 @@ interface WorkoutLogProps {
 }
 
 export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
+<<<<<<< HEAD
     // helper that produces a YYYY-MM-DD string in the user's local timezone
+=======
+    // helper that returns a YYYY-MM-DD string in local timezone (avoids UTC shift)
+>>>>>>> 4ed2ca1 (implemented coderabbit fixes)
     const getLocalDateString = (d: Date = new Date()) => {
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -21,10 +25,16 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
         return `${year}-${month}-${day}`;
     };
 
+<<<<<<< HEAD
     // derive today's date (YYYY-MM-DD) each render; used when the user hasn't picked a specific day
     const today = getLocalDateString();
 
     // track whether the date was explicitly chosen by the user (via picker or from calendar)
+=======
+    const today = getLocalDateString();
+
+    // track if the date was explicitly chosen by the user (picker or calendar)
+>>>>>>> 4ed2ca1 (implemented coderabbit fixes)
     const [isUserSelected, setIsUserSelected] = useState(false);
 
     const [date, setDate] = useState(initialDate || today);
@@ -44,13 +54,54 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
     const closeSelector = React.useCallback(() => setIsSelectorOpen(false), []);
 
     // Sync date when initialDate prop changes (calendar navigation)
+<<<<<<< HEAD
     // also mark as user-selected so we don't auto-revert to "today"
+=======
+    // mark user selection appropriately and clear when navigation is removed.
+>>>>>>> 4ed2ca1 (implemented coderabbit fixes)
     useEffect(() => {
         if (initialDate) {
             setDate(initialDate);
             setIsUserSelected(true);
+<<<<<<< HEAD
+=======
+        } else {
+            // initialDate reset (e.g. when leaving calendar); allow auto-sync again
+            setIsUserSelected(false);
+            // optionally reset date to today immediately
+            // setDate(today);
+>>>>>>> 4ed2ca1 (implemented coderabbit fixes)
         }
-    }, [initialDate]);
+    }, [initialDate, today]);
+
+    // if the user hasn't manually picked a date, keep the picker synced with
+    // the true current day and bump at local midnight.
+    useEffect(() => {
+        if (initialDate || isUserSelected) {
+            return;
+        }
+
+        if (date !== today) {
+            setDate(today);
+        }
+
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        const scheduleNext = () => {
+            const now = new Date();
+            const msUntilMidnight =
+                new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() -
+                now.getTime();
+            timer = setTimeout(() => {
+                setDate(getLocalDateString());
+                scheduleNext();
+            }, msUntilMidnight + 1000);
+        };
+
+        scheduleNext();
+        return () => {
+            if (timer) clearTimeout(timer);
+        };
+    }, [initialDate, isUserSelected, date, today]);
 
     // If the user hasn't manually picked a date, keep the picker in sync with
     // the true current day. This takes care of two scenarios:
