@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Dumbbell, Moon, X } from 'lucide-react';
 import { WorkoutService } from '../services/workoutService';
+import { StatsService } from '../services/statsService';
 import { auth } from '../services/firebase';
-import type { Workout } from '../types';
+import type { Workout, WorkoutExercise } from '../types';
 import { useNotification } from '../context/NotificationContext';
+import { Trophy } from 'lucide-react';
 
 interface CalendarViewProps {
     onNavigateToWorkout?: (date: string) => void;
@@ -15,6 +17,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
     const [loading, setLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [allTimePRs, setAllTimePRs] = useState<Record<string, number>>({});
     const { showToast, confirm } = useNotification();
 
     useEffect(() => {
@@ -27,6 +30,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                 const all = await WorkoutService.getAllWorkouts(auth.currentUser.uid);
                 const mapped = all.reduce((acc, w) => ({ ...acc, [w.date]: w }), {} as Record<string, Workout>);
                 setWorkouts(mapped);
+
+                // Calculate PRs
+                const prs = StatsService.calculatePRs(all);
+                setAllTimePRs(prs);
             } catch (error) {
                 console.error('Error loading workouts:', error);
             } finally {
@@ -148,6 +155,31 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
     };
 
     const selectedWorkout = selectedDate ? workouts[selectedDate] : null;
+
+    const isExercisePR = (ex: WorkoutExercise, idx: number, workout: Workout) => {
+        const weight = Number(ex.weight) || 0;
+        if (weight <= 0) return false;
+
+        // 1. Find max weight for this exercise in the current workout
+        const allWeightsForThisEx = workout.exercises
+            .filter(e => e.name === ex.name)
+            .map(e => Number(e.weight) || 0);
+
+        const maxWeightInWorkout = Math.max(...allWeightsForThisEx);
+
+        // Only consider the current exercise if it's the max weight in this log
+        if (weight !== maxWeightInWorkout) return false;
+
+        // If multiple entries have the same max weight, only show on the last one
+        const lastIdx = workout.exercises.reduce((acc, e, i) =>
+            (e.name === ex.name && (Number(e.weight) || 0) === maxWeightInWorkout) ? i : acc, -1);
+
+        if (idx !== lastIdx) return false;
+
+        // 2. Compare against global PR
+        const globalMax = allTimePRs[ex.name] || 0;
+        return weight >= globalMax;
+    };
 
     // Count workouts and rest days for this month
     let monthWorkouts = 0;
@@ -296,8 +328,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                             <div className="space-y-4">
                                 {selectedWorkout.exercises.map((ex, idx) => (
                                     <div key={idx} className="bg-white dark:bg-zinc-800 p-4 rounded-2xl border dark:border-zinc-700 shadow-sm flex justify-between items-center group hover:border-cyan-500/30 transition-all">
-                                        <div>
-                                            <p className="font-black dark:text-gray-100 group-hover:text-cyan-400 transition-colors uppercase tracking-tight text-sm">{ex.name}</p>
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-black dark:text-gray-100 group-hover:text-cyan-400 transition-colors uppercase tracking-tight text-sm">{ex.name}</p>
+                                                {isExercisePR(ex, idx, selectedWorkout) && (
+                                                    <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/10 text-yellow-500 rounded-full border border-yellow-500/20 text-[8px] font-black uppercase tracking-tighter">
+                                                        <Trophy size={8} /> PR
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="text-right">
                                             <p className="text-lg font-black dark:text-gray-200">{ex.sets} × {ex.reps}</p>
