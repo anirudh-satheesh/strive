@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Dumbbell, Moon, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, Moon, X, Trophy } from 'lucide-react';
 import { WorkoutService } from '../services/workoutService';
 import { auth } from '../services/firebase';
-import type { Workout } from '../types';
+import type { Workout, WorkoutExercise } from '../types';
 import { useNotification } from '../context/NotificationContext';
 
 interface CalendarViewProps {
@@ -148,6 +148,43 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
     };
 
     const selectedWorkout = selectedDate ? workouts[selectedDate] : null;
+
+    const isExercisePR = (ex: WorkoutExercise, idx: number, workout: Workout) => {
+        const weight = Number(ex.weight) || 0;
+        if (weight <= 0) return false;
+
+        // 1. Find max weight for this exercise in the current workout session
+        const allWeightsForThisEx = workout.exercises
+            .filter(e => e.name === ex.name)
+            .map(e => Number(e.weight) || 0);
+
+        const maxWeightInWorkout = Math.max(...allWeightsForThisEx);
+
+        // Only consider the current exercise if it's the max weight in this log
+        if (weight !== maxWeightInWorkout) return false;
+
+        // If multiple entries have the same max weight, only show on the last one
+        const lastIdx = workout.exercises.reduce((acc, e, i) =>
+            (e.name === ex.name && (Number(e.weight) || 0) === maxWeightInWorkout) ? i : acc, -1);
+
+        if (idx !== lastIdx) return false;
+
+        // 2. Find the prior max from workouts logged strictly BEFORE this date
+        const priorWorkouts = Object.values(workouts).filter(w => w.date < workout.date && !w.isRestDay);
+
+        let priorMax = 0;
+        priorWorkouts.forEach(pw => {
+            pw.exercises.forEach(pe => {
+                if (pe.name === ex.name) {
+                    const pwWeight = Number(pe.weight) || 0;
+                    if (pwWeight > priorMax) priorMax = pwWeight;
+                }
+            });
+        });
+
+        // 3. True only if this weight is strictly greater than the prior max
+        return weight > priorMax;
+    };
 
     // Count workouts and rest days for this month
     let monthWorkouts = 0;
@@ -296,8 +333,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                             <div className="space-y-4">
                                 {selectedWorkout.exercises.map((ex, idx) => (
                                     <div key={idx} className="bg-white dark:bg-zinc-800 p-4 rounded-2xl border dark:border-zinc-700 shadow-sm flex justify-between items-center group hover:border-cyan-500/30 transition-all">
-                                        <div>
-                                            <p className="font-black dark:text-gray-100 group-hover:text-cyan-400 transition-colors uppercase tracking-tight text-sm">{ex.name}</p>
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-black dark:text-gray-100 group-hover:text-cyan-400 transition-colors uppercase tracking-tight text-sm">{ex.name}</p>
+                                                {isExercisePR(ex, idx, selectedWorkout) && (
+                                                    <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/10 text-yellow-500 rounded-full border border-yellow-500/20 text-[8px] font-black uppercase tracking-tighter">
+                                                        <Trophy size={8} /> PR
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="text-right">
                                             <p className="text-lg font-black dark:text-gray-200">{ex.sets} × {ex.reps}</p>
