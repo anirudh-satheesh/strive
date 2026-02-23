@@ -43,6 +43,7 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
     // Progress stats
     const [streak, setStreak] = useState(0);
     const [bestWeekVolume, setBestWeekVolume] = useState(0);
+    const [thisWeekVolume, setThisWeekVolume] = useState(0);
     const [top3Exercises, setTop3Exercises] = useState<{ name: string; count: number }[]>([]);
 
     // Custom exercises
@@ -63,6 +64,20 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
     const [editLoading, setEditLoading] = useState(false);
 
     const categories = EXERCISE_CATEGORIES;
+
+    const getLocalDateString = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const getWeekKey = (date: Date) => {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() - d.getDay()); // Sunday as start of week
+        return getLocalDateString(d);
+    };
 
     useEffect(() => {
         const loadData = async () => {
@@ -109,7 +124,11 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                     if (!w.isRestDay) {
                         totalWork++;
                         workoutDates.add(w.date);
-                        const workoutDate = new Date(w.date + 'T00:00:00');
+
+                        // Parse date properly to avoid timezone shifts
+                        const [y, m, d] = w.date.split('-').map(Number);
+                        const workoutDate = new Date(y, m - 1, d);
+
                         if (workoutDate >= monthStart) monthWork++;
 
                         let dVol = 0;
@@ -135,12 +154,20 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
 
                 // Calculate streak
                 let currentStreak = 0;
-                const todayRes = new Date();
-                todayRes.setHours(0, 0, 0, 0);
-                const checkDate = new Date(todayRes);
+                const nowRef = new Date();
+                nowRef.setHours(0, 0, 0, 0);
+
+                // Start from today if worked out today, else start from yesterday to check continuity
+                const todayStr = getLocalDateString(nowRef);
+                const checkDate = new Date(nowRef);
+
+                if (!workoutDates.has(todayStr)) {
+                    checkDate.setDate(checkDate.getDate() - 1);
+                }
+
                 while (true) {
-                    const dateStr = checkDate.toISOString().split('T')[0];
-                    if (workoutDates.has(dateStr)) {
+                    const ds = getLocalDateString(checkDate);
+                    if (workoutDates.has(ds)) {
                         currentStreak++;
                         checkDate.setDate(checkDate.getDate() - 1);
                     } else {
@@ -162,6 +189,11 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                 setWeeklyExercises(weekEx);
                 setStreak(currentStreak);
                 setBestWeekVolume(bestWeek);
+
+                // This week's total volume
+                const currentWeekKey = getWeekKey(now);
+                setThisWeekVolume(weeklyVolumes[currentWeekKey] || 0);
+
                 setTop3Exercises(sortedExercises);
             } catch (error) {
                 console.error('Error loading profile data:', error);
@@ -173,11 +205,6 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
         loadData();
     }, []);
 
-    const getWeekKey = (date: Date) => {
-        const d = new Date(date);
-        d.setDate(d.getDate() - d.getDay());
-        return d.toISOString().split('T')[0];
-    };
 
     const handleAddCustom = async () => {
         if (!auth.currentUser || !newExName.trim()) return;
@@ -374,7 +401,7 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                     <span className="w-8 h-1 bg-cyan-500 rounded-full" />
                     LifeTime Progress
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border dark:border-zinc-700/50 hover:border-orange-500/30 transition-colors">
                         <div className="p-3 bg-orange-500 rounded-xl shadow-lg shadow-orange-500/20">
                             <Flame size={24} className="text-white" />
@@ -382,6 +409,15 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                         <div>
                             <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Current Streak</p>
                             <p className="text-2xl font-black text-orange-600 dark:text-orange-400">{streak} day{streak !== 1 ? 's' : ''}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border dark:border-zinc-700/50 hover:border-indigo-500/30 transition-colors">
+                        <div className="p-3 bg-indigo-500 rounded-xl shadow-lg shadow-indigo-500/20">
+                            <Flame size={24} className="text-white" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">This Week</p>
+                            <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{Math.round(thisWeekVolume).toLocaleString()} kg</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border dark:border-zinc-700/50 hover:border-cyan-500/30 transition-colors">

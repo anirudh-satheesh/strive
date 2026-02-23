@@ -152,6 +152,15 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
         setWorkout({ ...workout, exercises: newExercises });
     };
 
+    const duplicateExercise = (index: number) => {
+        const exerciseToCopy = workout.exercises[index];
+        const duplicatedEx = { ...exerciseToCopy };
+        const newExercises = [...workout.exercises];
+        // Insert the duplicated exercise right after the original one
+        newExercises.splice(index + 1, 0, duplicatedEx);
+        setWorkout(prev => ({ ...prev, exercises: newExercises }));
+    };
+
     const removeExercise = async (index: number) => {
         const exerciseName = workout.exercises[index].name;
 
@@ -289,6 +298,34 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
         }
     };
 
+    const isExercisePR = (ex: WorkoutExercise, idx: number) => {
+        const weight = Number(ex.weight) || 0;
+        if (weight <= 0) return false;
+
+        // 1. Find max weight for this exercise in the current workout
+        const allWeightsForThisEx = workout.exercises
+            .filter(e => e.name === ex.name)
+            .map(e => Number(e.weight) || 0);
+
+        const maxWeightInWorkout = Math.max(...allWeightsForThisEx);
+
+        // Only consider the current exercise if it's the max weight in this log
+        if (weight !== maxWeightInWorkout) return false;
+
+        // If multiple entries have the same max weight, only show on the last one
+        const lastIdx = workout.exercises.reduce((acc, e, i) =>
+            (e.name === ex.name && (Number(e.weight) || 0) === maxWeightInWorkout) ? i : acc, -1);
+
+        if (idx !== lastIdx) return false;
+
+        // 2. Compare against global PR
+        const globalMax = allTimePRs[ex.name] || 0;
+
+        // Show PR if this weight is >= the global record
+        // (will be == for saved PRs, > for new unsaved PRs)
+        return weight >= globalMax;
+    };
+
     if (loading) {
         return (
             <div className="flex justify-center items-center py-20">
@@ -323,7 +360,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl p-4 sm:p-8 border dark:border-zinc-800">
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl p-3 min-[375px]:p-4 sm:p-8 border dark:border-zinc-800">
                 {workout.exercises.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-zinc-50 dark:bg-zinc-800/20 rounded-3xl border-2 border-dashed dark:border-zinc-800">
                         <Plus size={48} className="mb-4 text-zinc-700" />
@@ -350,7 +387,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                             </button>
                         </div>
                         {workout.exercises.map((ex, idx) => (
-                            <div key={idx} className="bg-zinc-50 dark:bg-zinc-800/40 p-4 sm:p-6 rounded-3xl border dark:border-zinc-700/50 relative group transition-all hover:border-cyan-500/30">
+                            <div key={idx} className="bg-zinc-50 dark:bg-zinc-800/40 p-3 min-[375px]:p-4 sm:p-6 rounded-3xl border dark:border-zinc-700/50 relative group transition-all hover:border-cyan-500/30">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                                     <div className="lg:col-span-1">
                                         <div className="flex justify-between items-start mb-2">
@@ -358,42 +395,51 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block">Exercise</label>
                                                 <div className="flex items-center gap-2">
                                                     <p className="font-black dark:text-gray-100 text-lg uppercase tracking-tight">{ex.name}</p>
-                                                    {Number(ex.weight) > (allTimePRs[ex.name] || 0) && (
+                                                    {isExercisePR(ex, idx) && (
                                                         <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/10 text-yellow-500 rounded-full border border-yellow-500/20 text-[8px] font-black uppercase tracking-tighter animate-bounce">
                                                             <Trophy size={8} /> PR
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={() => removeExercise(idx)}
-                                                className="text-zinc-400 hover:text-red-500 transition-colors p-1"
-                                                title="Remove Exercise"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => duplicateExercise(idx)}
+                                                    className="text-zinc-400 hover:text-cyan-500 transition-colors p-1"
+                                                    title="Duplicate Exercise"
+                                                >
+                                                    <Copy size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => removeExercise(idx)}
+                                                    className="text-zinc-400 hover:text-red-500 transition-colors p-1"
+                                                    title="Remove Exercise"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-3 lg:col-span-3 gap-3">
+                                    <div className="grid grid-cols-3 lg:col-span-3 gap-1.5 min-[375px]:gap-2 sm:gap-3">
                                         <div>
                                             <label className="text-[10px] font-black uppercase tracking-widest text-cyan-500 mb-2 block">Sets</label>
                                             <div className="flex items-center bg-white dark:bg-zinc-900 border dark:border-zinc-700 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-cyan-500/50 transition-all">
                                                 <button
                                                     onClick={() => updateExercise(idx, 'sets', Math.max(0, (Number(ex.sets) || 0) - 1))}
-                                                    className="p-3 text-zinc-500 hover:text-cyan-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                                    className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-cyan-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                                 >
                                                     <Minus size={16} strokeWidth={3} />
                                                 </button>
                                                 <input
                                                     type="number"
-                                                    className="w-full bg-transparent text-center font-bold dark:text-gray-100 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    className="w-full bg-transparent text-center font-bold dark:text-gray-100 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none min-w-0"
                                                     value={ex.sets || ''}
                                                     onChange={(e) => updateExercise(idx, 'sets', parseInt(e.target.value) || 0)}
                                                 />
                                                 <button
                                                     onClick={() => updateExercise(idx, 'sets', (Number(ex.sets) || 0) + 1)}
-                                                    className="p-3 text-zinc-500 hover:text-cyan-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                                    className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-cyan-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                                 >
                                                     <Plus size={16} strokeWidth={3} />
                                                 </button>
@@ -404,19 +450,19 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                                             <div className="flex items-center bg-white dark:bg-zinc-900 border dark:border-zinc-700 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all">
                                                 <button
                                                     onClick={() => updateExercise(idx, 'reps', Math.max(0, (Number(ex.reps) || 0) - 1))}
-                                                    className="p-3 text-zinc-500 hover:text-indigo-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                                    className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-indigo-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                                 >
                                                     <Minus size={16} strokeWidth={3} />
                                                 </button>
                                                 <input
                                                     type="number"
-                                                    className="w-full bg-transparent text-center font-bold dark:text-gray-100 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    className="w-full bg-transparent text-center font-bold dark:text-gray-100 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none min-w-0"
                                                     value={ex.reps || ''}
                                                     onChange={(e) => updateExercise(idx, 'reps', parseInt(e.target.value) || 0)}
                                                 />
                                                 <button
                                                     onClick={() => updateExercise(idx, 'reps', (Number(ex.reps) || 0) + 1)}
-                                                    className="p-3 text-zinc-500 hover:text-indigo-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                                    className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-indigo-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                                 >
                                                     <Plus size={16} strokeWidth={3} />
                                                 </button>
@@ -427,19 +473,19 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                                             <div className="flex items-center bg-white dark:bg-zinc-900 border dark:border-zinc-700 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500/50 transition-all">
                                                 <button
                                                     onClick={() => updateExercise(idx, 'weight', Math.max(0, (Number(ex.weight) || 0) - 2.5))}
-                                                    className="p-3 text-zinc-500 hover:text-emerald-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                                    className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-emerald-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                                 >
                                                     <Minus size={16} strokeWidth={3} />
                                                 </button>
                                                 <input
                                                     type="number"
-                                                    className="w-full bg-transparent text-center font-bold dark:text-gray-100 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    className="w-full bg-transparent text-center font-bold dark:text-gray-100 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none min-w-0"
                                                     value={ex.weight || ''}
                                                     onChange={(e) => updateExercise(idx, 'weight', parseFloat(e.target.value) || 0)}
                                                 />
                                                 <button
                                                     onClick={() => updateExercise(idx, 'weight', (Number(ex.weight) || 0) + 2.5)}
-                                                    className="p-3 text-zinc-500 hover:text-emerald-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                                    className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-emerald-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                                 >
                                                     <Plus size={16} strokeWidth={3} />
                                                 </button>
