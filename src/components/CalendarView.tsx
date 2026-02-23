@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Dumbbell, Moon, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, Moon, X, Trophy } from 'lucide-react';
 import { WorkoutService } from '../services/workoutService';
-import { StatsService } from '../services/statsService';
 import { auth } from '../services/firebase';
 import type { Workout, WorkoutExercise } from '../types';
 import { useNotification } from '../context/NotificationContext';
-import { Trophy } from 'lucide-react';
 
 interface CalendarViewProps {
     onNavigateToWorkout?: (date: string) => void;
@@ -17,7 +15,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
     const [loading, setLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
-    const [allTimePRs, setAllTimePRs] = useState<Record<string, number>>({});
     const { showToast, confirm } = useNotification();
 
     useEffect(() => {
@@ -30,10 +27,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                 const all = await WorkoutService.getAllWorkouts(auth.currentUser.uid);
                 const mapped = all.reduce((acc, w) => ({ ...acc, [w.date]: w }), {} as Record<string, Workout>);
                 setWorkouts(mapped);
-
-                // Calculate PRs
-                const prs = StatsService.calculatePRs(all);
-                setAllTimePRs(prs);
             } catch (error) {
                 console.error('Error loading workouts:', error);
             } finally {
@@ -160,7 +153,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
         const weight = Number(ex.weight) || 0;
         if (weight <= 0) return false;
 
-        // 1. Find max weight for this exercise in the current workout
+        // 1. Find max weight for this exercise in the current workout session
         const allWeightsForThisEx = workout.exercises
             .filter(e => e.name === ex.name)
             .map(e => Number(e.weight) || 0);
@@ -176,9 +169,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
 
         if (idx !== lastIdx) return false;
 
-        // 2. Compare against global PR
-        const globalMax = allTimePRs[ex.name] || 0;
-        return weight >= globalMax;
+        // 2. Find the prior max from workouts logged strictly BEFORE this date
+        const priorWorkouts = Object.values(workouts).filter(w => w.date < workout.date && !w.isRestDay);
+
+        let priorMax = 0;
+        priorWorkouts.forEach(pw => {
+            pw.exercises.forEach(pe => {
+                if (pe.name === ex.name) {
+                    const pwWeight = Number(pe.weight) || 0;
+                    if (pwWeight > priorMax) priorMax = pwWeight;
+                }
+            });
+        });
+
+        // 3. True only if this weight is strictly greater than the prior max
+        return weight > priorMax;
     };
 
     // Count workouts and rest days for this month
