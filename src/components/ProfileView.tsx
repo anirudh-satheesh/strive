@@ -44,7 +44,8 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
     const [streak, setStreak] = useState(0);
     const [bestWeekVolume, setBestWeekVolume] = useState(0);
     const [thisWeekVolume, setThisWeekVolume] = useState(0);
-    const [top3Exercises, setTop3Exercises] = useState<{ name: string; count: number }[]>([]);
+    const [top3Exercises, setTop3Exercises] = useState<{ name: string; reps: number; sets: number; weight: number }[]>([]);
+    const [selectedExercise, setSelectedExercise] = useState<{ name: string; reps: number; sets: number; weight: number } | null>(null);
 
     // Custom exercises
     const [customExercises, setCustomExercises] = useState<Exercise[]>([]);
@@ -112,7 +113,7 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                 weekStart.setHours(0, 0, 0, 0);
 
                 // Exercise frequency map
-                const exerciseFreq: Record<string, number> = {};
+                const exerciseStats: Record<string, { reps: number; sets: number; weight: number }> = {};
 
                 // For streak calculation
                 const workoutDates = new Set<string>();
@@ -133,10 +134,21 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
 
                         let dVol = 0;
                         w.exercises.forEach((ex: WorkoutExercise) => {
-                            const vol = (Number(ex.sets) || 0) * (Number(ex.reps) || 0) * (Number(ex.weight) || 0);
+                            const eSets = Number(ex.sets) || 0;
+                            const eReps = Number(ex.reps) || 0;
+                            const eWeight = Number(ex.weight) || 0;
+
+                            const vol = eSets * eReps * eWeight;
                             dVol += vol;
-                            const reps = (Number(ex.sets) || 0) * (Number(ex.reps) || 0);
-                            exerciseFreq[ex.name] = (exerciseFreq[ex.name] || 0) + reps;
+
+                            const totalReps = eSets * eReps;
+
+                            if (!exerciseStats[ex.name]) {
+                                exerciseStats[ex.name] = { reps: 0, sets: 0, weight: 0 };
+                            }
+                            exerciseStats[ex.name].reps += totalReps;
+                            exerciseStats[ex.name].sets += eSets;
+                            exerciseStats[ex.name].weight += vol;
                         });
                         totalVol += dVol;
 
@@ -176,9 +188,9 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                 }
 
                 // Top 3 exercises
-                const sortedExercises = Object.entries(exerciseFreq)
-                    .map(([name, count]) => ({ name, count }))
-                    .sort((a, b) => b.count - a.count)
+                const sortedExercises = Object.entries(exerciseStats)
+                    .map(([name, stats]) => ({ name, ...stats }))
+                    .sort((a, b) => b.reps - a.reps)
                     .slice(0, 3);
 
                 // Best week volume
@@ -358,7 +370,11 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                             const rankNames = ['Champion', 'Contender', 'Bronze'];
 
                             return (
-                                <div key={ex.name} className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900 text-white shadow-lg flex flex-col items-center text-center transition-all duration-300 hover:scale-[1.05] hover:shadow-cyan-500/10 hover:border-cyan-500/30 group">
+                                <button
+                                    key={ex.name}
+                                    onClick={() => setSelectedExercise(ex)}
+                                    className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900 text-white shadow-lg flex flex-col items-center text-center transition-all duration-300 hover:scale-[1.05] hover:shadow-cyan-500/10 hover:border-cyan-500/30 group w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                                >
                                     <div className="relative mb-3 transition-transform group-hover:scale-110">
                                         <span className="text-5xl">{medals[i]}</span>
                                         <div className="absolute -bottom-1 -right-1 bg-cyan-500 text-zinc-950 rounded-full px-2 py-0.5 text-[10px] font-black shadow-sm uppercase">
@@ -369,9 +385,8 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                                         {ex.name}
                                     </p>
                                     <div className="mt-auto pt-3 border-t border-zinc-800 w-full mb-2" />
-                                    <p className="text-sm font-black uppercase tracking-widest text-cyan-500">{ex.count.toLocaleString()} reps</p>
                                     <p className="text-[10px] text-zinc-500 font-bold uppercase mt-1">{rankNames[i]}</p>
-                                </div>
+                                </button>
                             );
                         })
                     ) : (
@@ -612,6 +627,57 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                                 className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-black uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50"
                             >
                                 {editLoading ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Exercise Statistics Modal */}
+            {selectedExercise && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-[fade-in_0.2s]">
+                    <div className="bg-zinc-900 rounded-[2.5rem] shadow-2xl border border-zinc-800 w-full max-w-sm overflow-hidden relative">
+                        <div className="p-8 text-center">
+                            <button
+                                onClick={() => setSelectedExercise(null)}
+                                className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors p-2 hover:bg-zinc-800 rounded-full"
+                            >
+                                <X size={24} />
+                            </button>
+
+                            <div className="mb-6 flex justify-center">
+                                <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-4xl shadow-lg">
+                                    🏋️
+                                </div>
+                            </div>
+
+                            <h3 className="text-2xl font-black text-white mb-2 leading-tight">
+                                {selectedExercise.name}
+                            </h3>
+                            <p className="text-cyan-500 font-bold uppercase tracking-widest text-xs mb-8">Personal Statistics</p>
+
+                            <div className="space-y-4 text-left">
+                                <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-2xl border border-zinc-700/50">
+                                    <span className="text-zinc-500 font-bold uppercase text-[10px] tracking-wider">Total Reps</span>
+                                    <span className="text-xl font-black text-white">{selectedExercise.reps.toLocaleString()}</span>
+                                </div>
+                                <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-2xl border border-zinc-700/50">
+                                    <span className="text-zinc-500 font-bold uppercase text-[10px] tracking-wider">Total Sets</span>
+                                    <span className="text-xl font-black text-white">{selectedExercise.sets.toLocaleString()}</span>
+                                </div>
+                                {selectedExercise.weight > 0 && (
+                                    <div className="flex items-center justify-between p-4 bg-cyan-500/10 rounded-2xl border border-cyan-500/20">
+                                        <span className="text-cyan-500 font-bold uppercase text-[10px] tracking-wider">Total Weight</span>
+                                        <span className="text-xl font-black text-cyan-400">{Math.round(selectedExercise.weight).toLocaleString()} <span className="text-sm">kg</span></span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <button
+                                onClick={() => setSelectedExercise(null)}
+                                className="w-full mt-8 py-4 bg-white text-zinc-950 rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-200 transition-colors"
+                            >
+                                Close
                             </button>
                         </div>
                     </div>
