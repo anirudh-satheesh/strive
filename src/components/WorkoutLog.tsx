@@ -115,7 +115,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
             }
         };
         loadWorkout();
-    }, [date]);
+    }, [date, showToast]);
 
     // Handle Escape key for modals
     useEffect(() => {
@@ -215,7 +215,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
 
             setWorkout(finalWorkout);
             showToast('Workout saved successfully!', 'success');
-        } catch (error) {
+        } catch (_error) {
             showToast('Failed to save workout', 'error');
         } finally {
             setSaving(false);
@@ -293,7 +293,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
             await WorkoutService.deleteTemplate(auth.currentUser.uid, id);
             setTemplates(prev => prev.filter(t => t.id !== id));
             showToast('Template deleted', 'success');
-        } catch (error) {
+        } catch (_error) {
             showToast('Failed to delete template', 'error');
         }
     };
@@ -355,7 +355,10 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                         type="date"
                         className="pl-12 pr-6 py-3 border dark:border-zinc-700/50 rounded-2xl bg-white dark:bg-zinc-900 dark:text-gray-100 font-bold outline-none focus:ring-4 focus:ring-cyan-500/10 transition-all shadow-xl"
                         value={date}
-                        onChange={(e) => setDate(e.target.value)}
+                        onChange={(e) => {
+                            setDate(e.target.value);
+                            setIsUserSelected(true);
+                        }}
                     />
                 </div>
             </div>
