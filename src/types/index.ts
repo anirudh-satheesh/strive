@@ -12,6 +12,7 @@ export interface WorkoutExercise {
     reps: number | string;
     weight?: number | string;
     duration?: number | string;
+    distance?: number | string;
 }
 
 export interface Workout {

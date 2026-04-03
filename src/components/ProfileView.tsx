@@ -52,7 +52,24 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
     const [showAddForm, setShowAddForm] = useState(false);
     const [newExName, setNewExName] = useState('');
     const [newExCategory, setNewExCategory] = useState('Strength');
+    const [newExFields, setNewExFields] = useState<string[]>(['sets', 'reps', 'weight']);
     const [customSectionOpen, setCustomSectionOpen] = useState(false);
+
+    const AVAILABLE_FIELDS = [
+        { id: 'sets', label: 'Sets' },
+        { id: 'reps', label: 'Reps' },
+        { id: 'weight', label: 'Weight (kg)' },
+        { id: 'duration', label: 'Duration (mins)' },
+        { id: 'distance', label: 'Distance (km)' }
+    ];
+
+    const handleFieldToggle = (fieldId: string) => {
+        setNewExFields(prev => 
+            prev.includes(fieldId) 
+                ? prev.filter(f => f !== fieldId)
+                : [...prev, fieldId]
+        );
+    };
 
     // Templates
     const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
@@ -219,16 +236,20 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
 
 
     const handleAddCustom = async () => {
-        if (!auth.currentUser || !newExName.trim()) return;
+        if (!auth.currentUser || !newExName.trim() || newExFields.length === 0) {
+            if (newExFields.length === 0) showToast('Please select at least one parameter', 'warning');
+            return;
+        }
         try {
             const id = await ExerciseService.addCustomExercise(auth.currentUser.uid, {
                 name: newExName.trim(),
                 category: newExCategory,
-                fields: ['sets', 'reps', 'weight'],
+                fields: newExFields,
                 isCustom: true
             });
-            setCustomExercises(prev => [...prev, { id, name: newExName.trim(), category: newExCategory, fields: ['sets', 'reps', 'weight'], isCustom: true }]);
+            setCustomExercises(prev => [...prev, { id, name: newExName.trim(), category: newExCategory, fields: newExFields, isCustom: true }]);
             setNewExName('');
+            setNewExFields(['sets', 'reps', 'weight']);
             setShowAddForm(false);
             showToast('Custom exercise added!', 'success');
         } catch (error) {
@@ -484,7 +505,9 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                                     <div key={ex.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border dark:border-gray-700">
                                         <div>
                                             <p className="font-semibold dark:text-gray-200">{ex.name}</p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">{ex.category}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">
+                                                {ex.category} • {ex.fields?.join(', ') || 'sets, reps, weight'}
+                                            </p>
                                         </div>
                                         <button
                                             onClick={() => handleDeleteCustom(ex.id, ex.name)}
@@ -518,6 +541,25 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                                         <option key={cat} value={cat}>{cat}</option>
                                     ))}
                                 </select>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Parameters</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {AVAILABLE_FIELDS.map(f => (
+                                            <button
+                                                key={f.id}
+                                                type="button"
+                                                onClick={() => handleFieldToggle(f.id)}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                                                    newExFields.includes(f.id)
+                                                        ? 'bg-blue-100 border-blue-500 text-blue-700 dark:bg-blue-900/40 dark:border-blue-500 dark:text-blue-300'
+                                                        : 'bg-white border-gray-300 text-gray-600 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 opacity-50 hover:opacity-100'
+                                                }`}
+                                            >
+                                                {f.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                                 <div className="flex gap-2">
                                     <button
                                         onClick={handleAddCustom}
@@ -527,7 +569,7 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                                         Save
                                     </button>
                                     <button
-                                        onClick={() => { setShowAddForm(false); setNewExName(''); }}
+                                        onClick={() => { setShowAddForm(false); setNewExName(''); setNewExFields(['sets', 'reps', 'weight']); }}
                                         className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
                                     >
                                         Cancel
