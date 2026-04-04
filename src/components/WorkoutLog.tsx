@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Save, Trash2, Calendar as CalendarIcon, Minus, Moon } from 'lucide-react';
+import { Plus, Save, Trash2, Calendar as CalendarIcon, Moon } from 'lucide-react';
 import { WorkoutService } from '../services/workoutService';
 import { StatsService } from '../services/statsService';
 import { ExerciseService } from '../services/exerciseService';
 import { auth } from '../services/firebase';
-import type { Workout, WorkoutExercise, Exercise, WorkoutTemplate } from '../types';
+import type { Workout, WorkoutExercise, Exercise, WorkoutTemplate, WorkoutSet } from '../types';
 import { ExerciseSelector } from './ExerciseSelector';
+import { ExerciseCard } from './ExerciseCard';
+import { UserService } from './../services/userService';
 import { useNotification } from '../context/NotificationContext';
-import { Trophy, Copy, ClipboardList, X } from 'lucide-react';
+import { Copy, ClipboardList, X } from 'lucide-react';
 
 interface WorkoutLogProps {
     initialDate?: string | null;
@@ -39,9 +41,36 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
     const [showSaveTemplateName, setShowSaveTemplateName] = useState(false);
     const [templateName, setTemplateName] = useState('');
+    const [restTimerEnabled, setRestTimerEnabled] = useState(false);
+    const [isRestTimerActive, setIsRestTimerActive] = useState(false);
+    const [restTimeRemaining, setRestTimeRemaining] = useState(90);
     const { showToast, confirm } = useNotification();
     const cachedPRs = useRef<Record<string, number>>({});
     const prsLoaded = useRef(false);
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            if (auth.currentUser) {
+                const profile = await UserService.getProfile(auth.currentUser.uid);
+                if (profile?.restTimerEnabled) {
+                    setRestTimerEnabled(true);
+                }
+            }
+        };
+        fetchSettings();
+    }, []);
+
+    useEffect(() => {
+        let interval: any;
+        if (isRestTimerActive && restTimeRemaining > 0) {
+            interval = setInterval(() => {
+                setRestTimeRemaining(prev => prev - 1);
+            }, 1000);
+        } else if (restTimeRemaining === 0) {
+            setIsRestTimerActive(false);
+        }
+        return () => clearInterval(interval);
+    }, [isRestTimerActive, restTimeRemaining]);
 
     const closeSelector = React.useCallback(() => setIsSelectorOpen(false), []);
 
@@ -111,6 +140,12 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                     setAllExercisesMap(map);
                 }
 
+                if (!date) {
+                    setWorkout({ date: '', exercises: [] });
+                    setLoading(false);
+                    return;
+                }
+
                 const data = await WorkoutService.getWorkoutForDate(auth.currentUser.uid, date);
                 setWorkout(data || { date, exercises: [] });
 
@@ -139,37 +174,83 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
         return () => window.removeEventListener('keydown', handleEsc);
     }, []);
 
-    const addExercise = (exercise: Exercise) => {
+
+
+    const repeatLastWorkout = async () => {
+        if (!auth.currentUser) return;
+        setLoading(true);
+        try {
+            const allWorkouts = await WorkoutService.getAllWorkouts(auth.currentUser.uid);
+            const pastWorkouts = allWorkouts.filter(w => w.date !== date && w.exercises.length > 0);
+            if (pastWorkouts.length > 0) {
+                const last = pastWorkouts[0];
+                const cleanExercises = last.exercises.map(ex => ({
+                    ...ex,
+                    sets: Array.isArray(ex.sets) ? ex.sets.map(s => ({...s, id: crypto.randomUUID(), completed: false})) : [{
+                        id: crypto.randomUUID(),
+                        weight: Number(ex.weight) || 0,
+                        reps: Number(ex.reps) || 0,
+                        duration: Number(ex.duration) || 0,
+                        distance: Number(ex.distance) || 0,
+                        completed: false
+                    }]
+                }));
+                setWorkout(prev => ({ ...prev, exercises: cleanExercises, isRestDay: false }));
+                showToast('Loaded last workout!', 'success');
+            } else {
+                showToast('No previous workouts found.', 'warning');
+            }
+        } catch (e) {
+            showToast('Failed to load last workout', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const addExercise = async (exercise: Exercise) => {
+        setIsSelectorOpen(false);
+        
+        let initialSets: WorkoutSet[] = [{
+            id: crypto.randomUUID(),
+            weight: 0, reps: 0, duration: 0, distance: 0, completed: false
+        }];
+
+        if (auth.currentUser) {
+            try {
+                const allWorkouts = await WorkoutService.getAllWorkouts(auth.currentUser.uid);
+                for (const w of allWorkouts) {
+                    if (w.date === date) continue;
+                    const match = w.exercises.find(e => e.name === exercise.name);
+                    if (match) {
+                        if (Array.isArray(match.sets) && match.sets.length > 0) {
+                            initialSets = match.sets.map(s => ({ ...s, id: crypto.randomUUID(), completed: false }));
+                        } else {
+                            initialSets = [{
+                                id: crypto.randomUUID(),
+                                weight: Number(match.weight) || 0,
+                                reps: Number(match.reps) || 0,
+                                duration: Number(match.duration) || 0,
+                                distance: Number(match.distance) || 0,
+                                completed: false
+                            }];
+                        }
+                        break;
+                    }
+                }
+            } catch (e) { /* ignore */ }
+        }
+
         const newEx: WorkoutExercise = {
             name: exercise.name,
-            sets: 0,
-            reps: 0,
-            weight: 0,
-            duration: 0,
-            distance: 0,
+            sets: initialSets
         };
         setWorkout(prev => ({
             ...prev,
             exercises: [...prev.exercises, newEx],
             isRestDay: false
         }));
-        setIsSelectorOpen(false);
     };
 
-    const updateExercise = (index: number, field: keyof WorkoutExercise, value: string | number) => {
-        const newExercises = [...workout.exercises];
-        newExercises[index] = { ...newExercises[index], [field]: value };
-        setWorkout({ ...workout, exercises: newExercises });
-    };
-
-    const duplicateExercise = (index: number) => {
-        const exerciseToCopy = workout.exercises[index];
-        const duplicatedEx = { ...exerciseToCopy };
-        const newExercises = [...workout.exercises];
-        // Insert the duplicated exercise right after the original one
-        newExercises.splice(index + 1, 0, duplicatedEx);
-        setWorkout(prev => ({ ...prev, exercises: newExercises }));
-    };
 
     const removeExercise = async (index: number) => {
         const exerciseName = workout.exercises[index].name;
@@ -374,20 +455,35 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl p-3 min-[375px]:p-4 sm:p-8 border dark:border-zinc-800">
+            <div className="bg-white/80 dark:bg-zinc-900/60 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 p-4 min-[375px]:p-5 sm:p-8 border border-zinc-200/50 dark:border-zinc-800/50 relative overflow-hidden">
+                {/* Decorative background elements */}
+                <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-cyan-500/5 to-transparent pointer-events-none"></div>
+                
                 {workout.exercises.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 bg-zinc-50 dark:bg-zinc-800/20 rounded-3xl border-2 border-dashed dark:border-zinc-800">
-                        <Plus size={48} className="mb-4 text-zinc-700" />
-                        <h3 className="text-xl font-black dark:text-zinc-400 uppercase tracking-tight">Empty Log</h3>
-                        <p className="text-zinc-500 font-bold mt-1 mb-8">Ready to start? Add your first exercise!</p>
+                    <div className="flex flex-col items-center justify-center py-24 px-4 bg-gradient-to-b from-zinc-50 to-white dark:from-zinc-800/50 dark:to-zinc-900/50 rounded-[2rem] border-2 border-dashed border-zinc-200 dark:border-zinc-800 relative group overflow-hidden">
+                        <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        <div className="w-20 h-20 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-6 shadow-inner group-hover:scale-110 transition-transform duration-500">
+                            <Plus size={32} className="text-zinc-400 dark:text-zinc-500 group-hover:text-cyan-500 transition-colors duration-500" />
+                        </div>
+                        <h3 className="text-2xl font-black text-zinc-800 dark:text-zinc-300 uppercase tracking-tight mb-2">Build Your Session</h3>
+                        <p className="text-zinc-500 font-bold mb-10 text-sm tracking-wide text-center max-w-xs">Start from scratch or load a previous routine to crush your goals today.</p>
 
-                        <button
-                            onClick={loadTemplates}
-                            className="flex items-center gap-2 px-6 py-3 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white rounded-xl font-bold transition-all"
-                        >
-                            <ClipboardList size={18} />
-                            Load from Template
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md relative z-10">
+                            <button
+                                onClick={loadTemplates}
+                                className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-500 text-zinc-900 dark:text-white rounded-2xl font-black uppercase tracking-widest text-[11px] transition-all duration-300 shadow-sm hover:shadow-xl active:scale-[0.98]"
+                            >
+                                <ClipboardList size={18} className="text-zinc-400 group-hover:text-zinc-600" />
+                                Templates
+                            </button>
+                            <button
+                                onClick={repeatLastWorkout}
+                                className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-br from-cyan-400 to-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.98] border border-cyan-300/50"
+                            >
+                                <Copy size={18} />
+                                Repeat Last
+                            </button>
+                        </div>
                     </div>
                 ) : (
                     <div className="space-y-6">
@@ -401,195 +497,47 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                             </button>
                         </div>
                         {workout.exercises.map((ex, idx) => (
-                            <div key={idx} className="bg-zinc-50 dark:bg-zinc-800/40 p-3 min-[375px]:p-4 sm:p-6 rounded-3xl border dark:border-zinc-700/50 relative group transition-all hover:border-cyan-500/30">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                                    <div className="lg:col-span-1">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="flex flex-col">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block">Exercise</label>
-                                                <div className="flex items-center gap-2">
-                                                    <p className="font-black dark:text-gray-100 text-lg uppercase tracking-tight">{ex.name}</p>
-                                                    {isExercisePR(ex, idx) && (
-                                                        <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/10 text-yellow-500 rounded-full border border-yellow-500/20 text-[8px] font-black uppercase tracking-tighter animate-bounce">
-                                                            <Trophy size={8} /> PR
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <button
-                                                    onClick={() => duplicateExercise(idx)}
-                                                    className="text-zinc-400 hover:text-cyan-500 transition-colors p-1"
-                                                    title="Duplicate Exercise"
-                                                >
-                                                    <Copy size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => removeExercise(idx)}
-                                                    className="text-zinc-400 hover:text-red-500 transition-colors p-1"
-                                                    title="Remove Exercise"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div 
-                                        className="grid lg:col-span-3 gap-1.5 min-[375px]:gap-2 sm:gap-3"
-                                        style={{ gridTemplateColumns: `repeat(${Math.max(1, (allExercisesMap[ex.name]?.fields || ['sets', 'reps', 'weight']).length)}, minmax(0, 1fr))` }}
-                                    >
-                                        {(allExercisesMap[ex.name]?.fields || ['sets', 'reps', 'weight']).includes('sets') && (
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-cyan-500 mb-2 block">Sets</label>
-                                                <div className="flex items-center bg-white dark:bg-zinc-900 border dark:border-zinc-700 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-cyan-500/50 transition-all">
-                                                    <button
-                                                        onClick={() => updateExercise(idx, 'sets', Math.max(0, (Number(ex.sets) || 0) - 1))}
-                                                        className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-cyan-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                                    >
-                                                        <Minus size={16} strokeWidth={3} />
-                                                    </button>
-                                                    <input
-                                                        type="number"
-                                                        className="w-full bg-transparent text-center font-bold dark:text-gray-100 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none min-w-0"
-                                                        value={ex.sets || ''}
-                                                        onChange={(e) => updateExercise(idx, 'sets', parseInt(e.target.value) || 0)}
-                                                    />
-                                                    <button
-                                                        onClick={() => updateExercise(idx, 'sets', (Number(ex.sets) || 0) + 1)}
-                                                        className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-cyan-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                                    >
-                                                        <Plus size={16} strokeWidth={3} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {(allExercisesMap[ex.name]?.fields || ['sets', 'reps', 'weight']).includes('reps') && (
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-2 block">Reps</label>
-                                                <div className="flex items-center bg-white dark:bg-zinc-900 border dark:border-zinc-700 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all">
-                                                    <button
-                                                        onClick={() => updateExercise(idx, 'reps', Math.max(0, (Number(ex.reps) || 0) - 1))}
-                                                        className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-indigo-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                                    >
-                                                        <Minus size={16} strokeWidth={3} />
-                                                    </button>
-                                                    <input
-                                                        type="number"
-                                                        className="w-full bg-transparent text-center font-bold dark:text-gray-100 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none min-w-0"
-                                                        value={ex.reps || ''}
-                                                        onChange={(e) => updateExercise(idx, 'reps', parseInt(e.target.value) || 0)}
-                                                    />
-                                                    <button
-                                                        onClick={() => updateExercise(idx, 'reps', (Number(ex.reps) || 0) + 1)}
-                                                        className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-indigo-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                                    >
-                                                        <Plus size={16} strokeWidth={3} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {(allExercisesMap[ex.name]?.fields || ['sets', 'reps', 'weight']).includes('weight') && (
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-2 block">Kg</label>
-                                                <div className="flex items-center bg-white dark:bg-zinc-900 border dark:border-zinc-700 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500/50 transition-all">
-                                                    <button
-                                                        onClick={() => updateExercise(idx, 'weight', Math.max(0, (Number(ex.weight) || 0) - 2.5))}
-                                                        className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-emerald-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                                    >
-                                                        <Minus size={16} strokeWidth={3} />
-                                                    </button>
-                                                    <input
-                                                        type="number"
-                                                        className="w-full bg-transparent text-center font-bold dark:text-gray-100 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none min-w-0"
-                                                        value={ex.weight || ''}
-                                                        onChange={(e) => updateExercise(idx, 'weight', parseFloat(e.target.value) || 0)}
-                                                    />
-                                                    <button
-                                                        onClick={() => updateExercise(idx, 'weight', (Number(ex.weight) || 0) + 2.5)}
-                                                        className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-emerald-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                                    >
-                                                        <Plus size={16} strokeWidth={3} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {(allExercisesMap[ex.name]?.fields || ['sets', 'reps', 'weight']).includes('duration') && (
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-orange-500 mb-2 block">Mins</label>
-                                                <div className="flex items-center bg-white dark:bg-zinc-900 border dark:border-zinc-700 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-orange-500/50 transition-all">
-                                                    <button
-                                                        onClick={() => updateExercise(idx, 'duration', Math.max(0, (Number(ex.duration) || 0) - 1))}
-                                                        className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-orange-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                                    >
-                                                        <Minus size={16} strokeWidth={3} />
-                                                    </button>
-                                                    <input
-                                                        type="number"
-                                                        className="w-full bg-transparent text-center font-bold dark:text-gray-100 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none min-w-0"
-                                                        value={ex.duration || ''}
-                                                        onChange={(e) => updateExercise(idx, 'duration', parseInt(e.target.value) || 0)}
-                                                    />
-                                                    <button
-                                                        onClick={() => updateExercise(idx, 'duration', (Number(ex.duration) || 0) + 1)}
-                                                        className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-orange-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                                    >
-                                                        <Plus size={16} strokeWidth={3} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {(allExercisesMap[ex.name]?.fields || ['sets', 'reps', 'weight']).includes('distance') && (
-                                            <div>
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-purple-500 mb-2 block">Km</label>
-                                                <div className="flex items-center bg-white dark:bg-zinc-900 border dark:border-zinc-700 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-purple-500/50 transition-all">
-                                                    <button
-                                                        onClick={() => updateExercise(idx, 'distance', Math.max(0, (Number(ex.distance) || 0) - 1))}
-                                                        className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-purple-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                                    >
-                                                        <Minus size={16} strokeWidth={3} />
-                                                    </button>
-                                                    <input
-                                                        type="number"
-                                                        className="w-full bg-transparent text-center font-bold dark:text-gray-100 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none min-w-0"
-                                                        value={ex.distance || ''}
-                                                        onChange={(e) => updateExercise(idx, 'distance', parseFloat(e.target.value) || 0)}
-                                                    />
-                                                    <button
-                                                        onClick={() => updateExercise(idx, 'distance', (Number(ex.distance) || 0) + 1)}
-                                                        className="p-1.5 min-[375px]:p-2 sm:p-3 text-zinc-500 hover:text-purple-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                                    >
-                                                        <Plus size={16} strokeWidth={3} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                            <ExerciseCard 
+                                key={idx} 
+                                exercise={ex} 
+                                index={idx}
+                                onUpdate={(updatedEx: WorkoutExercise) => {
+                                    const newExercises = [...workout.exercises];
+                                    newExercises[idx] = updatedEx;
+                                    setWorkout(prev => ({ ...prev, exercises: newExercises }));
+                                }}
+                                onRemove={() => removeExercise(idx)}
+                                isPR={isExercisePR(ex, idx)}
+                                exerciseFields={allExercisesMap[ex.name]?.fields || ['sets', 'reps', 'weight']}
+                                restTimerEnabled={restTimerEnabled}
+                                onStartRestTimer={() => {
+                                    setRestTimeRemaining(90);
+                                    setIsRestTimerActive(true);
+                                }}
+                            />
                         ))}
                     </div>
                 )}
 
-                <div className="mt-8 flex flex-col sm:flex-row gap-4">
+                <div className="mt-10 flex flex-col sm:flex-row gap-4 relative z-10">
                     <button
                         onClick={() => setIsSelectorOpen(true)}
-                        className="flex-1 flex items-center justify-center gap-3 p-5 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all border border-transparent active:scale-95"
+                        className="flex-1 flex items-center justify-center gap-3 p-5 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all duration-300 border-2 border-zinc-100 dark:border-zinc-700/50 shadow-sm hover:shadow-xl active:scale-[0.98] outline-none"
                     >
-                        <Plus size={20} strokeWidth={3} />
+                        <Plus size={20} className="text-cyan-500" strokeWidth={3} />
                         Add Exercise
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={saving || workout.exercises.length === 0}
-                        className="flex-1 flex items-center justify-center gap-3 p-5 bg-gradient-to-r from-cyan-500 to-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-cyan-500/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
+                        className="flex-1 flex items-center justify-center gap-3 p-5 bg-gradient-to-br from-emerald-400 to-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:transform-none disabled:shadow-none border border-emerald-300/50 outline-none"
                     >
                         {saving ? (
                             <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-white"></div>
                         ) : (
                             <>
                                 <Save size={20} strokeWidth={3} />
-                                Save Workout
+                                Complete Workout
                             </>
                         )}
                     </button>
@@ -667,6 +615,20 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                             </button>
                         </div>
                     </form>
+                </div>
+            )}
+            {/* Rest Timer Modal */}
+            {isRestTimerActive && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-[slide-up_0.4s_ease-out]">
+                    <div className="bg-zinc-900/90 dark:bg-zinc-800/90 backdrop-blur-xl text-white rounded-[2rem] shadow-2xl shadow-cyan-500/20 border border-zinc-700/50 flex items-center pr-2 pl-6 py-2.5 gap-5">
+                        <div className="font-black tracking-widest flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                            <span className="text-cyan-400 text-xs uppercase">Resting</span>
+                            <span className="text-lg tabular-nums">{Math.floor(restTimeRemaining/60)}:{(restTimeRemaining % 60).toString().padStart(2, '0')}</span>
+                        </div>
+                        <button onClick={() => setRestTimeRemaining(prev => prev + 30)} className="text-zinc-300 hover:text-white hover:bg-zinc-700 px-3 py-1 text-xs font-black uppercase tracking-widest bg-zinc-800 rounded-xl transition-colors">+30s</button>
+                        <button onClick={() => setIsRestTimerActive(false)} className="text-zinc-400 hover:text-red-500 hover:bg-zinc-800 p-2 rounded-xl transition-colors"><X size={16} strokeWidth={3} /></button>
+                    </div>
                 </div>
             )}
         </div>

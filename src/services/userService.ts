@@ -5,6 +5,8 @@ export interface UserProfile {
     uid: string;
     displayName: string;
     email: string;
+    restTimerEnabled?: boolean;
+    defaultRestTime?: number;
     createdAt?: any;
 }
 

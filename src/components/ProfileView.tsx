@@ -80,6 +80,7 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [editName, setEditName] = useState('');
     const [editLoading, setEditLoading] = useState(false);
+    const [restTimerEnabled, setRestTimerEnabled] = useState(false);
 
     const categories = EXERCISE_CATEGORIES;
 
@@ -112,6 +113,9 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
 
                 if (profile?.displayName) {
                     setUserName(profile.displayName);
+                }
+                if (profile?.restTimerEnabled !== undefined) {
+                    setRestTimerEnabled(profile.restTimerEnabled);
                 }
 
                 setCustomExercises(custom);
@@ -151,14 +155,28 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
 
                         let dVol = 0;
                         w.exercises.forEach((ex: WorkoutExercise) => {
-                            const eSets = Number(ex.sets) || 0;
-                            const eReps = Number(ex.reps) || 0;
-                            const eWeight = Number(ex.weight) || 0;
+                            let totalReps = 0;
+                            let eSets = 0;
+                            let vol = 0;
 
-                            const vol = eSets * eReps * eWeight;
+                            if (ex.sets && Array.isArray(ex.sets)) {
+                                eSets = ex.sets.length;
+                                ex.sets.forEach(set => {
+                                    const r = Number(set.reps) || 0;
+                                    const w = Number(set.weight) || 0;
+                                    totalReps += r;
+                                    vol += r * w;
+                                });
+                            } else {
+                                // Fallback for legacy format
+                                eSets = Number(ex.sets) || 0;
+                                const eReps = Number(ex.reps) || 0;
+                                const eWeight = Number(ex.weight) || 0;
+                                totalReps = eSets * eReps;
+                                vol = eSets * eReps * eWeight;
+                            }
+
                             dVol += vol;
-
-                            const totalReps = eSets * eReps;
 
                             if (!exerciseStats[ex.name]) {
                                 exerciseStats[ex.name] = { reps: 0, sets: 0, weight: 0 };
@@ -626,6 +644,30 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                         )}
                     </div>
                 )}
+            </div>
+
+            {/* Preferences Section */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border dark:border-gray-700 mb-6">
+                <div className="p-4 sm:p-6 flex justify-between items-center">
+                    <h3 className="text-lg font-bold dark:text-gray-100">Preferences</h3>
+                </div>
+                <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border dark:border-gray-700">
+                        <div>
+                            <p className="font-semibold dark:text-gray-200">Rest Timer</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Automatically trigger timer when a set is marked complete.</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" className="sr-only peer" checked={restTimerEnabled} onChange={async (e) => {
+                                const val = e.target.checked;
+                                setRestTimerEnabled(val);
+                                if (auth.currentUser) await UserService.updateUserProfile(auth.currentUser.uid, { restTimerEnabled: val });
+                                showToast('Rest timer preference updated', 'success');
+                            }} />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
             </div>
 
             {/* Logout */}

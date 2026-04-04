@@ -6,10 +6,20 @@ export interface Exercise {
     isCustom?: boolean;
 }
 
+export interface WorkoutSet {
+    id?: string;
+    weight?: number | string;
+    reps?: number | string;
+    duration?: number | string;
+    distance?: number | string;
+    completed: boolean;
+}
+
 export interface WorkoutExercise {
     name: string;
-    sets: number | string;
-    reps: number | string;
+    sets: WorkoutSet[];
+    // Legacy fields for backward compatibility
+    reps?: number | string;
     weight?: number | string;
     duration?: number | string;
     distance?: number | string;

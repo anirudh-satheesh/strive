@@ -149,14 +149,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
 
     const selectedWorkout = selectedDate ? workouts[selectedDate] : null;
 
+    const getExMaxWeight = (exercise: WorkoutExercise) => {
+        if (Array.isArray(exercise.sets) && exercise.sets.length > 0) {
+            return Math.max(...exercise.sets.map(s => Number(s.weight) || 0));
+        }
+        return Number(exercise.weight) || 0;
+    };
+
     const isExercisePR = (ex: WorkoutExercise, idx: number, workout: Workout) => {
-        const weight = Number(ex.weight) || 0;
+        const weight = getExMaxWeight(ex);
         if (weight <= 0) return false;
 
         // 1. Find max weight for this exercise in the current workout session
         const allWeightsForThisEx = workout.exercises
             .filter(e => e.name === ex.name)
-            .map(e => Number(e.weight) || 0);
+            .map(e => getExMaxWeight(e));
 
         const maxWeightInWorkout = Math.max(...allWeightsForThisEx);
 
@@ -165,7 +172,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
 
         // If multiple entries have the same max weight, only show on the last one
         const lastIdx = workout.exercises.reduce((acc, e, i) =>
-            (e.name === ex.name && (Number(e.weight) || 0) === maxWeightInWorkout) ? i : acc, -1);
+            (e.name === ex.name && getExMaxWeight(e) === maxWeightInWorkout) ? i : acc, -1);
 
         if (idx !== lastIdx) return false;
 
@@ -176,7 +183,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
         priorWorkouts.forEach(pw => {
             pw.exercises.forEach(pe => {
                 if (pe.name === ex.name) {
-                    const pwWeight = Number(pe.weight) || 0;
+                    const pwWeight = getExMaxWeight(pe);
                     if (pwWeight > priorMax) priorMax = pwWeight;
                 }
             });
@@ -198,49 +205,79 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
         }
     }
 
+    // Calculate Streak
+    let currentStreak = 0;
+    const todayDateTime = new Date();
+    todayDateTime.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < 365; i++) {
+        const d = new Date(todayDateTime);
+        d.setDate(d.getDate() - i);
+        const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        
+        const w = workouts[ds];
+        if (w) {
+            currentStreak++;
+        } else if (i !== 0) { 
+            break;
+        }
+    }
+
     return (
-        <div className="space-y-6">
-            <div className="mb-2">
-                <h2 className="text-2xl sm:text-3xl font-bold dark:text-gray-100">Calendar</h2>
-                <p className="text-gray-500 dark:text-gray-400">Track your workout history and rest days.</p>
+        <div className="space-y-6 pb-24 animate-[fade-in_0.4s_ease-out]">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-5 shadow-2xl shadow-cyan-500/5 bg-gradient-to-br from-white to-zinc-50 dark:from-zinc-900 dark:to-zinc-900/90 p-6 sm:p-8 rounded-[2.5rem] border-2 border-white/50 dark:border-zinc-800/80 relative overflow-hidden group">
+                <div className="absolute -top-32 -right-32 w-96 h-96 bg-gradient-to-bl from-cyan-500/20 via-indigo-500/10 to-transparent pointer-events-none rounded-full blur-[80px] group-hover:from-cyan-500/30 transition-all duration-700 delay-100"></div>
+                <div className="absolute -bottom-32 -left-32 w-80 h-80 bg-gradient-to-tr from-emerald-500/10 to-transparent pointer-events-none rounded-full blur-[80px] group-hover:from-emerald-500/20 transition-all duration-700"></div>
+                
+                <div className="flex flex-col relative z-10">
+                    <h2 className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-zinc-900 to-zinc-600 dark:from-white dark:to-zinc-400 uppercase tracking-tight mb-1">Overview</h2>
+                    <p className="text-zinc-500 dark:text-zinc-400 font-bold text-sm tracking-wide">Track your consistency and history.</p>
+                </div>
+                
+                <div className="flex gap-3 sm:gap-4 w-full sm:w-auto relative z-10 mt-2 sm:mt-0">
+                    <div className="flex-1 sm:flex-none bg-gradient-to-br from-cyan-50 to-white dark:from-cyan-950/30 dark:to-zinc-900 px-6 py-4 rounded-3xl flex flex-col items-center justify-center min-w-[6rem] border border-cyan-100/50 dark:border-cyan-900/40 shadow-sm shadow-cyan-500/5 hover:-translate-y-1 hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-300">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-cyan-600/70 dark:text-cyan-500/70 mb-1">Workouts</span>
+                        <span className="text-3xl font-black text-cyan-500 dark:text-cyan-400 drop-shadow-sm">{monthWorkouts}</span>
+                    </div>
+                    <div className="flex-1 sm:flex-none bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/30 dark:to-zinc-900 px-6 py-4 rounded-3xl flex flex-col items-center justify-center min-w-[6rem] border border-emerald-100/50 dark:border-emerald-900/40 shadow-sm shadow-emerald-500/5 hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600/70 dark:text-emerald-500/70 mb-1">Streak</span>
+                        <span className="text-3xl font-black text-emerald-500 dark:text-emerald-400 drop-shadow-sm flex items-center gap-2">
+                            <Trophy size={20} className="mb-1 text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] animate-pulse"/> 
+                            {currentStreak}
+                        </span>
+                    </div>
+                </div>
             </div>
 
             {/* Calendar Card */}
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl border dark:border-zinc-800 overflow-hidden">
+            <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-3xl rounded-[3rem] shadow-2xl shadow-indigo-500/5 border border-white dark:border-zinc-800 overflow-hidden relative group">
+                
                 {/* Month Navigation */}
-                <div className="flex justify-between items-center p-6 bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 text-white shadow-lg">
-                    <button onClick={prevMonth} className="p-2 hover:bg-white/20 rounded-xl transition-all hover:scale-110">
-                        <ChevronLeft size={24} strokeWidth={2.5} />
+                <div className="flex justify-between items-center p-6 sm:p-8 bg-transparent relative z-10 border-b border-black/5 dark:border-white/5">
+                    <button onClick={prevMonth} className="p-3 sm:p-4 bg-zinc-100/50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-300 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 rounded-2xl transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-cyan-500/20 active:scale-95 group/btn">
+                        <ChevronLeft size={22} strokeWidth={3} className="group-hover/btn:-translate-x-0.5 transition-transform" />
                     </button>
-                    <div className="flex flex-col items-center">
-                        <h3 className="text-xl font-black uppercase tracking-widest">{monthYear}</h3>
-                        <div className="flex gap-4 mt-1 opacity-80">
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-tighter">
-                                <Dumbbell size={12} strokeWidth={3} /> {monthWorkouts} Workouts
-                            </div>
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-tighter">
-                                <Moon size={12} strokeWidth={3} /> {monthRestDays} Rest
-                            </div>
-                        </div>
+                    <div className="flex flex-col items-center animate-[fade-in_0.3s_ease-out]">
+                        <h3 className="text-xl sm:text-2xl font-black uppercase tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-indigo-500 drop-shadow-sm">{monthYear}</h3>
                     </div>
-                    <button onClick={nextMonth} className="p-2 hover:bg-white/20 rounded-xl transition-all hover:scale-110">
-                        <ChevronRight size={24} strokeWidth={2.5} />
+                    <button onClick={nextMonth} className="p-3 sm:p-4 bg-zinc-100/50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-300 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 rounded-2xl transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-cyan-500/20 active:scale-95 group/btn">
+                        <ChevronRight size={22} strokeWidth={3} className="group-hover/btn:translate-x-0.5 transition-transform" />
                     </button>
                 </div>
 
-                <div className="p-4 sm:p-6 pb-2">
+                <div className="p-4 sm:p-8 pb-8 relative z-10">
                     <div className="grid grid-cols-7 mb-4">
-                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                            <div key={d} className="text-center text-xs font-black text-zinc-400 uppercase tracking-widest py-2">
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
+                            <div key={d} className={`text-center text-[10px] font-black uppercase tracking-widest py-2 ${i === 0 || i === 6 ? 'text-zinc-300 dark:text-zinc-600' : 'text-zinc-400 dark:text-zinc-500'}`}>
                                 {d}
                             </div>
                         ))}
                     </div>
 
                     {loading ? (
-                        <div className="flex justify-center p-16"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-500"></div></div>
+                        <div className="flex justify-center p-16"><div className="animate-spin rounded-full h-10 w-10 border-t-4 border-cyan-500 shadow-[0_0_15px_rgba(34,211,238,0.5)]"></div></div>
                     ) : (
-                        <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
+                        <div className="grid grid-cols-7 gap-y-3 gap-x-2 sm:gap-x-4">
                             {days.map((day, idx) => {
                                 if (day === null) return <div key={`empty-${idx}`} className="aspect-square" />;
 
@@ -249,40 +286,51 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                                 const isToday = dateStr === todayStr;
                                 const isSelected = selectedDate === dateStr;
 
-                                let bgColor = 'bg-zinc-50 dark:bg-zinc-800/50';
-                                let borderColor = 'border-transparent';
-                                let textColor = 'text-gray-900 dark:text-gray-100';
+                                let isWorkout = false;
+                                let isRest = false;
 
                                 if (workout) {
-                                    if (workout.isRestDay) {
-                                        bgColor = 'bg-emerald-500/10 dark:bg-emerald-500/20';
-                                        borderColor = 'border-emerald-500/40';
-                                        textColor = 'text-emerald-600 dark:text-emerald-400';
-                                    } else {
-                                        bgColor = 'bg-cyan-500/10 dark:bg-cyan-500/20';
-                                        borderColor = 'border-cyan-500/40';
-                                        textColor = 'text-cyan-600 dark:text-cyan-400';
-                                    }
+                                    if (workout.isRestDay) isRest = true;
+                                    else isWorkout = true;
                                 }
+
+                                const baseState = isWorkout 
+                                    ? 'hover:bg-cyan-50 dark:hover:bg-cyan-900/20 hover:border-cyan-200 dark:hover:border-cyan-800/50' 
+                                    : isRest 
+                                        ? 'hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800/50'
+                                        : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:border-zinc-200 dark:hover:border-zinc-700';
+
+                                const activeState = isSelected
+                                    ? 'bg-gradient-to-br from-zinc-100 to-white dark:from-zinc-800 dark:to-zinc-700 shadow-xl shadow-zinc-500/10 dark:shadow-black/40 scale-110 z-20 border-2 border-cyan-400 dark:border-cyan-500'
+                                    : `border-2 border-transparent bg-transparent ${baseState} hover:-translate-y-1 hover:shadow-xl hover:shadow-black/5 hover:z-10`;
 
                                 return (
                                     <button
                                         key={day}
                                         onClick={() => handleDayClick(day)}
                                         className={`
-                                        aspect-square relative flex items-center justify-center rounded-2xl text-sm font-bold transition-all duration-300 border-2
-                                        ${bgColor} ${borderColor} ${textColor}
-                                        ${isSelected ? 'ring-4 ring-cyan-500/20 scale-105 z-10 !border-cyan-500 dark:!border-cyan-400' : 'hover:scale-110'}
-                                        ${isToday ? 'after:content-[""] after:absolute after:bottom-1 after:w-1.5 after:h-1.5 after:bg-indigo-500 after:rounded-full' : ''}
+                                        aspect-square relative flex flex-col items-center justify-center rounded-[1.25rem] sm:rounded-3xl transition-all duration-300 outline-none group/cell
+                                        ${activeState}
                                     `}
                                     >
-                                        {day}
-                                        {workout && !workout.isRestDay && (
-                                            <Dumbbell size={10} className="absolute top-1 right-1 opacity-60" />
-                                        )}
-                                        {workout && workout.isRestDay && (
-                                            <Moon size={10} className="absolute top-1 right-1 text-emerald-500 opacity-60" />
-                                        )}
+                                        <span className={`z-10 text-sm sm:text-base font-black transition-colors duration-300 ${
+                                            isToday 
+                                            ? 'w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-cyan-500 text-white rounded-full shadow-[0_0_12px_rgba(99,102,241,0.6)]' 
+                                            : isSelected
+                                                ? 'text-cyan-600 dark:text-cyan-400'
+                                                : isWorkout
+                                                    ? 'text-cyan-700 dark:text-cyan-300 group-hover/cell:text-cyan-600'
+                                                    : isRest
+                                                        ? 'text-emerald-700 dark:text-emerald-300 group-hover/cell:text-emerald-600'
+                                                        : 'text-zinc-600 dark:text-zinc-400'
+                                        }`}>
+                                            {day}
+                                        </span>
+
+                                        <div className="absolute bottom-1.5 sm:bottom-2.5 h-1.5 flex gap-1 items-center justify-center w-full">
+                                            {isWorkout && <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-[pulse_3s_ease-in-out_infinite]"></div>}
+                                            {isRest && <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] opacity-90"></div>}
+                                        </div>
                                     </button>
                                 );
                             })}
@@ -291,114 +339,125 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                 </div>
             </div>
 
-            {/* Selected Date Details Panel */}
+            {/* Selected Date Modal Overlay */}
             {selectedDate && (
-                <div className="p-6 border-t dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 border-b-0 animate-[fade-in_0.4s_ease-out]">
-                    <div className="flex justify-between items-center mb-6">
-                        <div>
-                            <h4 className="text-xl font-black dark:text-gray-100 tracking-tight">
-                                {new Date(selectedDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-                            </h4>
-                            <div className="flex gap-2 mt-2">
-                                {selectedWorkout ? (
-                                    selectedWorkout.isRestDay ? (
-                                        <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border border-emerald-500/20">Rest Day</span>
-                                    ) : (
-                                        <span className="bg-cyan-500/10 text-cyan-500 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border border-cyan-500/20">Workout Logged</span>
-                                    )
-                                ) : (
-                                    <span className="bg-zinc-500/10 text-zinc-500 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border border-zinc-500/20">No Data</span>
-                                )}
-                            </div>
-                        </div>
-                        <button onClick={() => setSelectedDate(null)} className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors">
-                            <X size={24} />
-                        </button>
-                    </div>
+                <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 sm:p-6 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-[fade-in_0.2s_ease-out]" onClick={() => setSelectedDate(null)}>
+                    <div className="w-full max-w-lg bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-[slide-up_0.3s_ease-out] relative border border-zinc-200/50 dark:border-zinc-800/50 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                        {/* Decorative Background */}
+                        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-cyan-500/5 to-transparent pointer-events-none"></div>
 
-                    {selectedWorkout ? (
-                        selectedWorkout.isRestDay ? (
-                            <div className="py-8 text-center bg-emerald-500/5 rounded-3xl border border-emerald-500/10 flex flex-col items-center">
-                                <Moon size={48} className="mx-auto text-emerald-500 mb-4 animate-pulse" />
-                                <p className="text-emerald-500 font-bold tracking-wide italic mb-6">"Muscle grows during rest!"</p>
-                                <button
-                                    onClick={handleRemoveRestDay}
-                                    disabled={isSaving}
-                                    className="px-6 py-2 bg-zinc-950 text-white rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-zinc-800 transition-all active:scale-95 disabled:opacity-50 border border-zinc-800"
-                                >
-                                    {isSaving ? 'Removing...' : 'Remove Rest Day'}
+                        <div className="relative z-10 p-6 sm:p-8 overflow-y-auto">
+                            <div className="flex justify-between items-center mb-8">
+                                <div>
+                                    <h4 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight drop-shadow-sm">
+                                        {new Date(selectedDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                                    </h4>
+                                    <div className="flex gap-2 mt-3">
+                                        {selectedWorkout ? (
+                                            selectedWorkout.isRestDay ? (
+                                                <span className="bg-gradient-to-r from-emerald-400/20 to-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border border-emerald-500/20 shadow-sm shadow-emerald-500/5">Rest Day</span>
+                                            ) : (
+                                                <span className="bg-gradient-to-r from-cyan-400/20 to-blue-500/20 text-cyan-600 dark:text-cyan-400 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border border-cyan-500/20 shadow-sm shadow-cyan-500/5">Workout Logged</span>
+                                            )
+                                        ) : (
+                                            <span className="bg-zinc-500/10 text-zinc-500 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border border-zinc-500/20">No Data</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <button onClick={() => setSelectedDate(null)} className="p-2.5 bg-zinc-100 dark:bg-zinc-800/50 rounded-2xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-90 shadow-sm">
+                                    <X size={20} strokeWidth={3} />
                                 </button>
                             </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {selectedWorkout.exercises.map((ex, idx) => (
-                                    <div key={idx} className="bg-white dark:bg-zinc-800 p-4 rounded-2xl border dark:border-zinc-700 shadow-sm flex justify-between items-center group hover:border-cyan-500/30 transition-all">
-                                        <div className="flex flex-col gap-1">
-                                            <div className="flex items-center gap-2">
-                                                <p className="font-black dark:text-gray-100 group-hover:text-cyan-400 transition-colors uppercase tracking-tight text-sm">{ex.name}</p>
-                                                {isExercisePR(ex, idx, selectedWorkout) && (
-                                                    <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/10 text-yellow-500 rounded-full border border-yellow-500/20 text-[8px] font-black uppercase tracking-tighter">
-                                                        <Trophy size={8} /> PR
-                                                    </span>
-                                                )}
-                                            </div>
+
+                            {selectedWorkout ? (
+                                selectedWorkout.isRestDay ? (
+                                    <div className="py-10 text-center bg-gradient-to-b from-emerald-50 to-white dark:from-emerald-950/20 dark:to-zinc-900/50 rounded-[2rem] border border-emerald-100 dark:border-emerald-900/30 flex flex-col items-center shadow-inner">
+                                        <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/40 rounded-full flex items-center justify-center mb-6 shadow-sm">
+                                            <Moon size={36} className="text-emerald-500 animate-[pulse_3s_ease-in-out_infinite]" />
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-lg font-black dark:text-gray-200">{ex.sets} × {ex.reps}</p>
-                                            {ex.weight && <p className="text-xs text-cyan-500 font-black">{ex.weight} kg</p>}
+                                        <p className="text-emerald-600 dark:text-emerald-400 font-black tracking-wide uppercase mb-8">"Muscle grows during rest!"</p>
+                                        <button
+                                            onClick={handleRemoveRestDay}
+                                            disabled={isSaving}
+                                            className="px-8 py-3.5 bg-white dark:bg-zinc-800 text-red-500 rounded-xl font-black uppercase tracking-widest text-[11px] hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 transition-all active:scale-[0.98] disabled:opacity-50 border border-red-200 dark:border-red-900/50 shadow-sm"
+                                        >
+                                            {isSaving ? 'Removing...' : 'Remove Rest Day'}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {selectedWorkout.exercises.map((ex, idx) => (
+                                            <div key={idx} className="bg-white/80 dark:bg-zinc-800/80 backdrop-blur-md p-4 sm:p-5 rounded-[1.5rem] border border-zinc-200 dark:border-zinc-700/50 shadow-sm flex flex-col sm:flex-row gap-3 sm:gap-4 justify-between sm:items-center group hover:shadow-lg hover:shadow-cyan-500/10 hover:border-cyan-400/50 hover:-translate-y-0.5 transition-all duration-300">
+                                                <div className="flex flex-col gap-1.5">
+                                                    <div className="flex items-center gap-3">
+                                                        <p className="font-black text-zinc-900 dark:text-white group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-colors uppercase tracking-tight text-base sm:text-lg">{ex.name}</p>
+                                                        {isExercisePR(ex, idx, selectedWorkout) && (
+                                                            <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm shadow-yellow-500/20">
+                                                                <Trophy size={10} /> PR
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="text-left sm:text-right bg-zinc-50 dark:bg-zinc-900/50 sm:bg-transparent rounded-xl p-3 sm:p-0 border border-zinc-100 dark:border-zinc-800 sm:border-transparent">
+                                                    <p className="text-base sm:text-lg font-black text-zinc-700 dark:text-zinc-300">
+                                                        {Array.isArray(ex.sets) ? `${ex.sets.length} Sets` : `${ex.sets} × ${ex.reps}`}
+                                                    </p>
+                                                    {getExMaxWeight(ex) > 0 && <p className="text-[11px] uppercase tracking-widest text-cyan-500 font-bold mt-0.5">Top: <span className="font-black">{getExMaxWeight(ex)} kg</span></p>}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <div className="grid grid-cols-2 gap-4 mt-6">
+                                            <button
+                                                onClick={handleLogWorkout}
+                                                className="bg-white dark:bg-zinc-800 p-4 rounded-2xl text-zinc-900 dark:text-white font-black uppercase tracking-widest hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all duration-300 active:scale-[0.98] border-2 border-zinc-100 dark:border-zinc-700/50 shadow-sm hover:shadow-md"
+                                            >
+                                                Edit Workout
+                                            </button>
+                                            <button
+                                                onClick={handleDeleteWorkout}
+                                                className="bg-white dark:bg-zinc-800 text-red-500 p-4 rounded-2xl font-black uppercase tracking-widest hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-300 active:scale-[0.98] border-2 border-red-100 dark:border-red-900/30 shadow-sm hover:shadow-md"
+                                            >
+                                                Delete Log
+                                            </button>
                                         </div>
                                     </div>
-                                ))}
-                                <div className="grid grid-cols-2 gap-3 mt-4">
+                                )
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <button
                                         onClick={handleLogWorkout}
-                                        className="bg-zinc-100 dark:bg-zinc-800 p-4 rounded-2xl text-zinc-950 dark:text-white font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-95 flex-1"
+                                        className="flex items-center justify-center gap-3 p-6 sm:p-8 bg-gradient-to-br from-cyan-400 to-blue-600 text-white rounded-[2rem] font-black uppercase tracking-widest shadow-xl shadow-cyan-500/20 hover:shadow-cyan-500/40 hover:-translate-y-1 active:scale-[0.98] transition-all duration-300 border border-cyan-300/50"
                                     >
-                                        Edit
+                                        <Dumbbell size={28} />
+                                        Log Workout
                                     </button>
                                     <button
-                                        onClick={handleDeleteWorkout}
-                                        className="bg-red-500/10 text-red-500 p-4 rounded-2xl font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95 flex-1 border border-red-500/20"
+                                        onClick={handleMarkRestDay}
+                                        disabled={isSaving}
+                                        className="flex items-center justify-center gap-3 p-6 sm:p-8 bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700/50 text-zinc-900 dark:text-white rounded-[2rem] font-black uppercase tracking-widest hover:bg-zinc-50 dark:hover:bg-zinc-700 active:scale-[0.98] transition-all duration-300 disabled:opacity-50 shadow-sm hover:shadow-md"
                                     >
-                                        Delete
+                                        <Moon size={28} className="text-emerald-500" />
+                                        {isSaving ? 'Saving...' : 'Mark Rest Day'}
                                     </button>
                                 </div>
-                            </div>
-                        )
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <button
-                                onClick={handleLogWorkout}
-                                className="flex items-center justify-center gap-3 p-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-3xl font-black uppercase tracking-widest shadow-xl shadow-cyan-500/20 hover:scale-105 active:scale-95 transition-all"
-                            >
-                                <Dumbbell size={24} />
-                                Log Workout
-                            </button>
-                            <button
-                                onClick={handleMarkRestDay}
-                                disabled={isSaving}
-                                className="flex items-center justify-center gap-3 p-6 bg-zinc-900 border border-zinc-700 text-white rounded-3xl font-black uppercase tracking-widest hover:bg-zinc-800 active:scale-95 transition-all disabled:opacity-50"
-                            >
-                                <Moon size={24} />
-                                {isSaving ? 'Saving...' : 'Mark Rest Day'}
-                            </button>
+                            )}
                         </div>
-                    )}
+                    </div>
                 </div>
             )}
 
             {/* Legend */}
-            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-3 h-3 bg-blue-500 rounded-sm"></span>
+            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
+                <span className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.6)]"></div>
                     Workout
                 </span>
-                <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-3 h-3 bg-emerald-100 dark:bg-emerald-900/50 border border-emerald-300 dark:border-emerald-700 rounded-sm"></span>
+                <span className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]"></div>
                     Rest Day
                 </span>
-                <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-3 h-3 rounded-sm ring-2 ring-blue-500 ring-inset"></span>
+                <span className="flex items-center gap-2">
+                    <span className="inline-block w-4 h-4 rounded-full bg-zinc-900 dark:bg-white flex items-center justify-center border border-zinc-200 dark:border-zinc-700"></span>
                     Today
                 </span>
             </div>

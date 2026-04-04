@@ -2,12 +2,36 @@ import { doc, getDoc, setDoc, collection, getDocs, query, orderBy, deleteDoc, ad
 import { db } from './firebase';
 import type { Workout, WorkoutTemplate } from '../types';
 
+const normalizeWorkout = (workout: Workout): Workout => {
+    return {
+        ...workout,
+        exercises: workout.exercises?.map(ex => {
+            if (!Array.isArray(ex.sets)) {
+                const numSets = Number(ex.sets) || 1;
+                const legacySets = [];
+                for(let i=0; i<numSets; i++) {
+                    legacySets.push({
+                        id: crypto.randomUUID(),
+                        weight: Number(ex.weight) || 0,
+                        reps: Number(ex.reps) || 0,
+                        duration: Number(ex.duration) || 0,
+                        distance: Number(ex.distance) || 0,
+                        completed: true
+                    });
+                }
+                return { ...ex, sets: legacySets };
+            }
+            return ex;
+        }) || []
+    };
+};
+
 export const WorkoutService = {
     async getWorkoutForDate(userId: string, date: string): Promise<Workout | null> {
         const workoutRef = doc(db, `users/${userId}/workouts/${date}`);
         const snap = await getDoc(workoutRef);
         if (snap.exists()) {
-            return { id: snap.id, ...snap.data() } as Workout;
+            return normalizeWorkout({ id: snap.id, ...snap.data() } as Workout);
         }
         return null;
     },
@@ -21,7 +45,7 @@ export const WorkoutService = {
         const workoutsRef = collection(db, `users/${userId}/workouts`);
         const q = query(workoutsRef, orderBy('date', 'desc'));
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Workout[];
+        return snapshot.docs.map(doc => normalizeWorkout({ id: doc.id, ...doc.data() } as Workout));
     },
 
     async deleteWorkout(userId: string, date: string): Promise<void> {
