@@ -11,10 +11,23 @@ export const StatsService = {
             if (workout.isRestDay) return;
 
             workout.exercises.forEach(ex => {
-                const weight = Number(ex.weight) || 0;
-                if (weight > 0) {
-                    if (!prs[ex.name] || weight > prs[ex.name]) {
-                        prs[ex.name] = weight;
+                let maxWeight = 0;
+                
+                // New nested structure
+                if (ex.sets && Array.isArray(ex.sets)) {
+                    ex.sets.forEach(set => {
+                        const w = Number(set.weight) || 0;
+                        if (w > maxWeight) maxWeight = w;
+                    });
+                }
+                
+                // Fallback for legacy format
+                const legacyWeight = Number(ex.weight) || 0;
+                if (legacyWeight > maxWeight) maxWeight = legacyWeight;
+
+                if (maxWeight > 0) {
+                    if (!prs[ex.name] || maxWeight > prs[ex.name]) {
+                        prs[ex.name] = maxWeight;
                     }
                 }
             });
