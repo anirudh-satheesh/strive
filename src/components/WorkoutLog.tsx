@@ -501,7 +501,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                                 key={idx} 
                                 exercise={ex} 
                                 index={idx}
-                                onUpdate={(updatedEx) => {
+                                onUpdate={(updatedEx: WorkoutExercise) => {
                                     const newExercises = [...workout.exercises];
                                     newExercises[idx] = updatedEx;
                                     setWorkout(prev => ({ ...prev, exercises: newExercises }));
