@@ -1,30 +1,9 @@
 import { doc, getDoc, setDoc, collection, getDocs, query, orderBy, deleteDoc, addDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import { normalizeWorkout } from './normalizeWorkout';
+import { runMigration } from './migrationService';
+import { getMigrationStats, logMigrationProgress } from './migrationStats';
 import type { Workout, WorkoutTemplate } from '../types';
-
-const normalizeWorkout = (workout: Workout): Workout => {
-    return {
-        ...workout,
-        exercises: workout.exercises?.map(ex => {
-            if (!Array.isArray(ex.sets)) {
-                const numSets = Number(ex.sets) || 1;
-                const legacySets = [];
-                for(let i=0; i<numSets; i++) {
-                    legacySets.push({
-                        id: crypto.randomUUID(),
-                        weight: Number(ex.weight) || 0,
-                        reps: Number(ex.reps) || 0,
-                        duration: Number(ex.duration) || 0,
-                        distance: Number(ex.distance) || 0,
-                        completed: true
-                    });
-                }
-                return { ...ex, sets: legacySets };
-            }
-            return ex;
-        }) || []
-    };
-};
 
 export const WorkoutService = {
     async getWorkoutForDate(userId: string, date: string): Promise<Workout | null> {
@@ -38,14 +17,28 @@ export const WorkoutService = {
 
     async saveWorkout(userId: string, workout: Workout): Promise<void> {
         const workoutRef = doc(db, `users/${userId}/workouts/${workout.date}`);
-        await setDoc(workoutRef, workout);
+        // Stamp with version 2 so this document never needs migration
+        await setDoc(workoutRef, { ...workout, version: 2 });
     },
 
     async getAllWorkouts(userId: string): Promise<Workout[]> {
         const workoutsRef = collection(db, `users/${userId}/workouts`);
-        const q = query(workoutsRef, orderBy('date', 'desc'));
+        const q = query(workoutsRef, orderBy('date', 'asc'));
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => normalizeWorkout({ id: doc.id, ...doc.data() } as Workout));
+
+        // --- Background migration (fire-and-forget) ---
+        const stats = getMigrationStats(snapshot.docs);
+        logMigrationProgress(stats);
+
+        if (!stats.complete) {
+            // Non-blocking: migrate oldest-first without awaiting
+            runMigration(snapshot.docs);
+        }
+
+        // --- Return normalized data for UI (newest first) ---
+        return snapshot.docs
+            .map(d => normalizeWorkout({ id: d.id, ...d.data() } as Workout))
+            .reverse();
     },
 
     async deleteWorkout(userId: string, date: string): Promise<void> {

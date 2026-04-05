@@ -18,18 +18,21 @@ export interface WorkoutSet {
 export interface WorkoutExercise {
     name: string;
     sets: WorkoutSet[];
-    // Legacy fields for backward compatibility
+    // Legacy fields — stripped during migration, kept for read-time compat
     reps?: number | string;
     weight?: number | string;
     duration?: number | string;
     distance?: number | string;
+    version?: number; // incorrectly placed in some old docs
 }
 
 export interface Workout {
     id?: string;
     date: string;
+    createdAt?: string;
     exercises: WorkoutExercise[];
     isRestDay?: boolean;
+    version?: number;
 }
 
 export interface WorkoutTemplate {
