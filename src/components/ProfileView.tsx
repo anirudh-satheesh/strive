@@ -153,6 +153,50 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                     <ChevronRight size={20} className="text-[#F97316]/20 group-hover:translate-x-1 transition-all" />
                 </button>
             </section>
+
+            {/* Edit Profile Modal */}
+            {isEditingProfile && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-[fade-in_0.2s]">
+                    <div className="bg-[#1A2236] rounded-[2.5rem] shadow-2xl border border-white/10 w-full max-w-sm p-8 relative animate-[slide-up_0.3s_ease-out]">
+                        <div className="flex justify-between items-center mb-8">
+                            <h3 className="text-xl font-black text-white uppercase tracking-tight">Edit Profile</h3>
+                            <button onClick={() => setIsEditingProfile(false)} className="text-[#94a3b8] hover:text-white transition-colors">
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div>
+                                <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-2 block">Display Name</label>
+                                <input
+                                    type="text"
+                                    placeholder="Enter your name"
+                                    className="w-full p-4 bg-white/5 rounded-2xl border border-white/5 text-white font-bold outline-none focus:ring-2 focus:ring-[#22D3EE] transition-all"
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    autoFocus
+                                />
+                            </div>
+                            
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setIsEditingProfile(false)} 
+                                    className="flex-1 p-4 bg-white/5 text-[#94a3b8] font-bold rounded-2xl hover:bg-white/10 transition-all text-xs"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveProfile}
+                                    disabled={editLoading || !editName.trim()}
+                                    className="flex-[2] p-4 bg-gradient-to-r from-[#22D3EE] to-[#3B82F6] text-white font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-cyan-500/20 active:scale-95 transition-all disabled:opacity-50 text-xs"
+                                >
+                                    {editLoading ? 'Saving...' : 'Save Changes'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
