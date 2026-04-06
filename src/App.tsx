@@ -3,20 +3,21 @@ import type { User } from 'firebase/auth';
 import { AuthService } from './services/authService';
 import { Auth } from './components/Auth';
 import { Layout } from './components/Layout';
+import { HomePage } from './components/HomePage';
 import { WorkoutLog } from './components/WorkoutLog';
-import { ExerciseLibrary } from './components/ExerciseLibrary';
-import { ProfileView } from './components/ProfileView';
 import { CalendarView } from './components/CalendarView';
+import { AnalyticsView } from './components/AnalyticsView';
+import { ProfileView } from './components/ProfileView';
 import { OnboardingModal } from './components/OnboardingModal';
 import { UserService } from './services/userService';
 import { NotificationProvider } from './context/NotificationContext';
 
-export type Page = 'workout' | 'exercises' | 'calendar' | 'profile';
+export type Page = 'home' | 'workout' | 'calendar' | 'analytics' | 'profile';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activePage, setActivePage] = useState<Page>('workout');
+  const [activePage, setActivePage] = useState<Page>('home');
   const [workoutDate, setWorkoutDate] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -47,7 +48,7 @@ const App: React.FC = () => {
       console.error('Failed to log out:', error);
     } finally {
       setWorkoutDate(null);
-      setActivePage('workout');
+      setActivePage('home');
     }
   };
 
@@ -81,9 +82,10 @@ const App: React.FC = () => {
         activePage={activePage}
         setActivePage={setActivePage}
       >
+        {activePage === 'home' && <HomePage setActivePage={setActivePage} onNavigateToWorkout={handleNavigateToWorkout} />}
         {activePage === 'workout' && <WorkoutLog initialDate={workoutDate} />}
-        {activePage === 'exercises' && <ExerciseLibrary />}
         {activePage === 'calendar' && <CalendarView onNavigateToWorkout={handleNavigateToWorkout} />}
+        {activePage === 'analytics' && <AnalyticsView />}
         {activePage === 'profile' && <ProfileView onLogout={handleLogout} />}
       </Layout>
       {showOnboarding && user && (

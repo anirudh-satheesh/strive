@@ -272,14 +272,18 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
         if (auth.currentUser) {
             setSaving(true);
             try {
-                await WorkoutService.saveWorkout(auth.currentUser.uid, updatedWorkout);
+                if (updatedExercises.length === 0 && !workout.isRestDay) {
+                    await WorkoutService.deleteWorkout(auth.currentUser.uid, date);
+                    showToast('Workout log removed', 'success');
+                } else {
+                    await WorkoutService.saveWorkout(auth.currentUser.uid, updatedWorkout);
+                    showToast('Exercise removed', 'success');
+                }
 
                 // Refresh PR cache
                 const allWorkouts = await WorkoutService.getAllWorkouts(auth.currentUser.uid);
                 cachedPRs.current = StatsService.calculatePRs(allWorkouts);
                 setAllTimePRs(cachedPRs.current);
-
-                showToast('Exercise removed permanently', 'success');
             } catch (error) {
                 console.error("Failed to persist exercise removal:", error);
                 showToast('Failed to remove exercise', 'error');
@@ -427,25 +431,25 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col md:flex-row justify-between md:items-center gap-6 mb-8">
+        <div className="flex flex-col h-[calc(100vh-11rem)] md:h-[calc(100vh-9.5rem)] -mt-2">
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 flex-shrink-0">
                 <div>
-                    <h2 className="text-3xl sm:text-4xl font-black dark:text-gray-100 uppercase tracking-tight">Log Workout</h2>
-                    <div className="flex items-center gap-2 mt-1">
-                        <p className="text-cyan-500 font-bold uppercase tracking-widest text-xs">Push your limits today</p>
+                    <h2 className="text-2xl sm:text-3xl font-black dark:text-gray-100 uppercase tracking-tight">Log Workout</h2>
+                    <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-cyan-500 font-bold uppercase tracking-widest text-[9px]">Push your limits today</p>
                         {workout.isRestDay && (
-                            <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest animate-pulse">
-                                <Moon size={10} />
+                            <span className="flex items-center gap-1.5 px-3 py-0.5 bg-emerald-500/10 text-emerald-500 rounded-full border border-emerald-500/20 text-[9px] font-black uppercase tracking-widest animate-pulse">
+                                <Moon size={9} />
                                 Rest Day
                             </span>
                         )}
                     </div>
                 </div>
                 <div className="relative group">
-                    <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-cyan-500 transition-colors" size={20} />
+                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-cyan-500 transition-colors" size={16} />
                     <input
                         type="date"
-                        className="pl-12 pr-6 py-3 border dark:border-zinc-700/50 rounded-2xl bg-white dark:bg-zinc-900 dark:text-gray-100 font-bold outline-none focus:ring-4 focus:ring-cyan-500/10 transition-all shadow-xl"
+                        className="pl-10 pr-4 py-2 border dark:border-zinc-700/50 rounded-xl bg-white dark:bg-zinc-900 dark:text-gray-100 font-bold text-sm outline-none focus:ring-4 focus:ring-cyan-500/10 transition-all shadow-lg"
                         value={date}
                         onChange={(e) => {
                             setDate(e.target.value);
@@ -455,89 +459,91 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                 </div>
             </div>
 
-            <div className="bg-white/80 dark:bg-zinc-900/60 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 p-4 min-[375px]:p-5 sm:p-8 border border-zinc-200/50 dark:border-zinc-800/50 relative overflow-hidden">
+            <div className="bg-white/80 dark:bg-zinc-900/60 backdrop-blur-2xl rounded-[2rem] shadow-2xl shadow-zinc-200/50 dark:shadow-black/50 p-4 sm:p-6 border border-zinc-200/50 dark:border-zinc-800/50 relative overflow-hidden flex flex-col flex-1 min-h-0">
                 {/* Decorative background elements */}
                 <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-cyan-500/5 to-transparent pointer-events-none"></div>
                 
-                {workout.exercises.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-24 px-4 bg-gradient-to-b from-zinc-50 to-white dark:from-zinc-800/50 dark:to-zinc-900/50 rounded-[2rem] border-2 border-dashed border-zinc-200 dark:border-zinc-800 relative group overflow-hidden">
-                        <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                        <div className="w-20 h-20 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-6 shadow-inner group-hover:scale-110 transition-transform duration-500">
-                            <Plus size={32} className="text-zinc-400 dark:text-zinc-500 group-hover:text-cyan-500 transition-colors duration-500" />
-                        </div>
-                        <h3 className="text-2xl font-black text-zinc-800 dark:text-zinc-300 uppercase tracking-tight mb-2">Build Your Session</h3>
-                        <p className="text-zinc-500 font-bold mb-10 text-sm tracking-wide text-center max-w-xs">Start from scratch or load a previous routine to crush your goals today.</p>
+                <div className="flex-1 overflow-y-auto pr-1 -mr-1 custom-scrollbar min-h-0">
+                    {workout.exercises.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-10 px-4 bg-gradient-to-b from-zinc-50 to-white dark:from-zinc-800/50 dark:to-zinc-900/50 rounded-[1.5rem] border-2 border-dashed border-zinc-200 dark:border-zinc-800 relative group overflow-hidden h-full">
+                            <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4 shadow-inner group-hover:scale-110 transition-transform duration-500">
+                                <Plus size={24} className="text-zinc-400 dark:text-zinc-500 group-hover:text-cyan-500 transition-colors duration-500" />
+                            </div>
+                            <h3 className="text-xl font-black text-zinc-800 dark:text-zinc-300 uppercase tracking-tight mb-1">Build Your Session</h3>
+                            <p className="text-zinc-500 font-bold mb-8 text-[11px] tracking-wide text-center max-w-[200px]">Start from scratch or load a previous routine to crush your goals.</p>
 
-                        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md relative z-10">
-                            <button
-                                onClick={loadTemplates}
-                                className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-500 text-zinc-900 dark:text-white rounded-2xl font-black uppercase tracking-widest text-[11px] transition-all duration-300 shadow-sm hover:shadow-xl active:scale-[0.98]"
-                            >
-                                <ClipboardList size={18} className="text-zinc-400 group-hover:text-zinc-600" />
-                                Templates
-                            </button>
-                            <button
-                                onClick={repeatLastWorkout}
-                                className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-br from-cyan-400 to-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.98] border border-cyan-300/50"
-                            >
-                                <Copy size={18} />
-                                Repeat Last
-                            </button>
+                            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs relative z-10">
+                                <button
+                                    onClick={loadTemplates}
+                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-500 text-zinc-900 dark:text-white rounded-xl font-black uppercase tracking-widest text-[10px] transition-all duration-300 shadow-sm hover:shadow-xl active:scale-[0.98]"
+                                >
+                                    <ClipboardList size={14} className="text-zinc-400" />
+                                    Templates
+                                </button>
+                                <button
+                                    onClick={repeatLastWorkout}
+                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-br from-cyan-400 to-blue-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.98] border border-cyan-300/50"
+                                >
+                                    <Copy size={14} />
+                                    Repeat Last
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        <div className="flex justify-end pr-2">
-                            <button
-                                onClick={() => setShowSaveTemplateName(true)}
-                                className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-cyan-500 hover:text-cyan-400 transition-colors"
-                            >
-                                <Copy size={14} />
-                                Save as Template
-                            </button>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="flex justify-end pr-1">
+                                <button
+                                    onClick={() => setShowSaveTemplateName(true)}
+                                    className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-cyan-500 hover:text-cyan-400 transition-colors"
+                                >
+                                    <Copy size={12} />
+                                    Template
+                                </button>
+                            </div>
+                            {workout.exercises.map((ex, idx) => (
+                                <ExerciseCard 
+                                    key={idx} 
+                                    exercise={ex} 
+                                    index={idx}
+                                    onUpdate={(updatedEx: WorkoutExercise) => {
+                                        const newExercises = [...workout.exercises];
+                                        newExercises[idx] = updatedEx;
+                                        setWorkout(prev => ({ ...prev, exercises: newExercises }));
+                                    }}
+                                    onRemove={() => removeExercise(idx)}
+                                    isPR={isExercisePR(ex, idx)}
+                                    exerciseFields={allExercisesMap[ex.name]?.fields || ['sets', 'reps', 'weight']}
+                                    restTimerEnabled={restTimerEnabled}
+                                    onStartRestTimer={() => {
+                                        setRestTimeRemaining(90);
+                                        setIsRestTimerActive(true);
+                                    }}
+                                />
+                            ))}
                         </div>
-                        {workout.exercises.map((ex, idx) => (
-                            <ExerciseCard 
-                                key={idx} 
-                                exercise={ex} 
-                                index={idx}
-                                onUpdate={(updatedEx: WorkoutExercise) => {
-                                    const newExercises = [...workout.exercises];
-                                    newExercises[idx] = updatedEx;
-                                    setWorkout(prev => ({ ...prev, exercises: newExercises }));
-                                }}
-                                onRemove={() => removeExercise(idx)}
-                                isPR={isExercisePR(ex, idx)}
-                                exerciseFields={allExercisesMap[ex.name]?.fields || ['sets', 'reps', 'weight']}
-                                restTimerEnabled={restTimerEnabled}
-                                onStartRestTimer={() => {
-                                    setRestTimeRemaining(90);
-                                    setIsRestTimerActive(true);
-                                }}
-                            />
-                        ))}
-                    </div>
-                )}
+                    )}
+                </div>
 
-                <div className="mt-10 flex flex-col sm:flex-row gap-4 relative z-10">
+                <div className="mt-4 flex flex-col sm:flex-row gap-3 relative z-10 flex-shrink-0">
                     <button
                         onClick={() => setIsSelectorOpen(true)}
-                        className="flex-1 flex items-center justify-center gap-3 p-5 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all duration-300 border-2 border-zinc-100 dark:border-zinc-700/50 shadow-sm hover:shadow-xl active:scale-[0.98] outline-none"
+                        className="flex-1 flex items-center justify-center gap-2 p-3.5 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-xl font-black uppercase tracking-widest text-xs hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all duration-300 border-2 border-zinc-100 dark:border-zinc-700/50 shadow-sm hover:shadow-xl active:scale-[0.98] outline-none"
                     >
-                        <Plus size={20} className="text-cyan-500" strokeWidth={3} />
+                        <Plus size={16} className="text-cyan-500" strokeWidth={3} />
                         Add Exercise
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={saving || workout.exercises.length === 0}
-                        className="flex-1 flex items-center justify-center gap-3 p-5 bg-gradient-to-br from-emerald-400 to-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:transform-none disabled:shadow-none border border-emerald-300/50 outline-none"
+                        className="flex-1 flex items-center justify-center gap-2 p-3.5 bg-gradient-to-br from-emerald-400 to-emerald-600 text-white rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:transform-none disabled:shadow-none border border-emerald-300/50 outline-none"
                     >
                         {saving ? (
-                            <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-white"></div>
+                            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div>
                         ) : (
                             <>
-                                <Save size={20} strokeWidth={3} />
-                                Complete Workout
+                                <Save size={16} strokeWidth={3} />
+                                Complete
                             </>
                         )}
                     </button>
