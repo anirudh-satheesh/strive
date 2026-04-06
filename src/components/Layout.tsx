@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Dumbbell, BookOpen, CalendarDays } from 'lucide-react';
+import { Home, Dumbbell, CalendarDays, BarChart3, User } from 'lucide-react';
 import type { Page } from '../App';
 
 interface LayoutProps {
@@ -10,22 +10,23 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, activePage, setActivePage }) => {
     const navItems: { id: Page; label: string; icon: any }[] = [
-        { id: 'workout', label: 'Log Workout', icon: Dumbbell },
-        { id: 'exercises', label: 'Exercises', icon: BookOpen },
+        { id: 'home', label: 'Home', icon: Home },
+        { id: 'workout', label: 'Workout', icon: Dumbbell },
         { id: 'calendar', label: 'Calendar', icon: CalendarDays },
+        { id: 'analytics', label: 'Analytics', icon: BarChart3 },
         { id: 'profile', label: 'Profile', icon: User },
     ];
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-            {/* Unified Top Navbar (Desktop) / Minimal Header (Mobile) */}
+            {/* Top Navbar (Desktop) */}
             <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b dark:border-gray-700">
                 <div className="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
                     {/* Branding */}
                     <button
                         className="flex items-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-500/20 rounded-lg p-1 transition-all"
-                        onClick={() => setActivePage('workout')}
-                        aria-label="Go to Log Workout"
+                        onClick={() => setActivePage('home')}
+                        aria-label="Go to Home"
                     >
                         <div className="h-9 w-9 bg-gradient-to-br from-cyan-400 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20">
                             <img src="/strive-logo.png" alt="Strive Logo" className="h-6 w-6 brightness-0 invert" />
@@ -78,9 +79,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, setActiveP
                                     : 'text-gray-400 dark:text-gray-500 hover:text-gray-600'
                                     }`}
                             >
-                                <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
-                                <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'opacity-100' : 'opacity-60'}`}>
-                                    {item.label.split(' ').pop()}
+                                <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                                <span className={`text-[9px] font-bold uppercase tracking-wider ${isActive ? 'opacity-100' : 'opacity-60'}`}>
+                                    {item.label}
                                 </span>
                             </button>
                         );

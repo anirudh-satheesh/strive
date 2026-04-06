@@ -201,7 +201,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
         const w = workouts[ds];
         if (w) {
             if (w.isRestDay) monthRestDays++;
-            else monthWorkouts++;
+            else if (w.exercises.length > 0) monthWorkouts++;
         }
     }
 
@@ -216,7 +216,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
         const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         
         const w = workouts[ds];
-        if (w) {
+        if (w && (w.isRestDay || w.exercises.length > 0)) {
             currentStreak++;
         } else if (i !== 0) { 
             break;
@@ -291,17 +291,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
 
                                 if (workout) {
                                     if (workout.isRestDay) isRest = true;
-                                    else isWorkout = true;
+                                    else if (workout.exercises.length > 0) isWorkout = true;
                                 }
 
                                 const baseState = isWorkout 
-                                    ? 'hover:bg-cyan-50 dark:hover:bg-cyan-900/20 hover:border-cyan-200 dark:hover:border-cyan-800/50' 
+                                    ? 'hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800/50' 
                                     : isRest 
-                                        ? 'hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:border-emerald-200 dark:hover:border-emerald-800/50'
+                                        ? 'hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:border-yellow-200 dark:hover:border-yellow-800/50'
                                         : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:border-zinc-200 dark:hover:border-zinc-700';
 
                                 const activeState = isSelected
-                                    ? 'bg-gradient-to-br from-zinc-100 to-white dark:from-zinc-800 dark:to-zinc-700 shadow-xl shadow-zinc-500/10 dark:shadow-black/40 scale-110 z-20 border-2 border-cyan-400 dark:border-cyan-500'
+                                    ? 'bg-gradient-to-br from-zinc-100 to-white dark:from-zinc-800 dark:to-zinc-700 shadow-xl shadow-zinc-500/10 dark:shadow-black/40 scale-110 z-20 border-2 border-indigo-400 dark:border-indigo-500'
                                     : `border-2 border-transparent bg-transparent ${baseState} hover:-translate-y-1 hover:shadow-xl hover:shadow-black/5 hover:z-10`;
 
                                 return (
@@ -313,23 +313,23 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                                         ${activeState}
                                     `}
                                     >
-                                        <span className={`z-10 text-sm sm:text-base font-black transition-colors duration-300 ${
+                                        <span className={`z-10 text-sm sm:text-base font-black transition-all duration-300 ${
                                             isToday 
-                                            ? 'w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-cyan-500 text-white rounded-full shadow-[0_0_12px_rgba(99,102,241,0.6)]' 
+                                            ? 'w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center border-2 border-indigo-500 dark:border-cyan-500 text-indigo-600 dark:text-cyan-400 rounded-full shadow-[0_0_12px_rgba(99,102,241,0.2)]' 
                                             : isSelected
-                                                ? 'text-cyan-600 dark:text-cyan-400'
+                                                ? 'text-indigo-600 dark:text-cyan-400'
                                                 : isWorkout
-                                                    ? 'text-cyan-700 dark:text-cyan-300 group-hover/cell:text-cyan-600'
+                                                    ? 'text-emerald-700 dark:text-emerald-400 group-hover/cell:text-emerald-600'
                                                     : isRest
-                                                        ? 'text-emerald-700 dark:text-emerald-300 group-hover/cell:text-emerald-600'
+                                                        ? 'text-yellow-600 dark:text-yellow-400 group-hover/cell:text-yellow-500'
                                                         : 'text-zinc-600 dark:text-zinc-400'
                                         }`}>
                                             {day}
                                         </span>
 
                                         <div className="absolute bottom-1.5 sm:bottom-2.5 h-1.5 flex gap-1 items-center justify-center w-full">
-                                            {isWorkout && <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-[pulse_3s_ease-in-out_infinite]"></div>}
-                                            {isRest && <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] opacity-90"></div>}
+                                            {isWorkout && <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-[pulse_3s_ease-in-out_infinite]"></div>}
+                                            {isRest && <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] opacity-90"></div>}
                                         </div>
                                     </button>
                                 );
@@ -355,9 +355,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                                     <div className="flex gap-2 mt-3">
                                         {selectedWorkout ? (
                                             selectedWorkout.isRestDay ? (
-                                                <span className="bg-gradient-to-r from-emerald-400/20 to-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border border-emerald-500/20 shadow-sm shadow-emerald-500/5">Rest Day</span>
+                                                <span className="bg-gradient-to-r from-yellow-400/20 to-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border border-yellow-500/20 shadow-sm shadow-yellow-500/5">Rest Day</span>
                                             ) : (
-                                                <span className="bg-gradient-to-r from-cyan-400/20 to-blue-500/20 text-cyan-600 dark:text-cyan-400 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border border-cyan-500/20 shadow-sm shadow-cyan-500/5">Workout Logged</span>
+                                                selectedWorkout.exercises.length > 0 ? (
+                                                    <span className="bg-gradient-to-r from-emerald-400/20 to-green-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border border-emerald-500/20 shadow-sm shadow-emerald-500/5">Workout Logged</span>
+                                                ) : (
+                                                    <span className="bg-zinc-500/10 text-zinc-500 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border border-zinc-500/20">No Data</span>
+                                                )
                                             )
                                         ) : (
                                             <span className="bg-zinc-500/10 text-zinc-500 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest border border-zinc-500/20">No Data</span>
@@ -369,13 +373,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                                 </button>
                             </div>
 
-                            {selectedWorkout ? (
+                            {selectedWorkout && (selectedWorkout.isRestDay || selectedWorkout.exercises.length > 0) ? (
                                 selectedWorkout.isRestDay ? (
-                                    <div className="py-10 text-center bg-gradient-to-b from-emerald-50 to-white dark:from-emerald-950/20 dark:to-zinc-900/50 rounded-[2rem] border border-emerald-100 dark:border-emerald-900/30 flex flex-col items-center shadow-inner">
-                                        <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/40 rounded-full flex items-center justify-center mb-6 shadow-sm">
-                                            <Moon size={36} className="text-emerald-500 animate-[pulse_3s_ease-in-out_infinite]" />
+                                    <div className="py-10 text-center bg-gradient-to-b from-yellow-50 to-white dark:from-yellow-950/20 dark:to-zinc-900/50 rounded-[2rem] border border-yellow-100 dark:border-yellow-900/30 flex flex-col items-center shadow-inner">
+                                        <div className="w-20 h-20 bg-yellow-100 dark:bg-yellow-900/40 rounded-full flex items-center justify-center mb-6 shadow-sm">
+                                            <Moon size={36} className="text-yellow-500 animate-[pulse_3s_ease-in-out_infinite]" />
                                         </div>
-                                        <p className="text-emerald-600 dark:text-emerald-400 font-black tracking-wide uppercase mb-8">"Muscle grows during rest!"</p>
+                                        <p className="text-yellow-600 dark:text-yellow-400 font-black tracking-wide uppercase mb-8">"Muscle grows during rest!"</p>
                                         <button
                                             onClick={handleRemoveRestDay}
                                             disabled={isSaving}
@@ -436,7 +440,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                                         disabled={isSaving}
                                         className="flex items-center justify-center gap-3 p-6 sm:p-8 bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700/50 text-zinc-900 dark:text-white rounded-[2rem] font-black uppercase tracking-widest hover:bg-zinc-50 dark:hover:bg-zinc-700 active:scale-[0.98] transition-all duration-300 disabled:opacity-50 shadow-sm hover:shadow-md"
                                     >
-                                        <Moon size={28} className="text-emerald-500" />
+                                        <Moon size={28} className="text-yellow-500" />
                                         {isSaving ? 'Saving...' : 'Mark Rest Day'}
                                     </button>
                                 </div>
@@ -449,15 +453,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
             {/* Legend */}
             <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
                 <span className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.6)]"></div>
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]"></div>
                     Workout
                 </span>
                 <span className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]"></div>
+                    <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.6)]"></div>
                     Rest Day
                 </span>
                 <span className="flex items-center gap-2">
-                    <span className="inline-block w-4 h-4 rounded-full bg-zinc-900 dark:bg-white flex items-center justify-center border border-zinc-200 dark:border-zinc-700"></span>
+                    <span className="inline-block w-4 h-4 rounded-full border-2 border-indigo-500 dark:border-cyan-500 flex items-center justify-center bg-transparent"></span>
                     Today
                 </span>
             </div>

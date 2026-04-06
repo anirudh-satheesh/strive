@@ -1,250 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend,
-    Filler
-} from 'chart.js';
-import { Line, Bar } from 'react-chartjs-2';
-import { WorkoutService } from '../services/workoutService';
-import { ExerciseService } from '../services/exerciseService';
 import { UserService } from '../services/userService';
 import { auth } from '../services/firebase';
-import { EXERCISE_CATEGORIES } from '../data/exercises';
-import type { UserStats, Exercise, Workout, WorkoutExercise, WorkoutTemplate } from '../types';
-import { Flame, Trophy, Medal, Plus, Trash2, ChevronDown, ChevronUp, Edit2, X } from 'lucide-react';
+import { Edit2, X, LogOut, Settings, ChevronRight, Scale, Ruler, Target } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
-
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend,
-    Filler
-);
+import { SettingsView } from './SettingsView';
 
 export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
-    const [stats, setStats] = useState<UserStats>({ totalWorkouts: 0, totalVolume: 0, monthlyWorkouts: 0 });
-    const [weeklyVolume, setWeeklyVolume] = useState<number[]>(new Array(7).fill(0));
-    const [weeklyExercises, setWeeklyExercises] = useState<number[]>(new Array(7).fill(0));
     const [loading, setLoading] = useState(true);
-    const { showToast, confirm } = useNotification();
-
-    // Progress stats
-    const [streak, setStreak] = useState(0);
-    const [bestWeekVolume, setBestWeekVolume] = useState(0);
-    const [thisWeekVolume, setThisWeekVolume] = useState(0);
-    const [top3Exercises, setTop3Exercises] = useState<{ name: string; reps: number; sets: number; weight: number }[]>([]);
-    const [selectedExercise, setSelectedExercise] = useState<{ name: string; reps: number; sets: number; weight: number } | null>(null);
-
-    // Custom exercises
-    const [customExercises, setCustomExercises] = useState<Exercise[]>([]);
-    const [showAddForm, setShowAddForm] = useState(false);
-    const [newExName, setNewExName] = useState('');
-    const [newExCategory, setNewExCategory] = useState('Strength');
-    const [newExFields, setNewExFields] = useState<string[]>(['sets', 'reps', 'weight']);
-    const [customSectionOpen, setCustomSectionOpen] = useState(false);
-
-    const AVAILABLE_FIELDS = [
-        { id: 'sets', label: 'Sets' },
-        { id: 'reps', label: 'Reps' },
-        { id: 'weight', label: 'Weight (kg)' },
-        { id: 'duration', label: 'Duration (mins)' },
-        { id: 'distance', label: 'Distance (km)' }
-    ];
-
-    const handleFieldToggle = (fieldId: string) => {
-        setNewExFields(prev => 
-            prev.includes(fieldId) 
-                ? prev.filter(f => f !== fieldId)
-                : [...prev, fieldId]
-        );
-    };
-
-    // Templates
-    const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
-    const [templatesSectionOpen, setTemplatesSectionOpen] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const { showToast } = useNotification();
 
     // User profile
     const [userName, setUserName] = useState<string>('');
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [editName, setEditName] = useState('');
     const [editLoading, setEditLoading] = useState(false);
-    const [restTimerEnabled, setRestTimerEnabled] = useState(false);
-
-    const categories = EXERCISE_CATEGORIES;
-
-    const getLocalDateString = (date: Date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
-
-    const getWeekKey = (date: Date) => {
-        const d = new Date(date);
-        d.setHours(0, 0, 0, 0);
-        d.setDate(d.getDate() - d.getDay()); // Sunday as start of week
-        return getLocalDateString(d);
-    };
 
     useEffect(() => {
         const loadData = async () => {
             if (!auth.currentUser) return;
-            const userId = auth.currentUser.uid;
-
             try {
-                const [workouts, custom, profile, templateDocs] = await Promise.all([
-                    WorkoutService.getAllWorkouts(userId),
-                    ExerciseService.getCustomExercises(userId),
-                    UserService.getProfile(userId),
-                    WorkoutService.getTemplates(userId)
-                ]);
-
-                if (profile?.displayName) {
-                    setUserName(profile.displayName);
-                }
-                if (profile?.restTimerEnabled !== undefined) {
-                    setRestTimerEnabled(profile.restTimerEnabled);
-                }
-
-                setCustomExercises(custom);
-                setTemplates(templateDocs);
-
-                let totalVol = 0;
-                let totalWork = 0;
-                let monthWork = 0;
-                const now = new Date();
-                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-                const weekVol = new Array(7).fill(0);
-                const weekEx = new Array(7).fill(0);
-                const weekStart = new Date();
-                weekStart.setDate(now.getDate() - now.getDay());
-                weekStart.setHours(0, 0, 0, 0);
-
-                // Exercise frequency map
-                const exerciseStats: Record<string, { reps: number; sets: number; weight: number }> = {};
-
-                // For streak calculation
-                const workoutDates = new Set<string>();
-
-                // Weekly volume tracking for best week
-                const weeklyVolumes: Record<string, number> = {};
-
-                workouts.forEach((w: Workout) => {
-                    if (!w.isRestDay) {
-                        totalWork++;
-                        workoutDates.add(w.date);
-
-                        // Parse date properly to avoid timezone shifts
-                        const [y, m, d] = w.date.split('-').map(Number);
-                        const workoutDate = new Date(y, m - 1, d);
-
-                        if (workoutDate >= monthStart) monthWork++;
-
-                        let dVol = 0;
-                        w.exercises.forEach((ex: WorkoutExercise) => {
-                            let totalReps = 0;
-                            let eSets = 0;
-                            let vol = 0;
-
-                            if (ex.sets && Array.isArray(ex.sets)) {
-                                eSets = ex.sets.length;
-                                ex.sets.forEach(set => {
-                                    const r = Number(set.reps) || 0;
-                                    const w = Number(set.weight) || 0;
-                                    totalReps += r;
-                                    vol += r * w;
-                                });
-                            } else {
-                                // Fallback for legacy format
-                                eSets = Number(ex.sets) || 0;
-                                const eReps = Number(ex.reps) || 0;
-                                const eWeight = Number(ex.weight) || 0;
-                                totalReps = eSets * eReps;
-                                vol = eSets * eReps * eWeight;
-                            }
-
-                            dVol += vol;
-
-                            if (!exerciseStats[ex.name]) {
-                                exerciseStats[ex.name] = { reps: 0, sets: 0, weight: 0 };
-                            }
-                            exerciseStats[ex.name].reps += totalReps;
-                            exerciseStats[ex.name].sets += eSets;
-                            exerciseStats[ex.name].weight += vol;
-                        });
-                        totalVol += dVol;
-
-                        if (workoutDate >= weekStart) {
-                            const day = workoutDate.getDay();
-                            weekVol[day] += dVol;
-                            weekEx[day] += w.exercises.length;
-                        }
-
-                        // Track weekly volumes
-                        const weekKey = getWeekKey(workoutDate);
-                        weeklyVolumes[weekKey] = (weeklyVolumes[weekKey] || 0) + dVol;
-                    }
-                });
-
-                // Calculate streak
-                let currentStreak = 0;
-                const nowRef = new Date();
-                nowRef.setHours(0, 0, 0, 0);
-
-                // Start from today if worked out today, else start from yesterday to check continuity
-                const todayStr = getLocalDateString(nowRef);
-                const checkDate = new Date(nowRef);
-
-                if (!workoutDates.has(todayStr)) {
-                    checkDate.setDate(checkDate.getDate() - 1);
-                }
-
-                while (true) {
-                    const ds = getLocalDateString(checkDate);
-                    if (workoutDates.has(ds)) {
-                        currentStreak++;
-                        checkDate.setDate(checkDate.getDate() - 1);
-                    } else {
-                        break;
-                    }
-                }
-
-                // Top 3 exercises
-                const sortedExercises = Object.entries(exerciseStats)
-                    .map(([name, stats]) => ({ name, ...stats }))
-                    .sort((a, b) => b.reps - a.reps)
-                    .slice(0, 3);
-
-                // Best week volume
-                const bestWeek = Math.max(0, ...Object.values(weeklyVolumes));
-
-                setStats({ totalWorkouts: totalWork, totalVolume: totalVol, monthlyWorkouts: monthWork });
-                setWeeklyVolume(weekVol);
-                setWeeklyExercises(weekEx);
-                setStreak(currentStreak);
-                setBestWeekVolume(bestWeek);
-
-                // This week's total volume
-                const currentWeekKey = getWeekKey(now);
-                setThisWeekVolume(weeklyVolumes[currentWeekKey] || 0);
-
-                setTop3Exercises(sortedExercises);
+                const profile = await UserService.getProfile(auth.currentUser.uid);
+                if (profile?.displayName) setUserName(profile.displayName);
             } catch (error) {
-                console.error('Error loading profile data:', error);
-                showToast('Failed to load profile data', 'error');
+                console.error('Error loading profile:', error);
+                showToast('Failed to load profile', 'error');
             } finally {
                 setLoading(false);
             }
@@ -252,86 +32,16 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
         loadData();
     }, []);
 
-
-    const handleAddCustom = async () => {
-        if (!auth.currentUser || !newExName.trim() || newExFields.length === 0) {
-            if (newExFields.length === 0) showToast('Please select at least one parameter', 'warning');
-            return;
-        }
-        try {
-            const id = await ExerciseService.addCustomExercise(auth.currentUser.uid, {
-                name: newExName.trim(),
-                category: newExCategory,
-                fields: newExFields,
-                isCustom: true
-            });
-            setCustomExercises(prev => [...prev, { id, name: newExName.trim(), category: newExCategory, fields: newExFields, isCustom: true }]);
-            setNewExName('');
-            setNewExFields(['sets', 'reps', 'weight']);
-            setShowAddForm(false);
-            showToast('Custom exercise added!', 'success');
-        } catch (error) {
-            showToast('Failed to add exercise', 'error');
-        }
-    };
-
-    const handleDeleteCustom = async (exerciseId: string, name: string) => {
-        if (!auth.currentUser) return;
-
-        const confirmed = await confirm({
-            title: 'Delete custom exercise',
-            message: `Are you sure you want to delete "${name}"? This cannot be undone.`,
-            confirmText: 'Delete',
-            cancelText: 'Keep'
-        });
-
-        if (!confirmed) return;
-
-        try {
-            await ExerciseService.deleteCustomExercise(auth.currentUser.uid, exerciseId);
-            setCustomExercises(prev => prev.filter(e => e.id !== exerciseId));
-            showToast('Exercise deleted', 'success');
-        } catch (error) {
-            showToast('Failed to delete exercise', 'error');
-        }
-    };
-
-    const handleDeleteTemplate = async (templateId: string, name: string) => {
-        if (!auth.currentUser) return;
-
-        const confirmed = await confirm({
-            title: 'Delete Template',
-            message: `Are you sure you want to delete "${name}"?`,
-            confirmText: 'Delete',
-            cancelText: 'Keep'
-        });
-
-        if (!confirmed) return;
-
-        try {
-            await WorkoutService.deleteTemplate(auth.currentUser.uid, templateId);
-            setTemplates(prev => prev.filter(t => t.id !== templateId));
-            showToast('Template deleted', 'success');
-        } catch (error) {
-            showToast('Failed to delete template', 'error');
-        }
-    };
-
     const handleSaveProfile = async () => {
         if (!auth.currentUser) return;
-
         const trimmedName = editName.trim();
         if (!trimmedName) {
             showToast('Name cannot be empty', 'warning');
             return;
         }
-
         setEditLoading(true);
         try {
-            await UserService.updateUserProfile(auth.currentUser.uid, {
-                displayName: trimmedName
-            });
-
+            await UserService.updateUserProfile(auth.currentUser.uid, { displayName: trimmedName });
             setUserName(trimmedName);
             setIsEditingProfile(false);
             showToast('Profile updated!', 'success');
@@ -348,421 +58,141 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
         setIsEditingProfile(true);
     };
 
-    const lineData = {
-        labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-        datasets: [{
-            label: 'Exercises',
-            data: weeklyExercises,
-            borderColor: '#22d3ee',
-            backgroundColor: 'rgba(34, 211, 238, 0.1)',
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: '#22d3ee',
-            pointBorderColor: '#fff',
-            pointHoverRadius: 6,
-        }]
-    };
+    // ─── Settings Sub-Page ─────────────────────────────────────────────
+    if (showSettings) {
+        return <SettingsView onBack={() => setShowSettings(false)} />;
+    }
 
-    const barData = {
-        labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-        datasets: [{
-            label: 'Volume (kg)',
-            data: weeklyVolume,
-            backgroundColor: 'rgba(99, 102, 241, 0.6)',
-            hoverBackgroundColor: '#6366f1',
-            borderRadius: 8,
-        }]
-    };
-
+    // ─── Loading ───────────────────────────────────────────────────────
     if (loading) {
-        return <div className="flex justify-center p-20"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-blue-500"></div></div>;
+        return (
+            <div className="flex justify-center p-20">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-cyan-500 shadow-lg shadow-cyan-500/20"></div>
+            </div>
+        );
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-24 animate-[fade-in_0.4s_ease-out]">
             {/* Profile Header */}
-            <section className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl overflow-hidden border dark:border-zinc-800 p-6 flex flex-col md:flex-row gap-6 items-center relative">
+            <section className="bg-[#1A2236] rounded-3xl shadow-xl overflow-hidden border border-white/5 p-6 sm:p-8 relative">
                 <button
                     onClick={openEditProfile}
-                    className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-cyan-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all"
+                    className="absolute top-4 right-4 p-2.5 text-[#94a3b8] hover:text-[#22D3EE] hover:bg-white/5 rounded-xl transition-all"
                 >
                     <Edit2 size={20} />
                 </button>
 
-                <div className="h-24 w-24 sm:h-32 sm:w-32 rounded-3xl bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 flex items-center justify-center text-4xl sm:text-5xl font-black text-white shadow-2xl rotate-3 overflow-hidden relative">
-                    <span className="-rotate-3">{userName ? userName[0].toUpperCase() : (auth.currentUser?.email?.[0].toUpperCase() || 'U')}</span>
-                </div>
-                <div className="flex-1 text-center md:text-left">
-                    <h2 className="text-2xl sm:text-3xl font-black dark:text-gray-100 tracking-tight">{userName || auth.currentUser?.email}</h2>
-                    <p className="text-cyan-500 font-bold uppercase tracking-widest text-sm mt-1">Strive Athlete</p>
+                <div className="flex flex-col items-center text-center">
+                    <div className="h-28 w-28 sm:h-36 sm:w-36 rounded-[2rem] bg-gradient-to-br from-[#22D3EE] via-[#3B82F6] to-[#818cf8] flex items-center justify-center text-5xl sm:text-6xl font-black text-white shadow-2xl shadow-cyan-500/20 rotate-3 overflow-hidden relative mb-5">
+                        <span className="-rotate-3">{userName ? userName[0].toUpperCase() : (auth.currentUser?.email?.[0].toUpperCase() || 'U')}</span>
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{userName || auth.currentUser?.email}</h2>
+                    <p className="text-[#22D3EE] font-black uppercase tracking-[0.2em] text-xs mt-1">Strive Athlete</p>
+                    <p className="text-[#94a3b8] text-xs mt-1">{auth.currentUser?.email}</p>
                 </div>
             </section>
 
-            {/* Favorite Exercises Section */}
-            <div className="space-y-4">
-                <h3 className="text-lg font-bold dark:text-gray-100 px-2">Favorite Exercises</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {top3Exercises.length > 0 ? (
-                        top3Exercises.map((ex, i) => {
-
-                            const medals = ['🥇', '🥈', '🥉'];
-                            const rankNames = ['Champion', 'Contender', 'Bronze'];
-
-                            return (
-                                <button
-                                    key={ex.name}
-                                    onClick={() => setSelectedExercise(ex)}
-                                    className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900 text-white shadow-lg flex flex-col items-center text-center transition-all duration-300 hover:scale-[1.05] hover:shadow-cyan-500/10 hover:border-cyan-500/30 group w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-                                >
-                                    <div className="relative mb-3 transition-transform group-hover:scale-110">
-                                        <span className="text-5xl">{medals[i]}</span>
-                                        <div className="absolute -bottom-1 -right-1 bg-cyan-500 text-zinc-950 rounded-full px-2 py-0.5 text-[10px] font-black shadow-sm uppercase">
-                                            #{i + 1}
-                                        </div>
-                                    </div>
-                                    <p className="font-bold text-lg mb-1 leading-tight line-clamp-2 min-h-[3.5rem] flex items-center justify-center group-hover:text-cyan-400 transition-colors">
-                                        {ex.name}
-                                    </p>
-                                    <div className="mt-auto pt-3 border-t border-zinc-800 w-full mb-2" />
-                                    <p className="text-[10px] text-zinc-500 font-bold uppercase mt-1">{rankNames[i]}</p>
-                                </button>
-                            );
-                        })
-                    ) : (
-                        <div className="col-span-full py-12 text-center bg-white dark:bg-gray-800 rounded-2xl border-2 border-dashed dark:border-gray-700 text-gray-500">
-                            <Medal size={48} className="mx-auto mb-3 opacity-20" />
-                            <p className="font-medium">Keep working out to see your favorites!</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Weekly Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg border dark:border-gray-700">
-                    <h3 className="font-bold mb-4">Weekly Exercises</h3>
-                    <Line data={lineData} options={{ responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }} />
-                </div>
-                <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg border dark:border-gray-700">
-                    <h3 className="font-bold mb-4">Weekly Volume</h3>
-                    <Bar data={barData} options={{ responsive: true, scales: { y: { beginAtZero: true } } }} />
-                </div>
-            </div>
-
-            {/* View Progress Section */}
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl border dark:border-zinc-800 p-6">
-                <h3 className="text-lg font-black dark:text-gray-100 mb-6 uppercase tracking-widest text-center md:text-left flex items-center gap-2">
-                    <span className="w-8 h-1 bg-cyan-500 rounded-full" />
-                    LifeTime Progress
+            {/* Body Metrics Placeholder */}
+            <section className="bg-[#1A2236] rounded-3xl shadow-xl border border-white/5 p-6">
+                <h3 className="text-[10px] font-black text-white/30 mb-5 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <span className="w-8 h-1 bg-[#22C55E] rounded-full" />
+                    Body Metrics
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border dark:border-zinc-700/50 hover:border-orange-500/30 transition-colors">
-                        <div className="p-3 bg-orange-500 rounded-xl shadow-lg shadow-orange-500/20">
-                            <Flame size={24} className="text-white" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Current Streak</p>
-                            <p className="text-2xl font-black text-orange-600 dark:text-orange-400">{streak} day{streak !== 1 ? 's' : ''}</p>
-                        </div>
+                <div className="grid grid-cols-3 gap-3">
+                    <div className="py-6 text-center bg-white/5 rounded-2xl border-2 border-dashed border-white/5">
+                        <Scale size={24} className="mx-auto mb-2 text-white/20" />
+                        <p className="text-[10px] font-black text-[#94a3b8] uppercase tracking-wider">Weight</p>
+                        <p className="text-white/10 text-[9px] mt-0.5">Coming Soon</p>
                     </div>
-                    <div className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border dark:border-zinc-700/50 hover:border-indigo-500/30 transition-colors">
-                        <div className="p-3 bg-indigo-500 rounded-xl shadow-lg shadow-indigo-500/20">
-                            <Flame size={24} className="text-white" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">This Week</p>
-                            <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{Math.round(thisWeekVolume).toLocaleString()} kg</p>
-                        </div>
+                    <div className="py-6 text-center bg-white/5 rounded-2xl border-2 border-dashed border-white/5">
+                        <Ruler size={24} className="mx-auto mb-2 text-white/20" />
+                        <p className="text-[10px] font-black text-[#94a3b8] uppercase tracking-wider">Height</p>
+                        <p className="text-white/10 text-[9px] mt-0.5">Coming Soon</p>
                     </div>
-                    <div className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border dark:border-zinc-700/50 hover:border-cyan-500/30 transition-colors">
-                        <div className="p-3 bg-cyan-500 rounded-xl shadow-lg shadow-cyan-500/20">
-                            <Trophy size={24} className="text-white" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Best Week</p>
-                            <p className="text-2xl font-black text-cyan-600 dark:text-cyan-400">{Math.round(bestWeekVolume).toLocaleString()} kg</p>
-                        </div>
+                    <div className="py-6 text-center bg-white/5 rounded-2xl border-2 border-dashed border-white/5">
+                        <Target size={24} className="mx-auto mb-2 text-white/20" />
+                        <p className="text-[10px] font-black text-[#94a3b8] uppercase tracking-wider">Goal</p>
+                        <p className="text-white/10 text-[9px] mt-0.5">Coming Soon</p>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-xl border dark:border-zinc-800 text-center hover:scale-105 transition-transform">
-                    <h3 className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Total Workouts</h3>
-                    <p className="text-4xl font-black text-indigo-600 dark:text-indigo-400 mt-2">{stats.totalWorkouts}</p>
-                </div>
-                <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-xl border dark:border-zinc-800 text-center hover:scale-105 transition-transform">
-                    <h3 className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Total Volume</h3>
-                    <p className="text-4xl font-black text-emerald-600 dark:text-emerald-400 mt-2">{Math.round(stats.totalVolume).toLocaleString()}<span className="text-sm font-bold ml-1">kg</span></p>
-                </div>
-                <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-xl border dark:border-zinc-800 text-center hover:scale-105 transition-transform">
-                    <h3 className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">This Month</h3>
-                    <p className="text-4xl font-black text-cyan-600 dark:text-cyan-400 mt-2">{stats.monthlyWorkouts}</p>
-                </div>
-            </div>
-
-            {/* Manage Custom Exercises */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border dark:border-gray-700">
+            {/* Menu Items */}
+            <section className="bg-[#1A2236] rounded-3xl shadow-xl border border-white/5 overflow-hidden">
+                {/* Settings Row */}
                 <button
-                    onClick={() => setCustomSectionOpen(!customSectionOpen)}
-                    className="w-full p-4 sm:p-6 flex justify-between items-center text-left"
+                    onClick={() => setShowSettings(true)}
+                    className="w-full flex items-center justify-between p-5 sm:p-6 hover:bg-white/5 transition-colors group"
                 >
-                    <h3 className="text-lg font-bold dark:text-gray-100">
-                        Manage Custom Exercises
-                        <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">({customExercises.length})</span>
-                    </h3>
-                    {customSectionOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center group-hover:bg-[#22D3EE]/10 transition-colors">
+                            <Settings size={20} className="text-[#94a3b8] group-hover:text-[#22D3EE] transition-colors" />
+                        </div>
+                        <div className="text-left">
+                            <p className="font-bold text-white text-sm">Settings</p>
+                            <p className="text-[10px] text-[#94a3b8]/60 uppercase tracking-widest font-black">Preferences & Templates</p>
+                        </div>
+                    </div>
+                    <ChevronRight size={20} className="text-white/10 group-hover:text-[#22D3EE] group-hover:translate-x-1 transition-all" />
                 </button>
 
-                {customSectionOpen && (
-                    <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
-                        {customExercises.length > 0 ? (
-                            <div className="space-y-2">
-                                {customExercises.map(ex => (
-                                    <div key={ex.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border dark:border-gray-700">
-                                        <div>
-                                            <p className="font-semibold dark:text-gray-200">{ex.name}</p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">
-                                                {ex.category} • {ex.fields?.join(', ') || 'sets, reps, weight'}
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => handleDeleteCustom(ex.id, ex.name)}
-                                            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No custom exercises yet.</p>
-                        )}
+                <div className="h-px bg-white/5 mx-5"></div>
 
-                        {showAddForm ? (
-                            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border dark:border-gray-700 space-y-3">
-                                <input
-                                    type="text"
-                                    placeholder="Exercise name"
-                                    className="w-full p-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-gray-200 outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={newExName}
-                                    onChange={e => setNewExName(e.target.value)}
-                                    autoFocus
-                                />
-                                <select
-                                    className="w-full p-2 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-gray-200 outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={newExCategory}
-                                    onChange={e => setNewExCategory(e.target.value)}
-                                >
-                                    {categories.map((cat: string) => (
-                                        <option key={cat} value={cat}>{cat}</option>
-                                    ))}
-                                </select>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Parameters</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {AVAILABLE_FIELDS.map(f => (
-                                            <button
-                                                key={f.id}
-                                                type="button"
-                                                onClick={() => handleFieldToggle(f.id)}
-                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                                                    newExFields.includes(f.id)
-                                                        ? 'bg-blue-100 border-blue-500 text-blue-700 dark:bg-blue-900/40 dark:border-blue-500 dark:text-blue-300'
-                                                        : 'bg-white border-gray-300 text-gray-600 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400 opacity-50 hover:opacity-100'
-                                                }`}
-                                            >
-                                                {f.label}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={handleAddCustom}
-                                        disabled={!newExName.trim()}
-                                        className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
-                                    >
-                                        Save
-                                    </button>
-                                    <button
-                                        onClick={() => { setShowAddForm(false); setNewExName(''); setNewExFields(['sets', 'reps', 'weight']); }}
-                                        className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-2 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <button
-                                onClick={() => setShowAddForm(true)}
-                                className="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-blue-500 hover:text-blue-500 transition-colors"
-                            >
-                                <Plus size={18} />
-                                Add Custom Exercise
-                            </button>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            {/* Manage Templates */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border dark:border-gray-700">
-                <button
-                    onClick={() => setTemplatesSectionOpen(!templatesSectionOpen)}
-                    className="w-full p-4 sm:p-6 flex justify-between items-center text-left"
-                >
-                    <h3 className="text-lg font-bold dark:text-gray-100">
-                        Manage Templates
-                        <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">({templates.length})</span>
-                    </h3>
-                    {templatesSectionOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </button>
-
-                {templatesSectionOpen && (
-                    <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
-                        {templates.length > 0 ? (
-                            <div className="space-y-2">
-                                {templates.map(t => (
-                                    <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border dark:border-gray-700">
-                                        <div>
-                                            <p className="font-semibold dark:text-gray-200">{t.name}</p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">{t.exercises.length} Exercises</p>
-                                        </div>
-                                        <button
-                                            onClick={() => handleDeleteTemplate(t.id, t.name)}
-                                            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No templates saved yet.</p>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            {/* Preferences Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border dark:border-gray-700 mb-6">
-                <div className="p-4 sm:p-6 flex justify-between items-center">
-                    <h3 className="text-lg font-bold dark:text-gray-100">Preferences</h3>
-                </div>
-                <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3">
-                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border dark:border-gray-700">
-                        <div>
-                            <p className="font-semibold dark:text-gray-200">Rest Timer</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Automatically trigger timer when a set is marked complete.</p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" className="sr-only peer" checked={restTimerEnabled} onChange={async (e) => {
-                                const val = e.target.checked;
-                                setRestTimerEnabled(val);
-                                if (auth.currentUser) await UserService.updateUserProfile(auth.currentUser.uid, { restTimerEnabled: val });
-                                showToast('Rest timer preference updated', 'success');
-                            }} />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            {/* Logout */}
-            <div className="pt-2 pb-4 flex justify-center">
+                {/* Logout Row */}
                 <button
                     onClick={onLogout}
-                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-10 rounded-xl shadow-lg hover:shadow-red-600/20 transition-all active:scale-95"
+                    className="w-full flex items-center justify-between p-5 sm:p-6 hover:bg-[#F97316]/5 transition-colors group"
                 >
-                    Logout
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-[#F97316]/10 rounded-2xl flex items-center justify-center">
+                            <LogOut size={20} className="text-[#F97316]" />
+                        </div>
+                        <p className="font-bold text-[#F97316] text-sm uppercase tracking-widest">Log Out</p>
+                    </div>
+                    <ChevronRight size={20} className="text-[#F97316]/20 group-hover:translate-x-1 transition-all" />
                 </button>
-            </div>
+            </section>
 
             {/* Edit Profile Modal */}
             {isEditingProfile && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fade-in_0.2s]">
-                    <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border dark:border-zinc-800 w-full max-w-md p-6 relative">
-                        <button
-                            onClick={() => setIsEditingProfile(false)}
-                            className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-                        >
-                            <X size={24} />
-                        </button>
-
-                        <h3 className="text-xl font-bold dark:text-white mb-6">Edit Profile</h3>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-[fade-in_0.2s]">
+                    <div className="bg-[#1A2236] rounded-[2.5rem] shadow-2xl border border-white/10 w-full max-w-sm p-8 relative animate-[slide-up_0.3s_ease-out]">
+                        <div className="flex justify-between items-center mb-8">
+                            <h3 className="text-xl font-black text-white uppercase tracking-tight">Edit Profile</h3>
+                            <button onClick={() => setIsEditingProfile(false)} className="text-[#94a3b8] hover:text-white transition-colors">
+                                <X size={24} />
+                            </button>
+                        </div>
 
                         <div className="space-y-6">
                             <div>
-                                <label className="block text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Display Name</label>
+                                <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-2 block">Display Name</label>
                                 <input
                                     type="text"
-                                    value={editName}
-                                    onChange={e => setEditName(e.target.value)}
-                                    className="w-full p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800 border-2 border-transparent focus:border-cyan-500 outline-none font-bold text-zinc-900 dark:text-white transition-all"
                                     placeholder="Enter your name"
+                                    className="w-full p-4 bg-white/5 rounded-2xl border border-white/5 text-white font-bold outline-none focus:ring-2 focus:ring-[#22D3EE] transition-all"
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    autoFocus
                                 />
                             </div>
-
-                            <button
-                                onClick={handleSaveProfile}
-                                disabled={editLoading || !editName.trim()}
-                                className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-black uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50"
-                            >
-                                {editLoading ? 'Saving...' : 'Save Changes'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Exercise Statistics Modal */}
-            {selectedExercise && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-[fade-in_0.2s]">
-                    <div className="bg-zinc-900 rounded-[2.5rem] shadow-2xl border border-zinc-800 w-full max-w-sm overflow-hidden relative">
-                        <div className="p-8 text-center">
-                            <button
-                                onClick={() => setSelectedExercise(null)}
-                                className="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors p-2 hover:bg-zinc-800 rounded-full"
-                            >
-                                <X size={24} />
-                            </button>
-
-                            <div className="mb-6 flex justify-center">
-                                <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-4xl shadow-lg">
-                                    🏋️
-                                </div>
+                            
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setIsEditingProfile(false)} 
+                                    className="flex-1 p-4 bg-white/5 text-[#94a3b8] font-bold rounded-2xl hover:bg-white/10 transition-all text-xs"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveProfile}
+                                    disabled={editLoading || !editName.trim()}
+                                    className="flex-[2] p-4 bg-gradient-to-r from-[#22D3EE] to-[#3B82F6] text-white font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-cyan-500/20 active:scale-95 transition-all disabled:opacity-50 text-xs"
+                                >
+                                    {editLoading ? 'Saving...' : 'Save Changes'}
+                                </button>
                             </div>
-
-                            <h3 className="text-2xl font-black text-white mb-2 leading-tight">
-                                {selectedExercise.name}
-                            </h3>
-                            <p className="text-cyan-500 font-bold uppercase tracking-widest text-xs mb-8">Personal Statistics</p>
-
-                            <div className="space-y-4 text-left">
-                                <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-2xl border border-zinc-700/50">
-                                    <span className="text-zinc-500 font-bold uppercase text-[10px] tracking-wider">Total Reps</span>
-                                    <span className="text-xl font-black text-white">{selectedExercise.reps.toLocaleString()}</span>
-                                </div>
-                                <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-2xl border border-zinc-700/50">
-                                    <span className="text-zinc-500 font-bold uppercase text-[10px] tracking-wider">Total Sets</span>
-                                    <span className="text-xl font-black text-white">{selectedExercise.sets.toLocaleString()}</span>
-                                </div>
-                                {selectedExercise.weight > 0 && (
-                                    <div className="flex items-center justify-between p-4 bg-cyan-500/10 rounded-2xl border border-cyan-500/20">
-                                        <span className="text-cyan-500 font-bold uppercase text-[10px] tracking-wider">Total Weight</span>
-                                        <span className="text-xl font-black text-cyan-400">{Math.round(selectedExercise.weight).toLocaleString()} <span className="text-sm">kg</span></span>
-                                    </div>
-                                )}
-                            </div>
-
-                            <button
-                                onClick={() => setSelectedExercise(null)}
-                                className="w-full mt-8 py-4 bg-white text-zinc-950 rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-200 transition-colors"
-                            >
-                                Close
-                            </button>
                         </div>
                     </div>
                 </div>

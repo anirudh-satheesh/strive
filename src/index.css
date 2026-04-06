@@ -27,20 +27,18 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg-main: #09090b;
-    /* Zinc-950 */
-    --bg-card: #18181b;
-    /* Zinc-900 */
-    --primary: #22d3ee;
-    /* Cyan-400 */
+    --bg-main: #0B1220;
+    /* Deep Navy */
+    --bg-card: #1A2236;
+    /* Elevated Navy */
+    --primary: #22D3EE;
+    /* Cyan-Blue Accent */
     --primary-dark: #0891b2;
-    /* Cyan-600 */
     --accent: #818cf8;
-    /* Indigo-400 */
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
-    --border: #27272a;
-    /* Zinc-800 */
+    --border: #1e293b;
+    /* Deeper navy border */
     color: var(--text-main);
     background-color: var(--bg-main);
   }
