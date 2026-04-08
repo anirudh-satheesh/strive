@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Profile document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Exercises subcollection (custom exercises)
+    match /users/{userId}/exercises/{exerciseId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Workouts subcollection
+    match /users/{userId}/workouts/{workoutId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ADD THIS: Templates subcollection
+    match /users/{userId}/templates/{templateId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Public exercises (Read-only)
+    match /publicExercises/{exerciseId} {
+      allow read: if true;
+    }
+  }
+}

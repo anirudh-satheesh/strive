@@ -8,6 +8,22 @@ export interface UserProfile {
     restTimerEnabled?: boolean;
     defaultRestTime?: number;
     createdAt?: any;
+    
+    // Basic metrics
+    height?: number;
+    weight?: number;
+    age?: number;
+    gender?: 'male' | 'female';
+    goal?: 'Lose weight' | 'Maintain' | 'Gain muscle';
+    
+    // Advanced metrics
+    waist?: number;
+    neck?: number;
+    hips?: number; // Optional for females, required for US Navy method
+    
+    // Calculated stats
+    bmi?: number;
+    bodyFatPercentage?: number;
 }
 
 export const UserService = {
