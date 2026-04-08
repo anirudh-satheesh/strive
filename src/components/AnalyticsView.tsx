@@ -14,6 +14,7 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { WorkoutService } from '../services/workoutService';
+import { UserService, type UserProfile } from '../services/userService';
 import { auth } from '../services/firebase';
 import type { Workout, WorkoutExercise } from '../types';
 import { Flame, TrendingUp, BarChart3, Activity, Clock, Zap, X, Dumbbell, Calendar, Info, Medal } from 'lucide-react';
@@ -56,6 +57,7 @@ ChartJS.register(
 export const AnalyticsView: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const { showToast } = useNotification();
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
     // Stats
     const [totalWorkouts, setTotalWorkouts] = useState(0);
@@ -97,7 +99,12 @@ export const AnalyticsView: React.FC = () => {
             const userId = auth.currentUser.uid;
 
             try {
-                const workouts = await WorkoutService.getAllWorkouts(userId);
+                const [workouts, profile] = await Promise.all([
+                    WorkoutService.getAllWorkouts(userId),
+                    UserService.getProfile(userId)
+                ]);
+
+                setUserProfile(profile);
 
                 let totalVol = 0;
                 let totalWork = 0;
@@ -502,6 +509,38 @@ export const AnalyticsView: React.FC = () => {
                     </div>
                 </div>
             </motion.div>
+
+            {/* 6. BODY COMPOSITION */}
+            {userProfile && (userProfile.bmi || userProfile.bodyFatPercentage) && (
+                <motion.div variants={sectionVariants} className="space-y-4">
+                    <div className="flex items-end justify-between px-1">
+                        <h3 className="text-2xl font-black text-white leading-none">
+                            Body Composition <span className="text-[#3B82F6]">🧬</span>
+                        </h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {userProfile.bmi && (
+                            <StatCard 
+                                icon={<Activity size={24} />}
+                                label="CURRENT"
+                                title="BMI"
+                                value={parseFloat(userProfile.bmi.toFixed(1))}
+                                colorTheme="yellow"
+                            />
+                        )}
+                        {userProfile.bodyFatPercentage && (
+                            <StatCard 
+                                icon={<Flame size={24} />}
+                                label="US NAVY METHOD"
+                                title="Body Fat %"
+                                value={parseFloat(userProfile.bodyFatPercentage.toFixed(1))}
+                                subtitle="%"
+                                colorTheme="cyan"
+                            />
+                        )}
+                    </div>
+                </motion.div>
+            )}
 
             {/* MODAL */}
             <AnimatePresence>
