@@ -295,6 +295,33 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
 
     const handleSave = async () => {
         if (!auth.currentUser) return;
+
+        // Validation: Verify that all sets have at least one valid measurement
+        // - If the exercise has 'reps', at least one set must have reps > 0
+        // - If the exercise has 'duration', at least one set must have duration > 0
+        // - All completed sets must be valid
+        for (const ex of workout.exercises) {
+            const exerciseConfig = allExercisesMap[ex.name];
+            const hasReps = exerciseConfig?.fields.includes('reps');
+            const hasDuration = exerciseConfig?.fields.includes('duration');
+
+            for (let i = 0; i < ex.sets.length; i++) {
+                const s = ex.sets[i];
+                if (hasReps && Number(s.reps) <= 0 && !hasDuration) {
+                    showToast(`Please enter reps for ${ex.name} (Set ${i + 1})`, 'warning');
+                    return;
+                }
+                if (hasDuration && Number(s.duration) <= 0 && !hasReps) {
+                    showToast(`Please enter duration for ${ex.name} (Set ${i + 1})`, 'warning');
+                    return;
+                }
+                if (hasReps && hasDuration && Number(s.reps) <= 0 && Number(s.duration) <= 0) {
+                    showToast(`Please enter reps or duration for ${ex.name} (Set ${i + 1})`, 'warning');
+                    return;
+                }
+            }
+        }
+
         setSaving(true);
         try {
             const finalWorkout = {
