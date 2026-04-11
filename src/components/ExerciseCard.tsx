@@ -138,7 +138,14 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                                             <span className="text-[10px] uppercase tracking-widest font-black text-zinc-400 mb-1 ml-1">Weight</span>
                                             <div className="flex items-center bg-white dark:bg-zinc-900 rounded-xl p-1 border border-zinc-100 dark:border-zinc-700/50 shadow-sm focus-within:ring-2 focus-within:ring-cyan-500/50 transition-all">
                                                 <button onClick={() => updateSet(setIndex, { weight: Math.max(0, Number(set.weight) - 2.5) })} className="p-1.5 text-zinc-400 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded-lg active:scale-90 transition-all disabled:opacity-50" disabled={set.completed}><Minus size={14} strokeWidth={3}/></button>
-                                                <input type="number" value={set.weight} onChange={(e) => updateSet(setIndex, { weight: Number(e.target.value) })} className={`w-12 sm:w-14 text-center bg-transparent font-black text-base sm:text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none min-w-0 outline-none transition-colors ${set.completed ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`} disabled={set.completed}/>
+                                                <input 
+                                                    type="number" 
+                                                    value={set.weight === 0 ? '' : set.weight} 
+                                                    placeholder="0"
+                                                    onChange={(e) => updateSet(setIndex, { weight: e.target.value === '' ? 0 : Number(e.target.value) })} 
+                                                    className={`w-12 sm:w-14 text-center bg-transparent font-black text-base sm:text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none min-w-0 outline-none transition-colors ${set.completed ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`} 
+                                                    disabled={set.completed}
+                                                />
                                                 <button onClick={() => updateSet(setIndex, { weight: Number(set.weight) + 2.5 })} className="p-1.5 text-zinc-400 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded-lg active:scale-90 transition-all disabled:opacity-50" disabled={set.completed}><Plus size={14} strokeWidth={3}/></button>
                                             </div>
                                         </div>
@@ -148,7 +155,14 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                                             <span className="text-[10px] uppercase tracking-widest font-black text-zinc-400 mb-1 ml-1">Reps</span>
                                             <div className="flex items-center bg-white dark:bg-zinc-900 rounded-xl p-1 border border-zinc-100 dark:border-zinc-700/50 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all">
                                                 <button onClick={() => updateSet(setIndex, { reps: Math.max(0, Number(set.reps) - 1) })} className="p-1.5 text-zinc-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg active:scale-90 transition-all disabled:opacity-50" disabled={set.completed}><Minus size={14} strokeWidth={3}/></button>
-                                                <input type="number" value={set.reps} onChange={(e) => updateSet(setIndex, { reps: Number(e.target.value) })} className={`w-10 sm:w-12 text-center bg-transparent font-black text-base sm:text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none min-w-0 outline-none transition-colors ${set.completed ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`} disabled={set.completed}/>
+                                                <input 
+                                                    type="number" 
+                                                    value={set.reps === 0 ? '' : set.reps} 
+                                                    placeholder="0"
+                                                    onChange={(e) => updateSet(setIndex, { reps: e.target.value === '' ? 0 : Number(e.target.value) })} 
+                                                    className={`w-10 sm:w-12 text-center bg-transparent font-black text-base sm:text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none min-w-0 outline-none transition-colors ${set.completed ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`} 
+                                                    disabled={set.completed}
+                                                />
                                                 <button onClick={() => updateSet(setIndex, { reps: Number(set.reps) + 1 })} className="p-1.5 text-zinc-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg active:scale-90 transition-all disabled:opacity-50" disabled={set.completed}><Plus size={14} strokeWidth={3}/></button>
                                             </div>
                                         </div>
@@ -158,7 +172,14 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                                             <span className="text-[10px] uppercase tracking-widest font-black text-zinc-400 mb-1 ml-1">Time</span>
                                             <div className="flex items-center justify-center gap-1 bg-white dark:bg-zinc-900 rounded-xl p-1 border border-zinc-100 dark:border-zinc-700/50 shadow-sm focus-within:ring-2 focus-within:ring-orange-500/50 transition-all">
                                                 <button onClick={() => updateSet(setIndex, { duration: Math.max(0, Number(set.duration) - 15) })} className="p-1.5 text-zinc-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg active:scale-90 disabled:opacity-50 transition-all" disabled={set.completed}><Minus size={14} strokeWidth={3}/></button>
-                                                <input type="number" value={set.duration} onChange={(e) => updateSet(setIndex, { duration: Number(e.target.value) })} className={`w-12 sm:w-14 text-center bg-transparent font-black text-base sm:text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none min-w-0 outline-none ${set.completed ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`} disabled={set.completed}/>
+                                                <input 
+                                                    type="number" 
+                                                    value={set.duration === 0 ? '' : set.duration} 
+                                                    placeholder="0"
+                                                    onChange={(e) => updateSet(setIndex, { duration: e.target.value === '' ? 0 : Number(e.target.value) })} 
+                                                    className={`w-12 sm:w-14 text-center bg-transparent font-black text-base sm:text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none min-w-0 outline-none ${set.completed ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`} 
+                                                    disabled={set.completed}
+                                                />
                                                 <span className="text-[10px] text-zinc-400 font-bold -ml-2 select-none">s</span>
                                                 <button onClick={() => updateSet(setIndex, { duration: Number(set.duration) + 15 })} className="p-1.5 text-zinc-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg active:scale-90 disabled:opacity-50 transition-all" disabled={set.completed}><Plus size={14} strokeWidth={3}/></button>
                                             </div>
@@ -169,7 +190,14 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                                             <span className="text-[10px] uppercase tracking-widest font-black text-zinc-400 mb-1 ml-1">Dist</span>
                                             <div className="flex items-center justify-center gap-1 bg-white dark:bg-zinc-900 rounded-xl p-1 border border-zinc-100 dark:border-zinc-700/50 shadow-sm focus-within:ring-2 focus-within:ring-purple-500/50 transition-all">
                                                 <button onClick={() => updateSet(setIndex, { distance: Math.max(0, Number(set.distance) - 0.5) })} className="p-1.5 text-zinc-400 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg active:scale-90 disabled:opacity-50 transition-all" disabled={set.completed}><Minus size={14} strokeWidth={3}/></button>
-                                                <input type="number" value={set.distance} onChange={(e) => updateSet(setIndex, { distance: Number(e.target.value) })} className={`w-12 text-center bg-transparent font-black text-base sm:text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none min-w-0 outline-none ${set.completed ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`} disabled={set.completed}/>
+                                                <input 
+                                                    type="number" 
+                                                    value={set.distance === 0 ? '' : set.distance} 
+                                                    placeholder="0"
+                                                    onChange={(e) => updateSet(setIndex, { distance: e.target.value === '' ? 0 : Number(e.target.value) })} 
+                                                    className={`w-12 text-center bg-transparent font-black text-base sm:text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none min-w-0 outline-none ${set.completed ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`} 
+                                                    disabled={set.completed}
+                                                />
                                                 <button onClick={() => updateSet(setIndex, { distance: Number(set.distance) + 0.5 })} className="p-1.5 text-zinc-400 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg active:scale-90 disabled:opacity-50 transition-all" disabled={set.completed}><Plus size={14} strokeWidth={3}/></button>
                                             </div>
                                         </div>
