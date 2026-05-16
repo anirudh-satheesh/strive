@@ -175,7 +175,7 @@ export const HomePage: React.FC<HomePageProps> = ({ setActivePage, onNavigateToW
                         </div>
                     </div>
 
-                    {todayWorkout && todayWorkout.exercises.length > 0 ? (
+                    {todayWorkout && todayWorkout.exercises.length > 0 && !todayWorkout.exercises.every(ex => Array.isArray(ex.sets) && ex.sets.every(s => s.completed)) ? (
                         <div className="space-y-3">
                             {todayWorkout.exercises.slice(0, 4).map((ex: WorkoutExercise, i: number) => (
                                 <div key={i} className="flex items-center justify-between p-3.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-700/50">
@@ -199,7 +199,7 @@ export const HomePage: React.FC<HomePageProps> = ({ setActivePage, onNavigateToW
                                 onClick={() => onNavigateToWorkout(today)}
                                 className="w-full mt-2 py-4 bg-gradient-to-r from-[#22D3EE] to-[#3B82F6] text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 hover:-translate-y-0.5 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                             >
-                                Continue Workout
+                                Edit Workout
                                 <ChevronRight size={16} strokeWidth={3} />
                             </button>
                         </div>

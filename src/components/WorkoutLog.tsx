@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Save, Trash2, Calendar as CalendarIcon, Moon } from 'lucide-react';
+import { Plus, Trash2, Calendar as CalendarIcon, Moon, Sparkles } from 'lucide-react';
 import { WorkoutService } from '../services/workoutService';
 import { StatsService } from '../services/statsService';
 import { ExerciseService } from '../services/exerciseService';
@@ -47,6 +47,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
     const { showToast, confirm } = useNotification();
     const cachedPRs = useRef<Record<string, number>>({});
     const prsLoaded = useRef(false);
+    const saveCounter = useRef(0);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -244,13 +245,64 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
             name: exercise.name,
             sets: initialSets
         };
-        setWorkout(prev => ({
-            ...prev,
-            exercises: [...prev.exercises, newEx],
-            isRestDay: false
-        }));
+        setWorkout(prev => {
+            const nextWorkout = {
+                ...prev,
+                exercises: [...prev.exercises, newEx],
+                isRestDay: false
+            };
+            // Don't persist on add yet; persist when the workout is actually started/completed (see persist gate below).
+            return nextWorkout;
+        });
     };
 
+
+    const persistWorkout = async (nextWorkout: Workout) => {
+        if (!auth.currentUser) return;
+
+        // Increment counter and capture the current save ID to prevent race conditions
+        saveCounter.current += 1;
+        const currentSaveId = saveCounter.current;
+
+        setSaving(true);
+        try {
+        const shouldPersist =
+                // Persist immediately if user is completing the whole workout from the CTA
+                // OR if the workout has at least one set marked completed.
+                (nextWorkout as any).__forcePersist === true ||
+                nextWorkout.exercises.some(ex => Array.isArray(ex.sets) && ex.sets.some(s => s.completed));
+
+            if (!shouldPersist) {
+                // Clear any previously autosaved workout when transitioning back to "not started"
+                await WorkoutService.deleteWorkout(auth.currentUser.uid, nextWorkout.date);
+                setSaving(false);
+                return;
+            }
+
+            const workoutToSave = {
+                ...nextWorkout,
+                isRestDay: nextWorkout.exercises.length === 0 ? nextWorkout.isRestDay : false
+            };
+
+            if (workoutToSave.exercises.length === 0 && !workoutToSave.isRestDay) {
+                await WorkoutService.deleteWorkout(auth.currentUser.uid, nextWorkout.date);
+            } else {
+                await WorkoutService.saveWorkout(auth.currentUser.uid, workoutToSave);
+            }
+
+            // Only refresh PRs if this is still the latest save operation
+            if (currentSaveId === saveCounter.current) {
+                const allWorkouts = await WorkoutService.getAllWorkouts(auth.currentUser.uid);
+                cachedPRs.current = StatsService.calculatePRs(allWorkouts);
+                setAllTimePRs(cachedPRs.current);
+            }
+        } catch (error) {
+            console.error('Failed to persist workout:', error);
+            showToast('Failed to update workout', 'error');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const removeExercise = async (index: number) => {
         const exerciseName = workout.exercises[index].name;
@@ -268,6 +320,8 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
         const updatedWorkout = { ...workout, exercises: updatedExercises };
 
         setWorkout(updatedWorkout);
+        // auto-save so changes reflect everywhere immediately
+        void persistWorkout(updatedWorkout);
 
         if (auth.currentUser) {
             setSaving(true);
@@ -295,6 +349,8 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
 
     const handleSave = async () => {
         if (!auth.currentUser) return;
+        // Final “grand gesture” completion action: ensure latest local state is persisted.
+
 
         // Validation: Verify that all sets have at least one valid measurement
         // - If the exercise has 'reps', at least one set must have reps > 0
@@ -326,8 +382,10 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
         try {
             const finalWorkout = {
                 ...workout,
-                isRestDay: workout.exercises.length === 0 ? workout.isRestDay : false
-            };
+                isRestDay: workout.exercises.length === 0 ? workout.isRestDay : false,
+                // force persist gate (used to avoid double writes while user is just building)
+                __forcePersist: true
+            } as any;
             await WorkoutService.saveWorkout(auth.currentUser.uid, finalWorkout);
 
             // Refresh PR cache
@@ -536,7 +594,12 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                                     onUpdate={(updatedEx: WorkoutExercise) => {
                                         const newExercises = [...workout.exercises];
                                         newExercises[idx] = updatedEx;
-                                        setWorkout(prev => ({ ...prev, exercises: newExercises }));
+                                        setWorkout(prev => {
+                                            const nextWorkout = { ...prev, exercises: newExercises };
+                                            // persist only when user starts ticking sets (see persist gate)
+                                            void persistWorkout(nextWorkout);
+                                            return nextWorkout;
+                                        });
                                     }}
                                     onRemove={() => removeExercise(idx)}
                                     isPR={isExercisePR(ex, idx)}
@@ -569,8 +632,8 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white"></div>
                         ) : (
                             <>
-                                <Save size={16} strokeWidth={3} />
-                                Complete
+                                <Sparkles size={16} strokeWidth={3} />
+                                Complete Workout
                             </>
                         )}
                     </button>
