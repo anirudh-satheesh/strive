@@ -47,6 +47,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
     const { showToast, confirm } = useNotification();
     const cachedPRs = useRef<Record<string, number>>({});
     const prsLoaded = useRef(false);
+    const saveCounter = useRef(0);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -258,6 +259,11 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
 
     const persistWorkout = async (nextWorkout: Workout) => {
         if (!auth.currentUser) return;
+
+        // Increment counter and capture the current save ID to prevent race conditions
+        saveCounter.current += 1;
+        const currentSaveId = saveCounter.current;
+
         setSaving(true);
         try {
         const shouldPersist =
@@ -267,6 +273,8 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                 nextWorkout.exercises.some(ex => Array.isArray(ex.sets) && ex.sets.some(s => s.completed));
 
             if (!shouldPersist) {
+                // Clear any previously autosaved workout when transitioning back to "not started"
+                await WorkoutService.deleteWorkout(auth.currentUser.uid, nextWorkout.date);
                 setSaving(false);
                 return;
             }
@@ -282,9 +290,12 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                 await WorkoutService.saveWorkout(auth.currentUser.uid, workoutToSave);
             }
 
-            const allWorkouts = await WorkoutService.getAllWorkouts(auth.currentUser.uid);
-            cachedPRs.current = StatsService.calculatePRs(allWorkouts);
-            setAllTimePRs(cachedPRs.current);
+            // Only refresh PRs if this is still the latest save operation
+            if (currentSaveId === saveCounter.current) {
+                const allWorkouts = await WorkoutService.getAllWorkouts(auth.currentUser.uid);
+                cachedPRs.current = StatsService.calculatePRs(allWorkouts);
+                setAllTimePRs(cachedPRs.current);
+            }
         } catch (error) {
             console.error('Failed to persist workout:', error);
             showToast('Failed to update workout', 'error');
@@ -585,8 +596,8 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                                         newExercises[idx] = updatedEx;
                                         setWorkout(prev => {
                                             const nextWorkout = { ...prev, exercises: newExercises };
-            // persist only when user starts ticking sets (see persist gate)
-            void persistWorkout(nextWorkout);
+                                            // persist only when user starts ticking sets (see persist gate)
+                                            void persistWorkout(nextWorkout);
                                             return nextWorkout;
                                         });
                                     }}
