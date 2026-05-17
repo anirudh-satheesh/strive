@@ -1,11 +1,24 @@
-import { doc, getDoc, setDoc, collection, getDocs, query, orderBy, deleteDoc, addDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, query, orderBy, deleteDoc, addDoc, onSnapshot, type Unsubscribe } from 'firebase/firestore';
 import { db } from './firebase';
+
 import { normalizeWorkout } from './normalizeWorkout';
 import { runMigration } from './migrationService';
 import { getMigrationStats, logMigrationProgress } from './migrationStats';
 import type { Workout, WorkoutTemplate } from '../types';
 
 export const WorkoutService = {
+    subscribeToWorkouts(userId: string, callback: (workouts: Workout[]) => void): Unsubscribe {
+        const workoutsRef = collection(db, `users/${userId}/workouts`);
+        // Keep a stable ordering to let UI assumptions stay consistent
+        const q = query(workoutsRef, orderBy('date', 'asc'));
+
+        return onSnapshot(q, (snapshot) => {
+            const raw = snapshot.docs.map(d => normalizeWorkout({ id: d.id, ...d.data() } as Workout));
+            // Match getAllWorkouts behavior: newest first
+            callback(raw.reverse());
+        });
+    },
+
     async getWorkoutForDate(userId: string, date: string): Promise<Workout | null> {
         const workoutRef = doc(db, `users/${userId}/workouts/${date}`);
         const snap = await getDoc(workoutRef);

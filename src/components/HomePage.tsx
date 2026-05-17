@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Dumbbell, Flame, TrendingUp, Calendar, Zap, ChevronRight } from 'lucide-react';
 import { WorkoutService } from '../services/workoutService';
-import { auth } from '../services/firebase';
 import { UserService } from '../services/userService';
 import type { Workout, WorkoutExercise } from '../types';
 import { calculateStreak } from '../utils/workoutAnalytics';
 import type { Page } from '../App';
+import type { User } from 'firebase/auth';
 
 interface HomePageProps {
+    user: User;
     setActivePage: (page: Page) => void;
     onNavigateToWorkout: (date: string) => void;
 }
 
-export const HomePage: React.FC<HomePageProps> = ({ setActivePage, onNavigateToWorkout }) => {
+export const HomePage: React.FC<HomePageProps> = ({ user, setActivePage, onNavigateToWorkout }) => {
+
     const [userName, setUserName] = useState('');
     const [todayWorkout, setTodayWorkout] = useState<Workout | null>(null);
     const [streak, setStreak] = useState(0);
@@ -31,17 +33,21 @@ export const HomePage: React.FC<HomePageProps> = ({ setActivePage, onNavigateToW
     const today = getLocalDateString();
 
     useEffect(() => {
-        const loadDashboard = async () => {
-            if (!auth.currentUser) return;
-            const userId = auth.currentUser.uid;
+        let unsubscribe: (() => void) | null = null;
 
+        const loadProfile = async () => {
             try {
-                const [workouts, profile] = await Promise.all([
-                    WorkoutService.getAllWorkouts(userId),
-                    UserService.getProfile(userId),
-                ]);
-
+                const profile = await UserService.getProfile(user.uid);
                 if (profile?.displayName) setUserName(profile.displayName);
+            } catch (error) {
+                console.error('Error fetching profile:', error);
+            }
+        };
+
+        const subscribeDashboard = () => {
+            setLoading(true);
+            unsubscribe = WorkoutService.subscribeToWorkouts(user.uid, (workouts) => {
+                // workouts are expected normalized (normalizeWorkout applied in service)
 
                 // Today's workout
                 const todayW = workouts.find(w => w.date === today);
@@ -53,7 +59,10 @@ export const HomePage: React.FC<HomePageProps> = ({ setActivePage, onNavigateToW
 
                 // Last workout
                 if (nonRest.length > 0) {
+                    // Because getAllWorkouts returns newest-first, we rely on that ordering.
                     setLastWorkoutDate(nonRest[0].date);
+                } else {
+                    setLastWorkoutDate(null);
                 }
 
                 // Weekly workouts
@@ -70,14 +79,18 @@ export const HomePage: React.FC<HomePageProps> = ({ setActivePage, onNavigateToW
                 const s = calculateStreak(workouts);
                 setStreak(s);
 
-            } catch (error) {
-                console.error('Error loading dashboard:', error);
-            } finally {
                 setLoading(false);
-            }
+            });
         };
-        loadDashboard();
-    }, [today]);
+
+        void loadProfile();
+        subscribeDashboard();
+
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
+    }, [user.uid, today]);
+
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -127,7 +140,8 @@ export const HomePage: React.FC<HomePageProps> = ({ setActivePage, onNavigateToW
                 <div className="relative z-10">
                     <p className="text-[#22D3EE] font-black uppercase tracking-[0.2em] text-[11px] mb-1">{getGreeting()}</p>
                     <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-3">
-                        {userName || auth.currentUser?.email?.split('@')[0] || 'Athlete'}
+                        {userName || user.email?.split('@')[0] || 'Athlete'}
+
                     </h1>
                     <p className="text-[#94a3b8] text-sm font-bold italic max-w-md leading-relaxed">
                         "{dailyMessage}"

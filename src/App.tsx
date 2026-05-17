@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { User } from 'firebase/auth';
+
 import { AuthService } from './services/authService';
 import { Auth } from './components/Auth';
 import { Layout } from './components/Layout';
@@ -82,7 +83,14 @@ const App: React.FC = () => {
         activePage={activePage}
         setActivePage={setActivePage}
       >
-        {activePage === 'home' && <HomePage setActivePage={setActivePage} onNavigateToWorkout={handleNavigateToWorkout} />}
+        {activePage === 'home' && (
+          <HomePage
+            user={user}
+            setActivePage={setActivePage}
+            onNavigateToWorkout={handleNavigateToWorkout}
+          />
+        )}
+
         {activePage === 'workout' && <WorkoutLog initialDate={workoutDate} />}
         {activePage === 'calendar' && <CalendarView onNavigateToWorkout={handleNavigateToWorkout} />}
         {activePage === 'analytics' && <AnalyticsView />}
