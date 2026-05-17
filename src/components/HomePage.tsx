@@ -189,7 +189,7 @@ export const HomePage: React.FC<HomePageProps> = ({ user, setActivePage, onNavig
                         </div>
                     </div>
 
-                    {todayWorkout && todayWorkout.exercises.length > 0 && !todayWorkout.exercises.every(ex => Array.isArray(ex.sets) && ex.sets.every(s => s.completed)) ? (
+                    {todayWorkout && todayWorkout.exercises.length > 0 ? (
                         <div className="space-y-3">
                             {todayWorkout.exercises.slice(0, 4).map((ex: WorkoutExercise, i: number) => (
                                 <div key={i} className="flex items-center justify-between p-3.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-700/50">
