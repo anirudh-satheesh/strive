@@ -77,7 +77,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
             await WorkoutService.saveWorkout(auth.currentUser.uid, restDayWorkout);
             setWorkouts(prev => ({ ...prev, [selectedDate]: restDayWorkout }));
             showToast('Enjoy your rest day!', 'success');
-        } catch (error) {
+        } catch {
             showToast('Failed to save rest day', 'error');
         } finally {
             setIsSaving(false);
@@ -256,14 +256,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                 
                 {/* Month Navigation */}
                 <div className="flex justify-between items-center p-3 sm:p-5 bg-transparent relative z-10 border-b border-black/5 dark:border-white/5">
-                    <button onClick={prevMonth} className="p-2 sm:p-3 bg-zinc-100/50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-300 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 group/btn">
-                        <ChevronLeft size={18} strokeWidth={3} className="group-hover/btn:-translate-x-0.5 transition-transform" />
+                    <button onClick={prevMonth} aria-label="Previous month" className="p-2 sm:p-3 bg-zinc-100/50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-300 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 group/btn">
+                        <ChevronLeft size={18} strokeWidth={3} aria-hidden="true" className="group-hover/btn:-translate-x-0.5 transition-transform" />
                     </button>
                     <div className="flex flex-col items-center animate-[fade-in_0.3s_ease-out]">
                         <h3 className="text-base sm:text-lg font-black uppercase tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-indigo-500 drop-shadow-sm">{monthYear}</h3>
                     </div>
-                    <button onClick={nextMonth} className="p-2 sm:p-3 bg-zinc-100/50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-300 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 group/btn">
-                        <ChevronRight size={18} strokeWidth={3} className="group-hover/btn:translate-x-0.5 transition-transform" />
+                    <button onClick={nextMonth} aria-label="Next month" className="p-2 sm:p-3 bg-zinc-100/50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-300 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 group/btn">
+                        <ChevronRight size={18} strokeWidth={3} aria-hidden="true" className="group-hover/btn:translate-x-0.5 transition-transform" />
                     </button>
                 </div>
 
@@ -311,18 +311,29 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                                     ? 'bg-gradient-to-br from-zinc-100 to-white dark:from-zinc-800 dark:to-zinc-700 shadow-xl shadow-zinc-500/10 dark:shadow-black/40 scale-105 z-20 border-2 border-indigo-400 dark:border-indigo-500'
                                     : `border-2 border-transparent bg-transparent ${baseState} hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/5 hover:z-10`;
 
+                                const fullDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                                const ariaLabel = fullDate.toLocaleDateString(undefined, {
+                                    weekday: 'long',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                });
+
                                 return (
                                     <button
                                         key={day}
                                         onClick={() => handleDayClick(day)}
+                                        aria-label={ariaLabel}
+                                        aria-selected={isSelected}
+                                        aria-current={isToday ? 'date' : undefined}
                                         className={`
                                         w-full h-full relative flex flex-col items-center justify-center rounded-xl sm:rounded-2xl transition-all duration-300 outline-none group/cell
                                         ${activeState}
                                     `}
                                     >
                                         <span className={`z-10 text-xs sm:text-sm font-black transition-all duration-300 ${
-                                            isToday 
-                                            ? 'w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center border-2 border-indigo-500 dark:border-cyan-500 text-indigo-600 dark:text-cyan-400 rounded-full shadow-[0_0_12px_rgba(99,102,241,0.2)]' 
+                                            isToday
+                                            ? 'w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center border-2 border-indigo-500 dark:border-cyan-500 text-indigo-600 dark:text-cyan-400 rounded-full shadow-[0_0_12px_rgba(99,102,241,0.2)]'
                                             : isSelected
                                                 ? 'text-indigo-600 dark:text-cyan-400'
                                                 : isWorkout

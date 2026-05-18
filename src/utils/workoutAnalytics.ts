@@ -24,7 +24,7 @@ export const calculateStreak = (workouts: Workout[]): number => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     
-    let checkDate = new Date(now);
+    const checkDate = new Date(now);
     const todayStr = getLocalDateString(now);
 
     // If no workout today, check if streak maintained until yesterday
