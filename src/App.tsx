@@ -82,6 +82,7 @@ const App: React.FC = () => {
       <Layout
         activePage={activePage}
         setActivePage={setActivePage}
+        user={user}
       >
         {activePage === 'home' && (
           <HomePage
