@@ -56,6 +56,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
     for (let i = 0; i < startDay; i++) days.push(null);
     for (let i = 1; i <= totalDays; i++) days.push(i);
 
+    const rowCount = Math.ceil(days.length / 7);
+
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
@@ -75,7 +77,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
             await WorkoutService.saveWorkout(auth.currentUser.uid, restDayWorkout);
             setWorkouts(prev => ({ ...prev, [selectedDate]: restDayWorkout }));
             showToast('Enjoy your rest day!', 'success');
-        } catch (error) {
+        } catch {
             showToast('Failed to save rest day', 'error');
         } finally {
             setIsSaving(false);
@@ -224,25 +226,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
     }
 
     return (
-        <div className="space-y-6 pb-24 animate-[fade-in_0.4s_ease-out]">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-5 shadow-2xl shadow-cyan-500/5 bg-gradient-to-br from-white to-zinc-50 dark:from-zinc-900 dark:to-zinc-900/90 p-6 sm:p-8 rounded-[2.5rem] border-2 border-white/50 dark:border-zinc-800/80 relative overflow-hidden group">
+        <div className="flex flex-col h-[calc(100vh-13.5rem)] md:h-[calc(100vh-11rem)] min-h-0 overflow-hidden justify-between animate-[fade-in_0.4s_ease-out] gap-3">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 shadow-2xl shadow-cyan-500/5 bg-gradient-to-br from-white to-zinc-50 dark:from-zinc-900 dark:to-zinc-900/90 p-4 sm:p-5 rounded-[2rem] border-2 border-white/50 dark:border-zinc-800/80 relative overflow-hidden group">
                 <div className="absolute -top-32 -right-32 w-96 h-96 bg-gradient-to-bl from-cyan-500/20 via-indigo-500/10 to-transparent pointer-events-none rounded-full blur-[80px] group-hover:from-cyan-500/30 transition-all duration-700 delay-100"></div>
                 <div className="absolute -bottom-32 -left-32 w-80 h-80 bg-gradient-to-tr from-emerald-500/10 to-transparent pointer-events-none rounded-full blur-[80px] group-hover:from-emerald-500/20 transition-all duration-700"></div>
                 
                 <div className="flex flex-col relative z-10">
-                    <h2 className="text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-zinc-900 to-zinc-600 dark:from-white dark:to-zinc-400 uppercase tracking-tight mb-1">Overview</h2>
-                    <p className="text-zinc-500 dark:text-zinc-400 font-bold text-sm tracking-wide">Track your consistency and history.</p>
+                    <h2 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-zinc-900 to-zinc-600 dark:from-white dark:to-zinc-400 uppercase tracking-tight mb-0.5">Overview</h2>
+                    <p className="text-zinc-500 dark:text-zinc-400 font-bold text-xs tracking-wide">Track your consistency and history.</p>
                 </div>
                 
-                <div className="flex gap-3 sm:gap-4 w-full sm:w-auto relative z-10 mt-2 sm:mt-0">
-                    <div className="flex-1 sm:flex-none bg-gradient-to-br from-cyan-50 to-white dark:from-cyan-950/30 dark:to-zinc-900 px-6 py-4 rounded-3xl flex flex-col items-center justify-center min-w-[6rem] border border-cyan-100/50 dark:border-cyan-900/40 shadow-sm shadow-cyan-500/5 hover:-translate-y-1 hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-300">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-cyan-600/70 dark:text-cyan-500/70 mb-1">Workouts</span>
-                        <span className="text-3xl font-black text-cyan-500 dark:text-cyan-400 drop-shadow-sm">{monthWorkouts}</span>
+                <div className="flex gap-3 sm:gap-4 w-full sm:w-auto relative z-10 mt-1 sm:mt-0">
+                    <div className="flex-1 sm:flex-none bg-gradient-to-br from-cyan-50 to-white dark:from-cyan-950/30 dark:to-zinc-900 px-4 py-2 sm:py-2.5 rounded-2xl flex flex-col items-center justify-center min-w-[5rem] border border-cyan-100/50 dark:border-cyan-900/40 shadow-sm shadow-cyan-500/5 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-cyan-600/70 dark:text-cyan-500/70 mb-0.5">Workouts</span>
+                        <span className="text-2xl font-black text-cyan-500 dark:text-cyan-400 drop-shadow-sm">{monthWorkouts}</span>
                     </div>
-                    <div className="flex-1 sm:flex-none bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/30 dark:to-zinc-900 px-6 py-4 rounded-3xl flex flex-col items-center justify-center min-w-[6rem] border border-emerald-100/50 dark:border-emerald-900/40 shadow-sm shadow-emerald-500/5 hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600/70 dark:text-emerald-500/70 mb-1">Streak</span>
-                        <span className="text-3xl font-black text-emerald-500 dark:text-emerald-400 drop-shadow-sm flex items-center gap-2">
-                            <Trophy size={20} className="mb-1 text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] animate-pulse"/> 
+                    <div className="flex-1 sm:flex-none bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/30 dark:to-zinc-900 px-4 py-2 sm:py-2.5 rounded-2xl flex flex-col items-center justify-center min-w-[5rem] border border-emerald-100/50 dark:border-emerald-900/40 shadow-sm shadow-emerald-500/5 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600/70 dark:text-emerald-500/70 mb-0.5">Streak</span>
+                        <span className="text-2xl font-black text-emerald-500 dark:text-emerald-400 drop-shadow-sm flex items-center gap-1.5">
+                            <Trophy size={16} className="mb-0.5 text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)] animate-pulse"/> 
                             {currentStreak}
                         </span>
                     </div>
@@ -250,36 +252,41 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
             </div>
 
             {/* Calendar Card */}
-            <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-3xl rounded-[3rem] shadow-2xl shadow-indigo-500/5 border border-white dark:border-zinc-800 overflow-hidden relative group">
+            <div className="flex-1 min-h-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-3xl rounded-[2.5rem] sm:rounded-[3rem] shadow-2xl shadow-indigo-500/5 border border-white dark:border-zinc-800 overflow-hidden relative flex flex-col justify-between group">
                 
                 {/* Month Navigation */}
-                <div className="flex justify-between items-center p-6 sm:p-8 bg-transparent relative z-10 border-b border-black/5 dark:border-white/5">
-                    <button onClick={prevMonth} className="p-3 sm:p-4 bg-zinc-100/50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-300 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 rounded-2xl transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-cyan-500/20 active:scale-95 group/btn">
-                        <ChevronLeft size={22} strokeWidth={3} className="group-hover/btn:-translate-x-0.5 transition-transform" />
+                <div className="flex justify-between items-center p-3 sm:p-5 bg-transparent relative z-10 border-b border-black/5 dark:border-white/5">
+                    <button onClick={prevMonth} aria-label="Previous month" className="p-2 sm:p-3 bg-zinc-100/50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-300 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 group/btn">
+                        <ChevronLeft size={18} strokeWidth={3} aria-hidden="true" className="group-hover/btn:-translate-x-0.5 transition-transform" />
                     </button>
                     <div className="flex flex-col items-center animate-[fade-in_0.3s_ease-out]">
-                        <h3 className="text-xl sm:text-2xl font-black uppercase tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-indigo-500 drop-shadow-sm">{monthYear}</h3>
+                        <h3 className="text-base sm:text-lg font-black uppercase tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-indigo-500 drop-shadow-sm">{monthYear}</h3>
                     </div>
-                    <button onClick={nextMonth} className="p-3 sm:p-4 bg-zinc-100/50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-300 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 rounded-2xl transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-cyan-500/20 active:scale-95 group/btn">
-                        <ChevronRight size={22} strokeWidth={3} className="group-hover/btn:translate-x-0.5 transition-transform" />
+                    <button onClick={nextMonth} aria-label="Next month" className="p-2 sm:p-3 bg-zinc-100/50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-300 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 group/btn">
+                        <ChevronRight size={18} strokeWidth={3} aria-hidden="true" className="group-hover/btn:translate-x-0.5 transition-transform" />
                     </button>
                 </div>
 
-                <div className="p-4 sm:p-8 pb-8 relative z-10">
-                    <div className="grid grid-cols-7 mb-4">
+                <div className="p-3 sm:p-5 flex-1 min-h-0 flex flex-col justify-between relative z-10">
+                    <div className="grid grid-cols-7 mb-2">
                         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
-                            <div key={d} className={`text-center text-[10px] font-black uppercase tracking-widest py-2 ${i === 0 || i === 6 ? 'text-zinc-300 dark:text-zinc-600' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                            <div key={d} className={`text-center text-[9px] font-black uppercase tracking-widest py-1 ${i === 0 || i === 6 ? 'text-zinc-300 dark:text-zinc-600' : 'text-zinc-400 dark:text-zinc-500'}`}>
                                 {d}
                             </div>
                         ))}
                     </div>
 
                     {loading ? (
-                        <div className="flex justify-center p-16"><div className="animate-spin rounded-full h-10 w-10 border-t-4 border-cyan-500 shadow-[0_0_15px_rgba(34,211,238,0.5)]"></div></div>
+                        <div className="flex-1 flex items-center justify-center p-8"><div className="animate-spin rounded-full h-10 w-10 border-t-4 border-cyan-500 shadow-[0_0_15px_rgba(34,211,238,0.5)]"></div></div>
                     ) : (
-                        <div className="grid grid-cols-7 gap-y-3 gap-x-2 sm:gap-x-4">
+                        <div 
+                            className="flex-1 min-h-0 grid grid-cols-7 gap-y-1.5 gap-x-1.5 sm:gap-x-3"
+                            style={{
+                                gridTemplateRows: `repeat(${rowCount}, minmax(0, 1fr))`
+                            }}
+                        >
                             {days.map((day, idx) => {
-                                if (day === null) return <div key={`empty-${idx}`} className="aspect-square" />;
+                                if (day === null) return <div key={`empty-${idx}`} className="w-full h-full" />;
 
                                 const dateStr = getDateStr(day);
                                 const workout = workouts[dateStr];
@@ -301,21 +308,32 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                                         : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:border-zinc-200 dark:hover:border-zinc-700';
 
                                 const activeState = isSelected
-                                    ? 'bg-gradient-to-br from-zinc-100 to-white dark:from-zinc-800 dark:to-zinc-700 shadow-xl shadow-zinc-500/10 dark:shadow-black/40 scale-110 z-20 border-2 border-indigo-400 dark:border-indigo-500'
-                                    : `border-2 border-transparent bg-transparent ${baseState} hover:-translate-y-1 hover:shadow-xl hover:shadow-black/5 hover:z-10`;
+                                    ? 'bg-gradient-to-br from-zinc-100 to-white dark:from-zinc-800 dark:to-zinc-700 shadow-xl shadow-zinc-500/10 dark:shadow-black/40 scale-105 z-20 border-2 border-indigo-400 dark:border-indigo-500'
+                                    : `border-2 border-transparent bg-transparent ${baseState} hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/5 hover:z-10`;
+
+                                const fullDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                                const ariaLabel = fullDate.toLocaleDateString(undefined, {
+                                    weekday: 'long',
+                                    month: 'long',
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                });
 
                                 return (
                                     <button
                                         key={day}
                                         onClick={() => handleDayClick(day)}
+                                        aria-label={ariaLabel}
+                                        aria-selected={isSelected}
+                                        aria-current={isToday ? 'date' : undefined}
                                         className={`
-                                        aspect-square relative flex flex-col items-center justify-center rounded-[1.25rem] sm:rounded-3xl transition-all duration-300 outline-none group/cell
+                                        w-full h-full relative flex flex-col items-center justify-center rounded-xl sm:rounded-2xl transition-all duration-300 outline-none group/cell
                                         ${activeState}
                                     `}
                                     >
-                                        <span className={`z-10 text-sm sm:text-base font-black transition-all duration-300 ${
-                                            isToday 
-                                            ? 'w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center border-2 border-indigo-500 dark:border-cyan-500 text-indigo-600 dark:text-cyan-400 rounded-full shadow-[0_0_12px_rgba(99,102,241,0.2)]' 
+                                        <span className={`z-10 text-xs sm:text-sm font-black transition-all duration-300 ${
+                                            isToday
+                                            ? 'w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center border-2 border-indigo-500 dark:border-cyan-500 text-indigo-600 dark:text-cyan-400 rounded-full shadow-[0_0_12px_rgba(99,102,241,0.2)]'
                                             : isSelected
                                                 ? 'text-indigo-600 dark:text-cyan-400'
                                                 : isWorkout
@@ -327,9 +345,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                                             {day}
                                         </span>
 
-                                        <div className="absolute bottom-1.5 sm:bottom-2.5 h-1.5 flex gap-1 items-center justify-center w-full">
-                                            {isWorkout && <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-[pulse_3s_ease-in-out_infinite]"></div>}
-                                            {isRest && <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] opacity-90"></div>}
+                                        <div className="absolute bottom-1 h-1 flex gap-1 items-center justify-center w-full">
+                                            {isWorkout && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-[pulse_3s_ease-in-out_infinite]"></div>}
+                                            {isRest && <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)] opacity-90"></div>}
                                         </div>
                                     </button>
                                 );
@@ -451,7 +469,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
             )}
 
             {/* Legend */}
-            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
+            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-xs text-zinc-500 dark:text-zinc-400 py-0.5">
                 <span className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]"></div>
                     Workout
