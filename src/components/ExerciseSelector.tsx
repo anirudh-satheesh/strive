@@ -80,7 +80,8 @@ export const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({ onSelect, on
         setFiltered(
             exercises.filter(ex =>
                 ex.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                ex.category.toLowerCase().includes(searchTerm.toLowerCase())
+                ex.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (ex.subcategory && ex.subcategory.toLowerCase().includes(searchTerm.toLowerCase()))
             )
         );
     }, [searchTerm, exercises]);
@@ -134,7 +135,15 @@ export const ExerciseSelector: React.FC<ExerciseSelectorProps> = ({ onSelect, on
                                 className="w-full text-left p-4 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-all group border-2 border-transparent hover:border-cyan-500/20"
                             >
                                 <p className="font-black dark:text-gray-100 group-hover:text-cyan-400 transition-colors uppercase tracking-tight">{ex.name}</p>
-                                <p className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-1">{ex.category}</p>
+                                <div className="flex items-center gap-1.5 mt-1">
+                                    <span className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">{ex.category}</span>
+                                    {ex.subcategory && (
+                                        <>
+                                            <span className="text-zinc-400 dark:text-zinc-600 text-xs font-bold">•</span>
+                                            <span className="text-[10px] font-black text-purple-500 uppercase tracking-widest">{ex.subcategory}</span>
+                                        </>
+                                    )}
+                                </div>
                             </button>
                         ))
                     ) : (

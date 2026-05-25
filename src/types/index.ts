@@ -4,6 +4,7 @@ export interface Exercise {
     category: string;
     fields: string[];
     isCustom?: boolean;
+    subcategory?: string;
 }
 
 export interface WorkoutSet {
