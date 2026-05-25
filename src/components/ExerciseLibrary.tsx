@@ -10,7 +10,12 @@ export const ExerciseLibrary: React.FC = () => {
     const [filteredExercises, setFilteredExercises] = useState<Exercise[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeCategory, setActiveCategory] = useState<string | null>(null);
+    const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        setActiveSubcategory(null);
+    }, [activeCategory]);
 
     const categories = useMemo(() => {
         const uniqueCategories = new Set<string>();
@@ -52,9 +57,12 @@ export const ExerciseLibrary: React.FC = () => {
         }
         if (activeCategory) {
             result = result.filter(ex => ex.category.toLowerCase() === activeCategory.toLowerCase());
+            if (activeSubcategory) {
+                result = result.filter(ex => ex.subcategory?.toLowerCase() === activeSubcategory.toLowerCase());
+            }
         }
         setFilteredExercises(result);
-    }, [searchTerm, activeCategory, exercises]);
+    }, [searchTerm, activeCategory, activeSubcategory, exercises]);
 
     return (
         <div className="space-y-6">
@@ -100,6 +108,35 @@ export const ExerciseLibrary: React.FC = () => {
                 </div>
             </div>
 
+            {activeCategory?.toLowerCase() === 'yoga' && (
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl p-4 sm:p-6 mb-8 border dark:border-zinc-800 -mt-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-cyan-500 mb-3 ml-1">Yoga Subcategories</p>
+                    <div className="flex flex-nowrap gap-2 overflow-x-auto no-scrollbar pb-2">
+                        <button
+                            onClick={() => setActiveSubcategory(null)}
+                            className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap border-2 ${activeSubcategory === null
+                                ? 'bg-cyan-500 border-cyan-500 text-zinc-950 shadow-lg shadow-cyan-500/20 active:scale-95'
+                                : 'bg-zinc-50 dark:bg-zinc-800/50 border-transparent text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'
+                                }`}
+                        >
+                            All Yoga
+                        </button>
+                        {['Balance', 'Flexibility', 'Recovery', 'Mobility', 'Power Yoga', 'Meditation/Breathing'].map((sub) => (
+                            <button
+                                key={sub}
+                                onClick={() => setActiveSubcategory(sub)}
+                                className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap border-2 ${activeSubcategory === sub
+                                    ? 'bg-purple-500 border-purple-500 text-white shadow-lg shadow-purple-500/20 active:scale-95'
+                                    : 'bg-zinc-50 dark:bg-zinc-800/50 border-transparent text-zinc-500 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'
+                                    }`}
+                            >
+                                {sub}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {loading ? (
                 <div className="flex justify-center items-center py-20">
                     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 shadow-lg shadow-cyan-500/20"></div>
@@ -118,7 +155,15 @@ export const ExerciseLibrary: React.FC = () => {
                                             </span>
                                         )}
                                     </div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-cyan-500">{ex.category}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-cyan-500">{ex.category}</span>
+                                        {ex.subcategory && (
+                                            <>
+                                                <span className="text-zinc-400 dark:text-zinc-600 text-xs font-bold">•</span>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-purple-500">{ex.subcategory}</span>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 mt-6 border-t dark:border-zinc-800 pt-3 uppercase tracking-wider flex items-center gap-2">
                                     <span className="w-1.5 h-1.5 bg-zinc-700 rounded-full" />
