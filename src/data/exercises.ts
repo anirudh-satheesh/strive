@@ -1,6 +1,6 @@
-import type { Exercise } from '../types';
+import type { Exercise, PerformanceType, MovementType, IntensityType, TrackingMode } from '../types';
 
-export const PREDEFINED_EXERCISES: Exercise[] = [
+const RAW_PREDEFINED_EXERCISES: Exercise[] = [
     // Abs
     { id: "3002", name: "Bicycle Crunches", category: "Abs", fields: ["reps", "sets", "weight"] },
     { id: "0247", name: "Crunches", category: "Abs", fields: ["reps", "sets", "weight"] },
@@ -165,6 +165,188 @@ export const PREDEFINED_EXERCISES: Exercise[] = [
     { id: "4067", name: "Thunderbolt Pose", category: "Yoga", fields: ["duration", "reps"], subcategory: "Meditation/Breathing" },
     { id: "4068", name: "Staff Pose", category: "Yoga", fields: ["duration", "reps"], subcategory: "Meditation/Breathing" }
 ];
+
+const enrichExercise = (ex: Exercise): Exercise => {
+    const name = ex.name.toLowerCase();
+    const category = ex.category.toLowerCase();
+    const subcategory = ex.subcategory?.toLowerCase() || '';
+
+    // Initialize defaults
+    let performanceTypes: PerformanceType[] = [];
+    let primaryAttributes: string[] = [];
+    let secondaryAttributes: string[] = [];
+    let movementType: MovementType = 'other';
+    let intensityType: IntensityType = 'none';
+    let isWeighted = false;
+    let isBodyweight = false;
+    let isMobility = false;
+    let isSkillBased = false;
+    let isRecoveryFocused = false;
+    let trackingModes: TrackingMode[] = [];
+
+    // 1. Map by Category / Name
+    if (category === 'yoga') {
+        isMobility = true;
+        performanceTypes.push('mobility');
+        movementType = 'mobility';
+        intensityType = 'bodyweight';
+        isBodyweight = true;
+        trackingModes.push('holdDuration');
+
+        if (subcategory === 'balance' || subcategory === 'power yoga') {
+            isSkillBased = true;
+            performanceTypes.push('skill');
+            trackingModes.push('flexibilityLevel', 'progressionStage');
+        } else if (subcategory === 'recovery' || subcategory === 'meditation/breathing') {
+            isRecoveryFocused = true;
+            performanceTypes.push('recovery');
+            trackingModes.push('stretchTime', 'sorenessLevel');
+        } else if (subcategory === 'flexibility' || subcategory === 'mobility') {
+            trackingModes.push('flexibilityLevel', 'romImprovement');
+        }
+    } else if (category === 'cardio') {
+        performanceTypes.push('endurance');
+        movementType = 'cardio';
+        intensityType = 'timed';
+        isBodyweight = true;
+        trackingModes = ['duration', 'distance', 'pace', 'calories'];
+    } else {
+        // Standard Strength Categories: Abs, Back, Biceps, Chest, Lats, Legs, Shoulders, Strength, Traps, Triceps
+        performanceTypes.push('strength');
+        intensityType = 'weighted';
+        isWeighted = true;
+        trackingModes = ['weight', 'reps', 'sets', 'volume'];
+
+        // Determine Movement Type
+        if (category === 'chest') {
+            movementType = 'push';
+            primaryAttributes = ['chest', 'power'];
+            secondaryAttributes = ['triceps', 'shoulders'];
+        } else if (category === 'back' || category === 'lats' || category === 'biceps' || category === 'traps') {
+            movementType = 'pull';
+            primaryAttributes = ['back', 'pulling-power'];
+            secondaryAttributes = ['biceps', 'forearms'];
+        } else if (category === 'legs') {
+            if (name.includes('deadlift')) {
+                movementType = 'hinge';
+                primaryAttributes = ['posterior-chain', 'power'];
+                secondaryAttributes = ['glutes', 'hamstrings', 'lower-back'];
+            } else if (name.includes('squat') || name.includes('press') || name.includes('extension') || name.includes('lunge')) {
+                movementType = 'squat';
+                primaryAttributes = ['quads', 'glutes'];
+                secondaryAttributes = ['hamstrings', 'calves'];
+            } else {
+                movementType = 'squat';
+                primaryAttributes = ['legs'];
+            }
+        } else if (category === 'shoulders') {
+            movementType = 'push';
+            primaryAttributes = ['shoulders'];
+            secondaryAttributes = ['triceps'];
+        } else if (category === 'triceps') {
+            movementType = 'push';
+            primaryAttributes = ['triceps'];
+            secondaryAttributes = ['shoulders'];
+        } else if (category === 'abs') {
+            movementType = 'isometric';
+            intensityType = 'bodyweight';
+            isWeighted = false;
+            isBodyweight = true;
+            primaryAttributes = ['core', 'stability'];
+            trackingModes = ['reps', 'sets', 'holdDuration'];
+        }
+    }
+
+    // 2. Specific Exercise Overrides (Aligning exactly with Examples in user request)
+    
+    // Deadlift (Legs / Back hinge)
+    if (name === 'barbell deadlift' || name === 'dumbbell romanian deadlift') {
+        performanceTypes = ['strength'];
+        primaryAttributes = ['power', 'posterior-chain'];
+        trackingModes = ['weight', 'reps', 'sets', 'volume'];
+        isWeighted = true;
+        isBodyweight = false;
+        movementType = 'hinge';
+        intensityType = 'weighted';
+    }
+
+    // Chair Pose (Yoga Power)
+    if (name === 'chair pose' || name === 'chair pose hold') {
+        performanceTypes = ['mobility'];
+        primaryAttributes = ['quads', 'core', 'stability'];
+        trackingModes = ['holdDuration', 'duration'];
+        isWeighted = false;
+        isBodyweight = true;
+        isMobility = true;
+        movementType = 'mobility';
+        intensityType = 'bodyweight';
+    }
+
+    // Pull-Up / Chin-Up (Strength, Skill)
+    if (name === 'pull-up' || name === 'chin-up') {
+        performanceTypes = ['strength', 'skill'];
+        primaryAttributes = ['upper-body-pull', 'lats', 'grip'];
+        secondaryAttributes = ['biceps', 'core'];
+        trackingModes = ['reps', 'sets', 'completionQuality', 'progressionStage'];
+        isWeighted = false;
+        isBodyweight = true;
+        isSkillBased = true;
+        movementType = 'pull';
+        intensityType = 'bodyweight';
+    }
+
+    // Running (Cardio)
+    if (name === 'running') {
+        performanceTypes = ['endurance'];
+        primaryAttributes = ['aerobic-capacity', 'stamina'];
+        secondaryAttributes = ['legs', 'cardio'];
+        trackingModes = ['distance', 'duration', 'pace', 'calories'];
+        isWeighted = false;
+        isBodyweight = true;
+        movementType = 'cardio';
+        intensityType = 'distance';
+    }
+
+    // Plank
+    if (name === 'plank' || name === 'forearm plank' || name === 'side plank') {
+        performanceTypes = ['skill', 'consistency'];
+        primaryAttributes = ['core-stability', 'isometric-strength'];
+        trackingModes = ['holdDuration', 'duration', 'completionQuality'];
+        isBodyweight = true;
+        isSkillBased = true;
+        movementType = 'isometric';
+        intensityType = 'timed';
+    }
+
+    // Crow Pose
+    if (name === 'crow pose' || name === 'side crow pose') {
+        performanceTypes = ['skill', 'mobility'];
+        primaryAttributes = ['balance', 'arm-balance', 'core'];
+        trackingModes = ['holdDuration', 'progressionStage', 'completionQuality'];
+        isBodyweight = true;
+        isSkillBased = true;
+        isMobility = true;
+        movementType = 'isometric';
+        intensityType = 'bodyweight';
+    }
+
+    return {
+        ...ex,
+        performanceTypes,
+        primaryAttributes,
+        secondaryAttributes,
+        movementType,
+        intensityType,
+        isWeighted,
+        isBodyweight,
+        isMobility,
+        isSkillBased,
+        isRecoveryFocused,
+        trackingModes
+    };
+};
+
+export const PREDEFINED_EXERCISES: Exercise[] = RAW_PREDEFINED_EXERCISES.map(enrichExercise);
 
 export const EXERCISE_CATEGORIES = Array.from(
     new Set(PREDEFINED_EXERCISES.map(ex => ex.category))

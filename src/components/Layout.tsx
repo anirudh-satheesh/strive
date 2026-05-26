@@ -16,7 +16,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, setActiveP
         { id: 'home', label: 'Home', icon: Home },
         { id: 'workout', label: 'Workout', icon: Dumbbell },
         { id: 'calendar', label: 'Calendar', icon: CalendarDays },
-        { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+        { id: 'analytics', label: 'Performance', icon: BarChart3 },
         { id: 'profile', label: 'Profile', icon: UserIcon },
     ];
 
