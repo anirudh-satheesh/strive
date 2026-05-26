@@ -10,7 +10,7 @@ export interface DynamicInsight {
   tone: 'good' | 'warn' | 'neutral';
 }
 
-const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+
 
 
 const attrFromPillar = (key: keyof PerformanceScores): PerformanceAttribute => {
