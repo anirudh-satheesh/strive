@@ -5,6 +5,17 @@ export interface UserProfile {
     uid: string;
     displayName: string;
     email: string;
+
+    // Phase 2 — Attribute progression persistence
+    attributeProgress?: {
+        strength?: { xp?: number; level?: number; tier?: number };
+        consistency?: { xp?: number; level?: number; tier?: number };
+        mobility?: { xp?: number; level?: number; tier?: number };
+        endurance?: { xp?: number; level?: number; tier?: number };
+        skill?: { xp?: number; level?: number; tier?: number };
+        recovery?: { xp?: number; level?: number; tier?: number };
+    };
+
     restTimerEnabled?: boolean;
     defaultRestTime?: number;
     createdAt?: any;
@@ -54,5 +65,21 @@ export const UserService = {
     async updateUserProfile(userId: string, data: Partial<UserProfile>): Promise<void> {
         const userRef = doc(db, `users/${userId}`);
         await setDoc(userRef, data, { merge: true });
+    },
+
+    async getAttributeProgress(userId: string): Promise<UserProfile['attributeProgress'] | null> {
+        const userRef = doc(db, `users/${userId}`);
+        const snap = await getDoc(userRef);
+        if (!snap.exists()) return null;
+        const data = snap.data() as UserProfile;
+        return data.attributeProgress ?? null;
+    },
+
+    async updateAttributeProgress(
+        userId: string,
+        attributeProgress: NonNullable<UserProfile['attributeProgress']>
+    ): Promise<void> {
+        await setDoc(doc(db, `users/${userId}`), { attributeProgress }, { merge: true });
     }
 };
+

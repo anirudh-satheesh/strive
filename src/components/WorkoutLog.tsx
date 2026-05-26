@@ -358,8 +358,8 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
         // - All completed sets must be valid
         for (const ex of workout.exercises) {
             const exerciseConfig = allExercisesMap[ex.name];
-            const hasReps = exerciseConfig?.fields.includes('reps');
-            const hasDuration = exerciseConfig?.fields.includes('duration');
+            const hasReps = exerciseConfig?.fields.includes('reps') || exerciseConfig?.trackingModes?.includes('reps');
+            const hasDuration = exerciseConfig?.fields.includes('duration') || exerciseConfig?.trackingModes?.includes('duration') || exerciseConfig?.trackingModes?.includes('holdDuration') || exerciseConfig?.trackingModes?.includes('stretchTime');
 
             for (let i = 0; i < ex.sets.length; i++) {
                 const s = ex.sets[i];
@@ -603,7 +603,22 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                                     }}
                                     onRemove={() => removeExercise(idx)}
                                     isPR={isExercisePR(ex, idx)}
-                                    exerciseFields={allExercisesMap[ex.name]?.fields || ['sets', 'reps', 'weight']}
+                                    exerciseFields={
+                                        (() => {
+                                            const config = allExercisesMap[ex.name];
+                                            if (!config) return ['sets', 'reps', 'weight'];
+                                            const fieldsSet = new Set<string>(config.fields || []);
+                                            if (config.trackingModes) {
+                                                config.trackingModes.forEach(mode => {
+                                                    if (mode === 'weight') fieldsSet.add('weight');
+                                                    if (mode === 'reps') fieldsSet.add('reps');
+                                                    if (mode === 'duration' || mode === 'holdDuration' || mode === 'stretchTime') fieldsSet.add('duration');
+                                                    if (mode === 'distance') fieldsSet.add('distance');
+                                                });
+                                            }
+                                            return Array.from(fieldsSet);
+                                        })()
+                                    }
                                     restTimerEnabled={restTimerEnabled}
                                     onStartRestTimer={() => {
                                         setRestTimeRemaining(90);
