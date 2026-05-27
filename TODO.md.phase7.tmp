@@ -1,0 +1,3 @@
+- [ ] Restore src/components/AnalyticsView.tsx JSX structure (remove stray/mismatched tags introduced during edits)
+- [ ] Ensure build passes (npm run build)
+

@@ -1,6 +1,12 @@
 import type { PerformanceScores } from './performanceEngine';
 import type { PerformanceAttribute } from '../types';
 
+export type ArchetypeEvolution =
+  | 'evolving_toward_dominant'
+  | 'stable'
+  | 'unknown';
+
+
 export interface RefinedAthleteIdentity {
   name: string;
   emoji: string;
@@ -39,8 +45,9 @@ const rangeAcross = (scores: PerformanceScores) => {
 
 export const computeRefinedArchetype = (
   performanceScores: PerformanceScores,
-  trajectorySignals?: { recoveryBias?: boolean }
-): RefinedAthleteIdentity => {
+  trajectorySignals?: { recoveryBias?: boolean; driftDirection?: PerformanceAttribute; evolutionStrength?: number }
+): RefinedAthleteIdentity & { evolutionIndicator?: { evolution: ArchetypeEvolution; toward?: PerformanceAttribute } } => {
+
   const dominant = top2(performanceScores);
   const minVal = Math.min(
     performanceScores.strengthScore,
@@ -134,21 +141,44 @@ export const computeRefinedArchetype = (
   if (a1 !== a2) {
     const primary = map[a1];
 
-    // Prefer primary naming but mention secondary in description.
+    // Slow evolution: if driftDirection points to the secondary pillar and evolutionStrength is meaningful,
+    // gently mention it as the direction without rapid switching.
+    const driftDir = trajectorySignals?.driftDirection;
+    const evolutionStrength = trajectorySignals?.evolutionStrength ?? 0;
+
+    const shouldNudgeTowardSecondary =
+      driftDir === a2 && evolutionStrength >= 0.55;
 
     return {
       ...primary,
       name: primary.name.includes('Specialist') || primary.name.includes('Practitioner') || primary.name.includes('Performer') || primary.name.includes('Athlete')
         ? primary.name
         : 'Hybrid Athlete',
-      desc: `${primary.desc} Your second-strength is ${a2}—lean into both for smarter progression.`,
+      desc: shouldNudgeTowardSecondary
+        ? `${primary.desc} Over time, your emphasis is drifting toward ${a2}. Keep the transition gradual so recovery stays coherent.`
+        : `${primary.desc} Your second-strength is ${a2}—lean into both for smarter progression.`,
       dominantAttributes: dominant,
+      evolutionIndicator: {
+        evolution: shouldNudgeTowardSecondary ? 'evolving_toward_dominant' : 'stable',
+        toward: shouldNudgeTowardSecondary ? a2 : undefined,
+      },
     };
   }
+
+  const driftDir = trajectorySignals?.driftDirection;
+  const evolutionStrength = trajectorySignals?.evolutionStrength ?? 0;
+  const toward = driftDir && driftDir !== a1 ? driftDir : undefined;
+
+  const evolutionIndicator =
+    toward && evolutionStrength >= 0.55
+      ? { evolution: 'evolving_toward_dominant' as const, toward }
+      : { evolution: 'stable' as const, toward: undefined };
 
   return {
     ...map[a1],
     dominantAttributes: [a1, a2].filter(Boolean) as PerformanceAttribute[],
+    evolutionIndicator,
   };
 };
+
 
