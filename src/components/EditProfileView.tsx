@@ -45,7 +45,6 @@ export const EditProfileView: React.FC<EditProfileViewProps> = ({ onBack }) => {
         weight: undefined,
         age: undefined,
         gender: 'male',
-        goal: 'Maintain',
         waist: undefined,
         neck: undefined,
         hips: undefined,
@@ -64,7 +63,6 @@ export const EditProfileView: React.FC<EditProfileViewProps> = ({ onBack }) => {
                         weight: profile.weight,
                         age: profile.age,
                         gender: profile.gender || 'male',
-                        goal: profile.goal || 'Maintain',
                         waist: profile.waist,
                         neck: profile.neck,
                         hips: profile.hips,
@@ -115,6 +113,9 @@ export const EditProfileView: React.FC<EditProfileViewProps> = ({ onBack }) => {
             bmi: calculatedBMI,
             bodyFatPercentage: calculatedBodyFat,
         };
+
+        // Goal is intentionally not editable from the Edit Profile screen.
+        delete updateData.goal;
 
         // Firestore does not accept undefined values, so we must remove them
         Object.keys(updateData).forEach(key => {
@@ -243,18 +244,7 @@ export const EditProfileView: React.FC<EditProfileViewProps> = ({ onBack }) => {
                                 <option value="female">Female</option>
                             </select>
                         </div>
-                        <div className="col-span-2">
-                            <label className="text-xs font-bold text-[#94a3b8] mb-1 block">Goal</label>
-                            <select
-                                value={form.goal || 'Maintain'}
-                                onChange={(e) => setForm({ ...form, goal: e.target.value as 'Lose weight' | 'Maintain' | 'Gain muscle' })}
-                                className="w-full p-4 bg-white/5 rounded-2xl border border-white/5 text-white font-bold outline-none focus:ring-2 focus:ring-[#22D3EE] transition-all appearance-none"
-                            >
-                                <option value="Lose weight">Lose weight</option>
-                                <option value="Maintain">Maintain</option>
-                                <option value="Gain muscle">Gain muscle</option>
-                            </select>
-                        </div>
+
                     </div>
                 </section>
 
