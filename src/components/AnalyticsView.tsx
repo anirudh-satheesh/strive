@@ -18,7 +18,7 @@ import { auth } from '../services/firebase';
 import type { Workout, WorkoutExercise } from '../types';
 import { 
     Flame, TrendingUp, BarChart3, Activity, Clock, Zap, X, Dumbbell, 
-    Calendar, Medal, Trophy, Brain, Sparkles, RefreshCw
+    Calendar, Medal, Trophy, Brain, Sparkles, RefreshCw, Info
 } from 'lucide-react';
 
 import { useNotification } from '../context/NotificationContext';
@@ -82,6 +82,7 @@ export const AnalyticsView: React.FC = () => {
     const [top3Exercises, setTop3Exercises] = useState<{ name: string; reps: number; sets: number; weight: number }[]>([]);
     type SelectedExercise = { name: string; reps: number; sets: number; weight: number };
     const [selectedExercise, setSelectedExercise] = useState<SelectedExercise | null>(null);
+    const [showPillarInfo, setShowPillarInfo] = useState(false);
 
 
     const getLocalDateString = (date: Date) => {
@@ -756,7 +757,16 @@ export const AnalyticsView: React.FC = () => {
                             </div>
 
                             <div className="space-y-4">
-                                <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Pillar breakdown</h4>
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Pillar breakdown</h4>
+                                    <button 
+                                        onClick={() => setShowPillarInfo(true)}
+                                        className="text-zinc-500 hover:text-[#22D3EE] transition-colors p-1"
+                                        title="Learn how to influence these metrics"
+                                    >
+                                        <Info size={16} />
+                                    </button>
+                                </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     {[
                                         { label: 'Strength', val: performanceScores.strengthScore, color: 'border-l-orange-500' },
@@ -1102,7 +1112,100 @@ export const AnalyticsView: React.FC = () => {
                 />
             </motion.div>
 
-            {/* MODAL */}
+            {/* PILLAR INFO MODAL */}
+            <AnimatePresence>
+                {showPillarInfo && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0, y: 30 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 30 }}
+                            className="bg-[#1A2236] rounded-[32px] shadow-2xl border border-white/5 w-full max-w-md max-h-[85vh] flex flex-col relative overflow-hidden"
+                        >
+                            <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-[#22D3EE]/10 rounded-xl border border-[#22D3EE]/20">
+                                        <Info size={20} className="text-[#22D3EE]" />
+                                    </div>
+                                    <h3 className="text-lg font-black text-white uppercase tracking-tight">
+                                        Performance Pillars
+                                    </h3>
+                                </div>
+                                <button
+                                    onClick={() => setShowPillarInfo(false)}
+                                    className="text-white/50 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="p-6 overflow-y-auto no-scrollbar space-y-6">
+                                <p className="text-xs text-zinc-400 font-bold leading-relaxed">
+                                    Your scores dynamically adapt based on your logged training volume, intensity, and frequency.
+                                </p>
+                                
+                                <div className="space-y-3">
+                                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5 border-l-4 border-l-orange-500">
+                                        <h4 className="text-sm font-black text-white uppercase tracking-wider mb-1 flex items-center gap-2">
+                                            Strength
+                                        </h4>
+                                        <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">
+                                            Influenced by maximum weight lifted and total volume in heavy compound movements (e.g., Squats, Deadlifts).
+                                        </p>
+                                    </div>
+                                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5 border-l-4 border-l-emerald-500">
+                                        <h4 className="text-sm font-black text-white uppercase tracking-wider mb-1 flex items-center gap-2">
+                                            Consistency
+                                        </h4>
+                                        <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">
+                                            Fueled by logging workouts regularly. Longer streaks and higher weekly frequency boost this score.
+                                        </p>
+                                    </div>
+                                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5 border-l-4 border-l-teal-500">
+                                        <h4 className="text-sm font-black text-white uppercase tracking-wider mb-1 flex items-center gap-2">
+                                            Mobility
+                                        </h4>
+                                        <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">
+                                            Driven by time under tension in stretches, poses, and flexibility-focused holds.
+                                        </p>
+                                    </div>
+                                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5 border-l-4 border-l-sky-500">
+                                        <h4 className="text-sm font-black text-white uppercase tracking-wider mb-1 flex items-center gap-2">
+                                            Endurance
+                                        </h4>
+                                        <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">
+                                            Improved by accumulating distance and duration in steady-state or high-intensity cardio activities.
+                                        </p>
+                                    </div>
+                                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5 border-l-4 border-l-indigo-500">
+                                        <h4 className="text-sm font-black text-white uppercase tracking-wider mb-1 flex items-center gap-2">
+                                            Skill
+                                        </h4>
+                                        <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">
+                                            Progresses by mastering complex bodyweight movements, gymnastics, and high-rep calisthenics limits.
+                                        </p>
+                                    </div>
+                                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5 border-l-4 border-l-purple-500">
+                                        <h4 className="text-sm font-black text-white uppercase tracking-wider mb-1 flex items-center gap-2">
+                                            Recovery
+                                        </h4>
+                                        <p className="text-[11px] text-zinc-400 font-medium leading-relaxed">
+                                            Maintained by structural balance (push vs pull), taking active rest days, and avoiding extreme overtraining markers.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* EXERCISE MODAL */}
             <AnimatePresence>
                 {selectedExercise && (
                     <motion.div 
