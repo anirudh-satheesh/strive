@@ -83,6 +83,7 @@ export const AnalyticsView: React.FC = () => {
     type SelectedExercise = { name: string; reps: number; sets: number; weight: number };
     const [selectedExercise, setSelectedExercise] = useState<SelectedExercise | null>(null);
     const [selectedPillarInfo, setSelectedPillarInfo] = useState<{ title: string; description: string; colorClass: string } | null>(null);
+    const [showOverallPillarInfo, setShowOverallPillarInfo] = useState(false);
 
     const getLocalDateString = (date: Date) => {
         const year = date.getFullYear();
@@ -756,44 +757,53 @@ export const AnalyticsView: React.FC = () => {
                             </div>
 
                             <div className="space-y-4">
-                                <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Pillar breakdown</h4>
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Pillar breakdown</h4>
+                                    <button 
+                                        onClick={() => setShowOverallPillarInfo(true)}
+                                        className="text-zinc-500 hover:text-white transition-colors p-1"
+                                        title="How to maintain ideal scores"
+                                    >
+                                        <Info size={14} />
+                                    </button>
+                                </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     {[
                                         { 
                                             label: 'Strength', 
                                             val: performanceScores.strengthScore, 
                                             color: 'border-l-orange-500',
-                                            desc: 'Influenced by maximum weight lifted and total volume in heavy compound movements (e.g., Squats, Deadlifts).'
+                                            desc: 'Calculated from your heavy lifting performance. This score goes up when you log high-weight compound lifts over the last 28 days, but can drop if you accumulate too much fatigue without recovery.'
                                         },
                                         { 
                                             label: 'Consistency', 
                                             val: performanceScores.consistencyScore, 
                                             color: 'border-l-emerald-500',
-                                            desc: 'Fueled by logging workouts regularly. Longer streaks and higher weekly frequency boost this score.'
+                                            desc: 'Calculated based on your workout habits. Your score increases the more days in a row you train (your streak) and stays high if you log workouts frequently without long gaps.'
                                         },
                                         { 
                                             label: 'Mobility', 
                                             val: performanceScores.mobilityScore, 
                                             color: 'border-l-teal-500',
-                                            desc: 'Driven by time under tension in stretches, poses, and flexibility-focused holds.'
+                                            desc: 'Calculated from the time spent on stretching and flexibility. This score increases when you regularly log mobility sessions, helping balance out the physical stress from heavier workouts.'
                                         },
                                         { 
                                             label: 'Endurance', 
                                             val: performanceScores.enduranceScore, 
                                             color: 'border-l-sky-500',
-                                            desc: 'Improved by accumulating distance and duration in steady-state or high-intensity cardio activities.'
+                                            desc: 'Calculated from the duration and intensity of your cardio sessions. This score rises as you accumulate more continuous aerobic effort over time, adjusted for fatigue.'
                                         },
                                         { 
                                             label: 'Skill', 
                                             val: performanceScores.skillScore, 
                                             color: 'border-l-indigo-500',
-                                            desc: 'Progresses by mastering complex bodyweight movements, gymnastics, and high-rep calisthenics limits.'
+                                            desc: 'Calculated from your practice of complex movements. Logging high-repetition bodyweight exercises, gymnastics, or difficult skill holds will make this score go up.'
                                         },
                                         { 
                                             label: 'Recovery', 
                                             val: performanceScores.recoveryScore, 
                                             color: 'border-l-purple-500',
-                                            desc: 'Maintained by structural balance (push vs pull), taking active rest days, and avoiding extreme overtraining markers.'
+                                            desc: 'Calculated by balancing intense training with proper rest. This score increases when you take rest days or log active recovery, and drops if you perform too many high-fatigue workouts in a row.'
                                         }
                                     ].map(p => (
                                         <div key={p.label} className={`p-4 bg-white/5 rounded-2xl border border-white/5 border-l-4 ${p.color} hover:bg-white/10 transition-colors`}>
@@ -1177,6 +1187,56 @@ export const AnalyticsView: React.FC = () => {
                                 <div className={`p-3 bg-white/5 rounded-xl border border-white/5 border-l-4 ${selectedPillarInfo.colorClass}`}>
                                     <p className="text-xs text-zinc-300 font-medium leading-relaxed">
                                         {selectedPillarInfo.description}
+                                    </p>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* OVERALL PILLAR INFO MODAL */}
+            <AnimatePresence>
+                {showOverallPillarInfo && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-[#1A2236] rounded-2xl shadow-2xl border border-white/5 w-full max-w-[320px] overflow-hidden relative"
+                        >
+                            <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-1.5 bg-[#22D3EE]/10 rounded-lg border border-[#22D3EE]/20">
+                                        <Info size={16} className="text-[#22D3EE]" />
+                                    </div>
+                                    <h3 className="text-sm font-black text-white uppercase tracking-tight">
+                                        Maintaining Ideal Scores
+                                    </h3>
+                                </div>
+                                <button
+                                    onClick={() => setShowOverallPillarInfo(false)}
+                                    className="text-white/50 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-full"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            <div className="p-4 space-y-4">
+                                <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                                    To maintain ideal scores across all pillars, aim for a balanced training routine. Consistency is key—log your workouts regularly to avoid score decay.
+                                </p>
+                                <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                                    Mix heavy compound lifts (Strength) with steady-state cardio (Endurance), and always allocate time for stretching (Mobility) and active rest days (Recovery).
+                                </p>
+                                <div className="p-3 bg-white/5 rounded-xl border border-white/5 border-l-4 border-l-[#22D3EE]">
+                                    <p className="text-[11px] text-[#22D3EE] font-bold leading-relaxed">
+                                        Note: Specializing heavily in one area while ignoring others will naturally lower your neglected scores, as the system dynamically adapts to your current training focus.
                                     </p>
                                 </div>
                             </div>
