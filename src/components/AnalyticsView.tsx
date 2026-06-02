@@ -18,7 +18,7 @@ import { auth } from '../services/firebase';
 import type { Workout, WorkoutExercise } from '../types';
 import { 
     Flame, TrendingUp, BarChart3, Activity, Clock, Zap, X, Dumbbell, 
-    Calendar, Medal, Trophy, Brain, Sparkles, RefreshCw
+    Calendar, Medal, Trophy, Brain, Sparkles, RefreshCw, Info
 } from 'lucide-react';
 
 import { useNotification } from '../context/NotificationContext';
@@ -82,7 +82,7 @@ export const AnalyticsView: React.FC = () => {
     const [top3Exercises, setTop3Exercises] = useState<{ name: string; reps: number; sets: number; weight: number }[]>([]);
     type SelectedExercise = { name: string; reps: number; sets: number; weight: number };
     const [selectedExercise, setSelectedExercise] = useState<SelectedExercise | null>(null);
-
+    const [selectedPillarInfo, setSelectedPillarInfo] = useState<{ title: string; description: string; colorClass: string } | null>(null);
 
     const getLocalDateString = (date: Date) => {
         const year = date.getFullYear();
@@ -759,15 +759,54 @@ export const AnalyticsView: React.FC = () => {
                                 <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Pillar breakdown</h4>
                                 <div className="grid grid-cols-2 gap-3">
                                     {[
-                                        { label: 'Strength', val: performanceScores.strengthScore, color: 'border-l-orange-500' },
-                                        { label: 'Consistency', val: performanceScores.consistencyScore, color: 'border-l-emerald-500' },
-                                        { label: 'Mobility', val: performanceScores.mobilityScore, color: 'border-l-teal-500' },
-                                        { label: 'Endurance', val: performanceScores.enduranceScore, color: 'border-l-sky-500' },
-                                        { label: 'Skill', val: performanceScores.skillScore, color: 'border-l-indigo-500' },
-                                        { label: 'Recovery', val: performanceScores.recoveryScore, color: 'border-l-purple-500' }
+                                        { 
+                                            label: 'Strength', 
+                                            val: performanceScores.strengthScore, 
+                                            color: 'border-l-orange-500',
+                                            desc: 'Influenced by maximum weight lifted and total volume in heavy compound movements (e.g., Squats, Deadlifts).'
+                                        },
+                                        { 
+                                            label: 'Consistency', 
+                                            val: performanceScores.consistencyScore, 
+                                            color: 'border-l-emerald-500',
+                                            desc: 'Fueled by logging workouts regularly. Longer streaks and higher weekly frequency boost this score.'
+                                        },
+                                        { 
+                                            label: 'Mobility', 
+                                            val: performanceScores.mobilityScore, 
+                                            color: 'border-l-teal-500',
+                                            desc: 'Driven by time under tension in stretches, poses, and flexibility-focused holds.'
+                                        },
+                                        { 
+                                            label: 'Endurance', 
+                                            val: performanceScores.enduranceScore, 
+                                            color: 'border-l-sky-500',
+                                            desc: 'Improved by accumulating distance and duration in steady-state or high-intensity cardio activities.'
+                                        },
+                                        { 
+                                            label: 'Skill', 
+                                            val: performanceScores.skillScore, 
+                                            color: 'border-l-indigo-500',
+                                            desc: 'Progresses by mastering complex bodyweight movements, gymnastics, and high-rep calisthenics limits.'
+                                        },
+                                        { 
+                                            label: 'Recovery', 
+                                            val: performanceScores.recoveryScore, 
+                                            color: 'border-l-purple-500',
+                                            desc: 'Maintained by structural balance (push vs pull), taking active rest days, and avoiding extreme overtraining markers.'
+                                        }
                                     ].map(p => (
                                         <div key={p.label} className={`p-4 bg-white/5 rounded-2xl border border-white/5 border-l-4 ${p.color} hover:bg-white/10 transition-colors`}>
-                                            <p className="text-zinc-500 font-black text-[9px] uppercase tracking-widest">{p.label}</p>
+                                            <div className="flex justify-between items-start">
+                                                <p className="text-zinc-500 font-black text-[9px] uppercase tracking-widest">{p.label}</p>
+                                                <button 
+                                                    onClick={() => setSelectedPillarInfo({ title: p.label, description: p.desc, colorClass: p.color })}
+                                                    className="text-zinc-500 hover:text-white transition-colors p-0.5"
+                                                    title={`Learn more about ${p.label}`}
+                                                >
+                                                    <Info size={12} />
+                                                </button>
+                                            </div>
                                             <p className="text-2xl font-black mt-1 leading-none">{p.val}</p>
                                         </div>
                                     ))}
@@ -1101,6 +1140,50 @@ export const AnalyticsView: React.FC = () => {
                     colorTheme="cyan"
                 />
             </motion.div>
+
+            {/* PILLAR INFO MODAL */}
+            <AnimatePresence>
+                {selectedPillarInfo && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-[#1A2236] rounded-2xl shadow-2xl border border-white/5 w-full max-w-[280px] overflow-hidden relative"
+                        >
+                            <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-1.5 bg-[#22D3EE]/10 rounded-lg border border-[#22D3EE]/20">
+                                        <Info size={16} className="text-[#22D3EE]" />
+                                    </div>
+                                    <h3 className="text-sm font-black text-white uppercase tracking-tight">
+                                        {selectedPillarInfo.title}
+                                    </h3>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedPillarInfo(null)}
+                                    className="text-white/50 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-full"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            <div className="p-4">
+                                <div className={`p-3 bg-white/5 rounded-xl border border-white/5 border-l-4 ${selectedPillarInfo.colorClass}`}>
+                                    <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                                        {selectedPillarInfo.description}
+                                    </p>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* MODAL */}
             <AnimatePresence>
