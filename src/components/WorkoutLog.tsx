@@ -9,7 +9,9 @@ import { ExerciseSelector } from './ExerciseSelector';
 import { ExerciseCard } from './ExerciseCard';
 import { UserService } from './../services/userService';
 import { useNotification } from '../context/NotificationContext';
+import { useAchievement } from '../context/AchievementContext';
 import { Copy, ClipboardList, X } from 'lucide-react';
+import { checkAchievements } from '../utils/achievementEngine';
 
 interface WorkoutLogProps {
     initialDate?: string | null;
@@ -45,6 +47,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
     const [isRestTimerActive, setIsRestTimerActive] = useState(false);
     const [restTimeRemaining, setRestTimeRemaining] = useState(90);
     const { showToast, confirm } = useNotification();
+    const { triggerAchievement } = useAchievement();
     const cachedPRs = useRef<Record<string, number>>({});
     const prsLoaded = useRef(false);
     const saveCounter = useRef(0);
@@ -393,9 +396,31 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
             cachedPRs.current = StatsService.calculatePRs(allWorkouts);
             setAllTimePRs(cachedPRs.current);
 
+            // Check achievements
+            let profile = await UserService.getProfile(auth.currentUser.uid);
+            if (!profile) {
+                profile = {
+                    uid: auth.currentUser.uid,
+                    displayName: auth.currentUser.email || 'Athlete',
+                    email: auth.currentUser.email || '',
+                    achievements: []
+                };
+            }
+
+            console.log("Checking achievements with profile:", profile);
+            const newAch = checkAchievements(finalWorkout, allWorkouts, profile);
+            console.log("New achievements found:", newAch);
+
+            if (newAch.length > 0) {
+                const updatedAchievements = [...(profile.achievements || []), ...newAch];
+                await UserService.createUserProfile(auth.currentUser.uid, { achievements: updatedAchievements });
+                newAch.forEach(ach => triggerAchievement(ach));
+            }
+
             setWorkout(finalWorkout);
             showToast('Workout saved successfully!', 'success');
-        } catch (_error) {
+        } catch (error) {
+            console.error('Failed to save workout or check achievements:', error);
             showToast('Failed to save workout', 'error');
         } finally {
             setSaving(false);

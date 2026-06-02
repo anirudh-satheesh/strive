@@ -5,7 +5,7 @@ import { UserService } from '../services/userService';
 import { WorkoutService } from '../services/workoutService';
 import { computeRefinedArchetype } from '../utils/athleteIdentityEngine';
 import { calculatePerformanceScores } from '../utils/performanceEngine';
-import { Edit2, LogOut, Settings, ChevronRight, X } from 'lucide-react';
+import { Edit2, LogOut, Settings, ChevronRight, X, Trophy, Flame, Medal, Sparkles, Clock, Star } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 import { SettingsView } from './SettingsView';
 import { EditProfileView } from './EditProfileView';
@@ -164,6 +164,39 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                     </div>
                 </div>
             </section>
+
+            {/* ───────────────────────── ACHIEVEMENTS ───────────────────────── */}
+            {profileData?.achievements && profileData.achievements.length > 0 && (
+                <section className="bg-[#1A2236] rounded-3xl shadow-xl border border-white/5 p-5">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">
+                            Trophy Room
+                        </h3>
+                        <span className="text-[10px] font-black text-cyan-500 uppercase tracking-widest bg-cyan-500/10 px-2 py-0.5 rounded-full">
+                            {profileData.achievements.length} Unlocked
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {profileData.achievements.map(ach => {
+                            const IconMap: Record<string, React.FC<any>> = { Trophy, Flame, Medal, Sparkles, Clock, Star };
+                            const Icon = IconMap[ach.icon] || Trophy;
+                            
+                            return (
+                                <div key={ach.id} className="flex items-center p-3 bg-white/5 rounded-2xl border border-white/5 group hover:border-white/10 hover:bg-white/10 transition-colors">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-cyan-500/20 to-blue-500/10 rounded-xl flex items-center justify-center mr-3 shrink-0 border border-cyan-500/20 group-hover:border-cyan-500/40 transition-colors">
+                                        <Icon size={20} className="text-cyan-400" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-white font-black text-xs uppercase tracking-tight truncate">{ach.title}</p>
+                                        <p className="text-[10px] text-zinc-400 font-bold mt-0.5 line-clamp-2">{ach.description}</p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
+            )}
 
             {/* ───────────────────────── SETTINGS ───────────────────────── */}
             <section className="bg-[#1A2236] rounded-3xl shadow-xl border border-white/5 overflow-hidden">
