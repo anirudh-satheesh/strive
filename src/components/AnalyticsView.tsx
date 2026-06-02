@@ -18,7 +18,7 @@ import { auth } from '../services/firebase';
 import type { Workout, WorkoutExercise } from '../types';
 import { 
     Flame, TrendingUp, BarChart3, Activity, Clock, Zap, X, Dumbbell, 
-    Calendar, Medal, Trophy, Brain, Sparkles, RefreshCw
+    Calendar, Medal, Trophy, Brain, Sparkles, RefreshCw, Info
 } from 'lucide-react';
 
 import { useNotification } from '../context/NotificationContext';
@@ -68,7 +68,7 @@ export const AnalyticsView: React.FC = () => {
     const [allWorkouts, setAllWorkouts] = useState<Workout[]>([]);
     
     // Active Tab
-    const [activeTab, setActiveTab] = useState<'radar' | 'skills' | 'prs' | 'composition'>('radar');
+    const [activeTab, setActiveTab] = useState<'radar' | 'prs' | 'composition'>('radar');
 
     // Stats
     const [totalWorkouts, setTotalWorkouts] = useState(0);
@@ -82,7 +82,8 @@ export const AnalyticsView: React.FC = () => {
     const [top3Exercises, setTop3Exercises] = useState<{ name: string; reps: number; sets: number; weight: number }[]>([]);
     type SelectedExercise = { name: string; reps: number; sets: number; weight: number };
     const [selectedExercise, setSelectedExercise] = useState<SelectedExercise | null>(null);
-
+    const [selectedPillarInfo, setSelectedPillarInfo] = useState<{ title: string; description: string; colorClass: string } | null>(null);
+    const [showOverallPillarInfo, setShowOverallPillarInfo] = useState(false);
 
     const getLocalDateString = (date: Date) => {
         const year = date.getFullYear();
@@ -287,234 +288,7 @@ export const AnalyticsView: React.FC = () => {
         return days;
     }, [allWorkouts]);
 
-    // Skill Progression metrics
-    const skillProgressTracks = useMemo(() => {
-        const bestScores: Record<string, number> = {};
-        
-        allWorkouts.forEach(w => {
-            w.exercises.forEach(ex => {
-                const name = ex.name.toLowerCase();
-                let score = 0;
-                
-                if (ex.sets && Array.isArray(ex.sets)) {
-                    ex.sets.forEach(s => {
-                        if (s.completed) {
-                            const val = Number(s.duration) || Number(s.reps) || 0;
-                            if (val > score) score = val;
-                        }
-                    });
-                } else {
-                    score = Number(ex.duration) || Number(ex.reps) || 0;
-                }
 
-                if (score > 0) {
-                    bestScores[name] = Math.max(bestScores[name] || 0, score);
-                }
-            });
-        });
-
-        return [
-            {
-                name: "Plank Hold",
-                current: bestScores["plank"] || bestScores["forearm plank"] || 0,
-                unit: "s",
-                tiers: [
-                    { val: 30, name: "Beginner", icon: "🌱" },
-                    { val: 60, name: "Pioneer", icon: "🔥" },
-                    { val: 120, name: "Specialist", icon: "⚡" },
-                    { val: 180, name: "Master", icon: "👑" }
-                ]
-            },
-            {
-                name: "Pull-Up Reps",
-                current: bestScores["pull-up"] || 0,
-                unit: "reps",
-                tiers: [
-                    { val: 1, name: "First Rep", icon: "🎯" },
-                    { val: 5, name: "Contender", icon: "⚡" },
-                    { val: 10, name: "Dominant", icon: "💥" },
-                    { val: 15, name: "Master", icon: "👑" }
-                ]
-            },
-            {
-                name: "Crow Pose Balance",
-                current: bestScores["crow pose"] || 0,
-                unit: "s",
-                tiers: [
-                    { val: 5, name: "Beginner Balance", icon: "🤸" },
-                    { val: 15, name: "Stable Control", icon: "🧘" },
-                    { val: 30, name: "Master Stability", icon: "👑" }
-                ]
-            }
-        ];
-    }, [allWorkouts]);
-
-    // Achievements List with Tiered Dynamic Progressions
-    const dynamicAchievements = useMemo(() => {
-        interface Tier {
-            name: string;
-            target: number;
-            badge: string;
-            color: string;
-        }
-
-        const getProgress = (
-            currentVal: number,
-            tiers: Tier[],
-            unit: string,
-            icon: string,
-            baseDesc: string
-        ) => {
-            let activeIdx = -1;
-            for (let i = 0; i < tiers.length; i++) {
-                if (currentVal >= tiers[i].target) {
-                    activeIdx = i;
-                } else {
-                    break;
-                }
-            }
-
-            const unlocked = activeIdx >= 0;
-            const nextIdx = activeIdx + 1;
-            const hasNext = nextIdx < tiers.length;
-
-            const currentTier = unlocked ? tiers[activeIdx] : null;
-            const nextTier = hasNext ? tiers[nextIdx] : null;
-
-            const activeTargetName = nextTier ? nextTier.name : (currentTier ? currentTier.name : tiers[0].name);
-            const activeTargetVal = nextTier ? nextTier.target : tiers[tiers.length - 1].target;
-
-            const desc = nextTier 
-                ? `${baseDesc} Next tier: ${nextTier.name} (${nextTier.target}${unit}).`
-                : `${baseDesc} Ultimate Mastery achieved!`;
-
-            return {
-                name: activeTargetName,
-                desc,
-                icon,
-                unlocked,
-                metric: `${currentVal} / ${activeTargetVal} ${unit}`,
-                percent: Math.min(100, (currentVal / activeTargetVal) * 100),
-                badgeName: currentTier ? currentTier.name : "Initiate",
-                badgeColor: currentTier ? currentTier.color : "text-zinc-600 border-zinc-800",
-                badgeBadge: currentTier ? currentTier.badge : "Bronze",
-                unlockedCount: activeIdx + 1,
-                totalTiers: tiers.length
-            };
-        };
-
-        const list = [];
-
-        // 1. Strength (Iron Athlete)
-        const strengthTiers: Tier[] = [
-            { name: "Bronze Lifter", target: 40, badge: "Bronze", color: "text-amber-600 border-amber-600/30 bg-amber-500/5 dark:text-amber-500" },
-            { name: "Silver Lifter", target: 60, badge: "Silver", color: "text-slate-400 border-slate-400/30 bg-slate-400/5" },
-            { name: "Gold Lifter", target: 80, badge: "Gold", color: "text-yellow-500 border-yellow-500/30 bg-yellow-500/5" },
-            { name: "Platinum Lifter", target: 100, badge: "Platinum", color: "text-sky-300 border-sky-300/30 bg-sky-300/5" },
-            { name: "Diamond Titan", target: 120, badge: "Diamond", color: "text-[#B9F2FF] border-[#B9F2FF]/30 bg-[#B9F2FF]/5" }
-        ];
-        list.push(getProgress(prStats.maxWeight, strengthTiers, "kg", "🏋️‍♂️", "Push your limits in traditional lifts."));
-
-        // 2. Consistency (Habit Streak)
-        const currentStreak = calculateStreak(allWorkouts);
-        const consistencyTiers: Tier[] = [
-            { name: "Daily Spark", target: 3, badge: "Bronze", color: "text-amber-600 border-amber-600/30 bg-amber-500/5 dark:text-amber-500" },
-            { name: "Weekly Engine", target: 7, badge: "Silver", color: "text-slate-400 border-slate-400/30 bg-slate-400/5" },
-            { name: "Monthly Momentum", target: 14, badge: "Gold", color: "text-yellow-500 border-yellow-500/30 bg-yellow-500/5" },
-            { name: "Consistent Pro", target: 21, badge: "Platinum", color: "text-sky-300 border-sky-300/30 bg-sky-300/5" },
-            { name: "Unstoppable Athlete", target: 30, badge: "Diamond", color: "text-[#B9F2FF] border-[#B9F2FF]/30 bg-[#B9F2FF]/5" }
-        ];
-        list.push(getProgress(currentStreak, consistencyTiers, "days", "🔥", "Maintain a consecutive training streak."));
-
-        // 3. Mobility (Stretch Holds)
-        let totalHold = 0;
-        allWorkouts.forEach(w => w.exercises.forEach(ex => {
-            if (ex.sets && Array.isArray(ex.sets)) {
-                ex.sets.forEach(s => {
-                    if (s.completed && (ex.name.toLowerCase().includes("pose") || ex.name.toLowerCase().includes("stretch"))) {
-                        totalHold += Number(s.duration) || 0;
-                    }
-                });
-            } else {
-                if (ex.name.toLowerCase().includes("pose") || ex.name.toLowerCase().includes("stretch")) {
-                    totalHold += Number(ex.duration) || 0;
-                }
-            }
-        }));
-        const mobilityTiers: Tier[] = [
-            { name: "Zen Initiate", target: 60, badge: "Bronze", color: "text-amber-600 border-amber-600/30 bg-amber-500/5 dark:text-amber-500" },
-            { name: "Zen Apprentice", target: 180, badge: "Silver", color: "text-slate-400 border-slate-400/30 bg-slate-400/5" },
-            { name: "Zen Practitioner", target: 300, badge: "Gold", color: "text-yellow-500 border-yellow-500/30 bg-yellow-500/5" },
-            { name: "Zen Master", target: 600, badge: "Platinum", color: "text-sky-300 border-sky-300/30 bg-sky-300/5" },
-            { name: "Yogi Adept", target: 1200, badge: "Diamond", color: "text-[#B9F2FF] border-[#B9F2FF]/30 bg-[#B9F2FF]/5" }
-        ];
-        list.push(getProgress(totalHold, mobilityTiers, "s", "🧘", "Spend time holding deep stretching poses."));
-
-        // 4. Endurance (Cardio Conditioning)
-        let totalCardioDist = 0;
-        allWorkouts.forEach(w => w.exercises.forEach(ex => {
-            if (ex.sets && Array.isArray(ex.sets)) {
-                ex.sets.forEach(s => {
-                    if (s.completed && (ex.name.toLowerCase().includes("run") || ex.name.toLowerCase().includes("cycle") || ex.name.toLowerCase().includes("cardio"))) {
-                        totalCardioDist += Number(s.distance) || 0;
-                    }
-                });
-            } else {
-                if (ex.name.toLowerCase().includes("run") || ex.name.toLowerCase().includes("cycle") || ex.name.toLowerCase().includes("cardio")) {
-                    totalCardioDist += Number(ex.distance) || 0;
-                }
-            }
-        }));
-        const enduranceTiers: Tier[] = [
-            { name: "Stamina Beginner", target: 3000, badge: "Bronze", color: "text-amber-600 border-amber-600/30 bg-amber-500/5 dark:text-amber-500" },
-            { name: "Stamina Cruiser", target: 10000, badge: "Silver", color: "text-slate-400 border-slate-400/30 bg-slate-400/5" },
-            { name: "Stamina Challenger", target: 20000, badge: "Gold", color: "text-yellow-500 border-yellow-500/30 bg-yellow-500/5" },
-            { name: "Stamina Champion", target: 40000, badge: "Platinum", color: "text-sky-300 border-sky-300/30 bg-sky-300/5" },
-            { name: "Endurance Pioneer", target: 80000, badge: "Diamond", color: "text-[#B9F2FF] border-[#B9F2FF]/30 bg-[#B9F2FF]/5" }
-        ];
-        list.push(getProgress(totalCardioDist, enduranceTiers, "m", "🏃‍♂️", "Accumulate road cardiorespiratory volume."));
-
-        // 5. Skill (Pull-Up Reps)
-        const bestScores: Record<string, number> = {};
-        allWorkouts.forEach(w => w.exercises.forEach(ex => {
-            const name = ex.name.toLowerCase();
-            let score = 0;
-            if (ex.sets && Array.isArray(ex.sets)) {
-                ex.sets.forEach(s => {
-                    if (s.completed) {
-                        const val = Number(s.reps) || 0;
-                        if (val > score) score = val;
-                    }
-                });
-            } else {
-                score = Number(ex.reps) || 0;
-            }
-            if (name.includes("pull-up") && score > 0) {
-                bestScores["pull-up"] = Math.max(bestScores["pull-up"] || 0, score);
-            }
-        }));
-        const pullUpCount = bestScores["pull-up"] || 0;
-        const skillTiers: Tier[] = [
-            { name: "First Pull-Up", target: 1, badge: "Bronze", color: "text-amber-600 border-amber-600/30 bg-amber-500/5 dark:text-amber-500" },
-            { name: "Pull-Up Contender", target: 5, badge: "Silver", color: "text-slate-400 border-slate-400/30 bg-slate-400/5" },
-            { name: "Pull-Up Dominant", target: 10, badge: "Gold", color: "text-yellow-500 border-yellow-500/30 bg-yellow-500/5" },
-            { name: "Pull-Up Master", target: 15, badge: "Platinum", color: "text-sky-300 border-sky-300/30 bg-sky-300/5" },
-            { name: "Gravity Defier", target: 20, badge: "Diamond", color: "text-[#B9F2FF] border-[#B9F2FF]/30 bg-[#B9F2FF]/5" }
-        ];
-        list.push(getProgress(pullUpCount, skillTiers, "reps", "🤸", "Unlock strict calisthenics pull-ups."));
-
-        // 6. Recovery (Structural Balance)
-        const recoveryTiers: Tier[] = [
-            { name: "Rest Initiate", target: 60, badge: "Bronze", color: "text-amber-600 border-amber-600/30 bg-amber-500/5 dark:text-amber-500" },
-            { name: "Balanced Rest", target: 70, badge: "Silver", color: "text-slate-400 border-slate-400/30 bg-slate-400/5" },
-            { name: "Symmetry Guardian", target: 80, badge: "Gold", color: "text-yellow-500 border-yellow-500/30 bg-yellow-500/5" },
-            { name: "Recovery Guru", target: 88, badge: "Platinum", color: "text-sky-300 border-sky-300/30 bg-sky-300/5" },
-            { name: "Longevity Sage", target: 95, badge: "Diamond", color: "text-[#B9F2FF] border-[#B9F2FF]/30 bg-[#B9F2FF]/5" }
-        ];
-        list.push(getProgress(Math.round(performanceScores.recoveryScore), recoveryTiers, "pts", "🛡️", "Maintain push/pull and upper/lower symmetry."));
-
-        return list;
-    }, [allWorkouts, prStats, performanceScores]);
 
     // Radar Chart configuration
     const radarData = useMemo(() => ({
@@ -722,12 +496,6 @@ export const AnalyticsView: React.FC = () => {
                         Performance Radar
                     </button>
                     <button
-                        onClick={() => setActiveTab('skills')}
-                        className={`text-xs font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'skills' ? 'border-[#22D3EE] text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
-                    >
-                        Skill Milestones
-                    </button>
-                    <button
                         onClick={() => setActiveTab('prs')}
                         className={`text-xs font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'prs' ? 'border-[#22D3EE] text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
                     >
@@ -756,150 +524,67 @@ export const AnalyticsView: React.FC = () => {
                             </div>
 
                             <div className="space-y-4">
-                                <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Pillar breakdown</h4>
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Pillar breakdown</h4>
+                                    <button 
+                                        onClick={() => setShowOverallPillarInfo(true)}
+                                        className="text-zinc-500 hover:text-white transition-colors p-1"
+                                        title="How to maintain ideal scores"
+                                    >
+                                        <Info size={14} />
+                                    </button>
+                                </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     {[
-                                        { label: 'Strength', val: performanceScores.strengthScore, color: 'border-l-orange-500' },
-                                        { label: 'Consistency', val: performanceScores.consistencyScore, color: 'border-l-emerald-500' },
-                                        { label: 'Mobility', val: performanceScores.mobilityScore, color: 'border-l-teal-500' },
-                                        { label: 'Endurance', val: performanceScores.enduranceScore, color: 'border-l-sky-500' },
-                                        { label: 'Skill', val: performanceScores.skillScore, color: 'border-l-indigo-500' },
-                                        { label: 'Recovery', val: performanceScores.recoveryScore, color: 'border-l-purple-500' }
+                                        { 
+                                            label: 'Strength', 
+                                            val: performanceScores.strengthScore, 
+                                            color: 'border-l-orange-500',
+                                            desc: 'Calculated from your heavy lifting performance. This score goes up when you log high-weight compound lifts over the last 28 days, but can drop if you accumulate too much fatigue without recovery.'
+                                        },
+                                        { 
+                                            label: 'Consistency', 
+                                            val: performanceScores.consistencyScore, 
+                                            color: 'border-l-emerald-500',
+                                            desc: 'Calculated based on your workout habits. Your score increases the more days in a row you train (your streak) and stays high if you log workouts frequently without long gaps.'
+                                        },
+                                        { 
+                                            label: 'Mobility', 
+                                            val: performanceScores.mobilityScore, 
+                                            color: 'border-l-teal-500',
+                                            desc: 'Calculated from the time spent on stretching and flexibility. This score increases when you regularly log mobility sessions, helping balance out the physical stress from heavier workouts.'
+                                        },
+                                        { 
+                                            label: 'Endurance', 
+                                            val: performanceScores.enduranceScore, 
+                                            color: 'border-l-sky-500',
+                                            desc: 'Calculated from the duration and intensity of your cardio sessions. This score rises as you accumulate more continuous aerobic effort over time, adjusted for fatigue.'
+                                        },
+                                        { 
+                                            label: 'Skill', 
+                                            val: performanceScores.skillScore, 
+                                            color: 'border-l-indigo-500',
+                                            desc: 'Calculated from your practice of complex movements. Logging high-repetition bodyweight exercises, gymnastics, or difficult skill holds will make this score go up.'
+                                        },
+                                        { 
+                                            label: 'Recovery', 
+                                            val: performanceScores.recoveryScore, 
+                                            color: 'border-l-purple-500',
+                                            desc: 'Calculated by balancing intense training with proper rest. This score increases when you take rest days or log active recovery, and drops if you perform too many high-fatigue workouts in a row.'
+                                        }
                                     ].map(p => (
                                         <div key={p.label} className={`p-4 bg-white/5 rounded-2xl border border-white/5 border-l-4 ${p.color} hover:bg-white/10 transition-colors`}>
-                                            <p className="text-zinc-500 font-black text-[9px] uppercase tracking-widest">{p.label}</p>
+                                            <div className="flex justify-between items-start">
+                                                <p className="text-zinc-500 font-black text-[9px] uppercase tracking-widest">{p.label}</p>
+                                                <button 
+                                                    onClick={() => setSelectedPillarInfo({ title: p.label, description: p.desc, colorClass: p.color })}
+                                                    className="text-zinc-500 hover:text-white transition-colors p-0.5"
+                                                    title={`Learn more about ${p.label}`}
+                                                >
+                                                    <Info size={12} />
+                                                </button>
+                                            </div>
                                             <p className="text-2xl font-black mt-1 leading-none">{p.val}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {/* SKILL PROGRESSION VIEW */}
-                    {activeTab === 'skills' && (
-                        <motion.div 
-                            key="skills"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="space-y-6"
-                        >
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                {skillProgressTracks.map((track) => {
-                                    // Find highest achieved tier
-                                    const achievedTier = [...track.tiers].reverse().find(t => track.current >= t.val);
-                                    const nextTier = track.tiers.find(t => track.current < t.val);
-                                    
-                                    // calculate progress percent
-                                    const maxTarget = track.tiers[track.tiers.length - 1].val;
-                                    const progressPercent = Math.min(100, (track.current / maxTarget) * 100);
-
-                                    return (
-                                        <div key={track.name} className="p-5 bg-white/5 border border-white/5 rounded-2xl relative overflow-hidden group">
-                                            <h5 className="font-black text-sm text-white uppercase tracking-wide mb-1">{track.name}</h5>
-                                            <p className="text-[10px] text-zinc-500 font-bold uppercase mb-4">
-                                                Best: {track.current} {track.unit}
-                                            </p>
-
-                                            {/* Milestone Badge */}
-                                            <div className="flex items-center gap-2 p-3 bg-white/5 rounded-xl border border-white/5 mb-6">
-                                                <span className="text-xl">{achievedTier ? achievedTier.icon : "🌱"}</span>
-                                                <div>
-                                                    <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Active Rank</p>
-                                                    <p className="text-xs font-black uppercase text-[#22D3EE]">
-                                                        {achievedTier ? achievedTier.name : "Initiate"}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            {/* Progress Bar */}
-                                            <div className="space-y-2">
-                                                <div className="flex justify-between text-[9px] font-black uppercase text-zinc-500">
-                                                    <span>Overall progress</span>
-                                                    <span>{Math.round(progressPercent)}%</span>
-                                                </div>
-                                                <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-gradient-to-r from-[#22D3EE] to-blue-500 rounded-full" style={{ width: `${progressPercent}%` }} />
-                                                </div>
-                                            </div>
-
-                                            {/* Next Tier */}
-                                            {nextTier && (
-                                                <p className="text-[9px] font-black uppercase text-zinc-500 mt-4 leading-relaxed flex items-center gap-1">
-                                                    <span>Next unlock:</span>
-                                                    <span className="text-white">{nextTier.name} ({nextTier.val} {track.unit})</span>
-                                                </p>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Dynamic Tiered Achievement Showcase */}
-                            <div className="mt-12 pt-8 border-t border-white/5 space-y-5 relative z-10">
-                                <div>
-                                    <h4 className="text-[10px] font-black text-[#22D3EE] uppercase tracking-[0.2em]">Trophy Room</h4>
-                                    <h3 className="text-xl font-black text-white uppercase tracking-tight mt-1">Dynamic Athletic Progressions</h3>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                                    {dynamicAchievements.map((ach) => (
-                                        <div 
-                                            key={ach.name} 
-                                            className={`p-5 rounded-3xl border flex flex-col justify-between transition-all relative overflow-hidden group hover:scale-[1.02] duration-300 ${
-                                                ach.unlocked 
-                                                    ? 'bg-[#1e293b]/30 dark:bg-white/5 border-cyan-500/15 shadow-[0_0_20px_rgba(34,211,238,0.03)]' 
-                                                    : 'bg-zinc-950/20 border-zinc-900 opacity-60'
-                                            }`}
-                                        >
-                                            {/* Glow overlay for unlocked */}
-                                            {ach.unlocked && <div className="absolute top-0 right-0 w-20 h-20 bg-[#22D3EE]/5 rounded-full blur-2xl pointer-events-none" />}
-                                            
-                                            <div>
-                                                <div className="flex items-start gap-4">
-                                                    <div className={`h-12 w-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 shadow-md transition-colors ${
-                                                        ach.unlocked ? 'bg-[#22D3EE]/10 text-[#22D3EE] border border-[#22D3EE]/25' : 'bg-zinc-800 text-zinc-600 border border-zinc-800'
-                                                    }`}>
-                                                        {ach.icon}
-                                                    </div>
-
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                            <h5 className={`font-black text-xs uppercase tracking-wide leading-none ${ach.unlocked ? 'text-white' : 'text-zinc-500'}`}>
-                                                                {ach.name}
-                                                            </h5>
-                                                            {ach.unlocked && (
-                                                                <span className={`text-[8px] font-black uppercase px-2.5 py-0.5 rounded-full border tracking-widest ${ach.badgeColor}`}>
-                                                                    {ach.badgeBadge}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold leading-normal mt-2">
-                                                            {ach.desc}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Dynamic progress bar and metric ratio */}
-                                            <div className="mt-6 pt-4 border-t border-white/5 space-y-2">
-                                                <div className="flex justify-between items-baseline text-[9px] font-black uppercase tracking-wider">
-                                                    <span className={ach.unlocked ? 'text-[#22D3EE]' : 'text-zinc-600'}>
-                                                        {ach.unlocked ? `${ach.badgeName} Active` : 'Initiate Locked'}
-                                                    </span>
-                                                    <span className="text-zinc-400 dark:text-zinc-500 font-bold">{ach.metric}</span>
-                                                </div>
-                                                <div className="w-full h-1.5 bg-zinc-800/80 dark:bg-zinc-950 rounded-full overflow-hidden shadow-inner">
-                                                    <div 
-                                                        className={`h-full rounded-full transition-all duration-700 ease-out ${
-                                                            ach.unlocked 
-                                                                ? 'bg-gradient-to-r from-cyan-400 to-blue-500' 
-                                                                : 'bg-gradient-to-r from-zinc-700 to-zinc-600'
-                                                        }`} 
-                                                        style={{ width: `${ach.percent}%` }} 
-                                                    />
-                                                </div>
-                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -1101,6 +786,100 @@ export const AnalyticsView: React.FC = () => {
                     colorTheme="cyan"
                 />
             </motion.div>
+
+            {/* PILLAR INFO MODAL */}
+            <AnimatePresence>
+                {selectedPillarInfo && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-[#1A2236] rounded-2xl shadow-2xl border border-white/5 w-full max-w-[280px] overflow-hidden relative"
+                        >
+                            <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-1.5 bg-[#22D3EE]/10 rounded-lg border border-[#22D3EE]/20">
+                                        <Info size={16} className="text-[#22D3EE]" />
+                                    </div>
+                                    <h3 className="text-sm font-black text-white uppercase tracking-tight">
+                                        {selectedPillarInfo.title}
+                                    </h3>
+                                </div>
+                                <button
+                                    onClick={() => setSelectedPillarInfo(null)}
+                                    className="text-white/50 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-full"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            <div className="p-4">
+                                <div className={`p-3 bg-white/5 rounded-xl border border-white/5 border-l-4 ${selectedPillarInfo.colorClass}`}>
+                                    <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                                        {selectedPillarInfo.description}
+                                    </p>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* OVERALL PILLAR INFO MODAL */}
+            <AnimatePresence>
+                {showOverallPillarInfo && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-[#1A2236] rounded-2xl shadow-2xl border border-white/5 w-full max-w-[320px] overflow-hidden relative"
+                        >
+                            <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-1.5 bg-[#22D3EE]/10 rounded-lg border border-[#22D3EE]/20">
+                                        <Info size={16} className="text-[#22D3EE]" />
+                                    </div>
+                                    <h3 className="text-sm font-black text-white uppercase tracking-tight">
+                                        Maintaining Ideal Scores
+                                    </h3>
+                                </div>
+                                <button
+                                    onClick={() => setShowOverallPillarInfo(false)}
+                                    className="text-white/50 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-full"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            <div className="p-4 space-y-4">
+                                <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                                    To maintain ideal scores across all pillars, aim for a balanced training routine. Consistency is key—log your workouts regularly to avoid score decay.
+                                </p>
+                                <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                                    Mix heavy compound lifts (Strength) with steady-state cardio (Endurance), and always allocate time for stretching (Mobility) and active rest days (Recovery).
+                                </p>
+                                <div className="p-3 bg-white/5 rounded-xl border border-white/5 border-l-4 border-l-[#22D3EE]">
+                                    <p className="text-[11px] text-[#22D3EE] font-bold leading-relaxed">
+                                        Note: Specializing heavily in one area while ignoring others will naturally lower your neglected scores, as the system dynamically adapts to your current training focus.
+                                    </p>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* MODAL */}
             <AnimatePresence>

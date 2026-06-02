@@ -1,10 +1,21 @@
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 
+export interface Achievement {
+    id: string;
+    title: string;
+    description: string;
+    type: 'pr' | 'milestone' | 'first';
+    unlockedAt: string;
+    icon: string;
+}
+
 export interface UserProfile {
     uid: string;
     displayName: string;
     email: string;
+
+    achievements?: Achievement[];
 
     // Phase 2 — Attribute progression persistence
     attributeProgress?: {

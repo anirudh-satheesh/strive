@@ -12,6 +12,7 @@ import { ProfileView } from './components/ProfileView';
 import { OnboardingModal } from './components/OnboardingModal';
 import { UserService } from './services/userService';
 import { NotificationProvider } from './context/NotificationContext';
+import { AchievementProvider } from './context/AchievementContext';
 
 export type Page = 'home' | 'workout' | 'calendar' | 'analytics' | 'profile';
 
@@ -78,33 +79,35 @@ const App: React.FC = () => {
   }
 
   return (
-    <NotificationProvider>
-      <Layout
-        activePage={activePage}
-        setActivePage={setActivePage}
-        user={user}
-      >
-        {activePage === 'home' && (
-          <HomePage
-            user={user}
-            setActivePage={setActivePage}
-            onNavigateToWorkout={handleNavigateToWorkout}
+    <AchievementProvider>
+      <NotificationProvider>
+        <Layout
+          activePage={activePage}
+          setActivePage={setActivePage}
+          user={user}
+        >
+          {activePage === 'home' && (
+            <HomePage
+              user={user}
+              setActivePage={setActivePage}
+              onNavigateToWorkout={handleNavigateToWorkout}
+            />
+          )}
+
+          {activePage === 'workout' && <WorkoutLog initialDate={workoutDate} />}
+          {activePage === 'calendar' && <CalendarView onNavigateToWorkout={handleNavigateToWorkout} />}
+          {activePage === 'analytics' && <AnalyticsView />}
+          {activePage === 'profile' && <ProfileView onLogout={handleLogout} />}
+        </Layout>
+        {showOnboarding && user && (
+          <OnboardingModal
+            userId={user.uid}
+            email={user.email}
+            onComplete={() => setShowOnboarding(false)}
           />
         )}
-
-        {activePage === 'workout' && <WorkoutLog initialDate={workoutDate} />}
-        {activePage === 'calendar' && <CalendarView onNavigateToWorkout={handleNavigateToWorkout} />}
-        {activePage === 'analytics' && <AnalyticsView />}
-        {activePage === 'profile' && <ProfileView onLogout={handleLogout} />}
-      </Layout>
-      {showOnboarding && user && (
-        <OnboardingModal
-          userId={user.uid}
-          email={user.email}
-          onComplete={() => setShowOnboarding(false)}
-        />
-      )}
-    </NotificationProvider>
+      </NotificationProvider>
+    </AchievementProvider>
   );
 };
 
