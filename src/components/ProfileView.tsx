@@ -155,8 +155,11 @@ export const ProfileView: React.FC<{ onLogout: () => void; setActivePage: (page:
                 {/* Compute top 3 achievements */}
                 {profileData?.achievements && (
                     (() => {
-                        const tierOrder: Record<string, number> = { gold: 4, orange: 3, purple: 2, blue: 1 };
-                        const iconToTier: Record<string, string> = {
+                        type Rarity = 'gold' | 'orange' | 'purple' | 'blue';
+
+                        const fallbackRarity: Rarity = 'blue';
+
+                        const iconToRarity: Record<string, Rarity> = {
                             Trophy: 'gold',
                             Flame: 'orange',
                             Medal: 'purple',
@@ -164,52 +167,262 @@ export const ProfileView: React.FC<{ onLogout: () => void; setActivePage: (page:
                             Clock: 'blue',
                             Star: 'blue',
                         };
+
+                        const getRarity = (ach: { icon?: string }): Rarity => {
+                            const rarity = ach?.icon ? iconToRarity[ach.icon] : undefined;
+                            return rarity ?? fallbackRarity;
+                        };
+
+                        const rarityLabel: Record<Rarity, string> = {
+                            gold: 'Gold',
+                            orange: 'Orange',
+                            purple: 'Purple',
+                            blue: 'Blue',
+                        };
+
+                        const tierOrder: Record<Rarity, number> = { gold: 4, orange: 3, purple: 2, blue: 1 };
+
+                        const IconMap: Record<string, any> = { Trophy, Flame, Medal, Sparkles, Clock, Star };
+
+                        const rarityStyles: Record<
+                            Rarity,
+                            {
+                                cardBg: string;
+                                cardBorder: string;
+                                cardGlow: string;
+                                iconBg: string;
+                                iconGlow: string;
+                                badgeBg: string;
+                                badgeBorder: string;
+                                badgeText: string;
+                                iconColor: string;
+                            }
+                        > = {
+                            gold: {
+                                cardBg: 'from-[#2a1a05] via-[#3b2a10] to-[#161d30]',
+                                cardBorder: 'border-amber-500/35',
+                                cardGlow: 'shadow-[0_0_24px_rgba(245,158,11,0.35)]',
+                                iconBg: 'from-amber-400 to-yellow-600',
+                                iconGlow: 'shadow-[0_0_18px_rgba(245,158,11,0.35)]',
+                                badgeBg: 'bg-amber-500/15',
+                                badgeBorder: 'border-amber-500/35',
+                                badgeText: 'text-amber-300',
+                                iconColor: 'text-white',
+                            },
+                            orange: {
+                                cardBg: 'from-[#3a1208] via-[#5a1d10] to-[#161d30]',
+                                cardBorder: 'border-orange-500/35',
+                                cardGlow: 'shadow-[0_0_24px_rgba(249,115,22,0.35)]',
+                                iconBg: 'from-orange-400 to-amber-500',
+                                iconGlow: 'shadow-[0_0_18px_rgba(249,115,22,0.35)]',
+                                badgeBg: 'bg-orange-500/15',
+                                badgeBorder: 'border-orange-500/35',
+                                badgeText: 'text-orange-200',
+                                iconColor: 'text-white',
+                            },
+                            purple: {
+                                cardBg: 'from-[#2e1065] via-[#3a1b7c] to-[#161d30]',
+                                cardBorder: 'border-purple-500/35',
+                                cardGlow: 'shadow-[0_0_24px_rgba(168,85,247,0.35)]',
+                                iconBg: 'from-purple-400 to-fuchsia-500',
+                                iconGlow: 'shadow-[0_0_18px_rgba(168,85,247,0.35)]',
+                                badgeBg: 'bg-purple-500/15',
+                                badgeBorder: 'border-purple-500/35',
+                                badgeText: 'text-purple-200',
+                                iconColor: 'text-white',
+                            },
+                            blue: {
+                                cardBg: 'from-[#0b2a5a] via-[#0f3a8a] to-[#161d30]',
+                                cardBorder: 'border-cyan-500/35',
+                                cardGlow: 'shadow-[0_0_24px_rgba(34,211,238,0.28)]',
+                                iconBg: 'from-cyan-400 to-blue-600',
+                                iconGlow: 'shadow-[0_0_18px_rgba(34,211,238,0.28)]',
+                                badgeBg: 'bg-cyan-500/15',
+                                badgeBorder: 'border-cyan-500/35',
+                                badgeText: 'text-cyan-200',
+                                iconColor: 'text-white',
+                            },
+                        };
+
                         const sorted = [...profileData.achievements]
                             .sort((a, b) => {
-                                const tierA = tierOrder[iconToTier[a.icon] ?? 'blue'];
-                                const tierB = tierOrder[iconToTier[b.icon] ?? 'blue'];
+                                const rarityA = getRarity(a);
+                                const rarityB = getRarity(b);
+                                const tierA = tierOrder[rarityA];
+                                const tierB = tierOrder[rarityB];
                                 if (tierA !== tierB) return tierB - tierA;
                                 const timeA = new Date(a.unlockedAt || 0).getTime();
                                 const timeB = new Date(b.unlockedAt || 0).getTime();
                                 return timeB - timeA;
                             })
                             .slice(0, 3);
-                        const IconMap: Record<string, any> = { Trophy, Flame, Medal, Sparkles, Clock, Star };
+
                         const primary = sorted[0];
                         const secondary = sorted.slice(1);
+
+                        const formatUnlocked = (unlockedAt?: any) => {
+                            const d = unlockedAt ? new Date(unlockedAt) : null;
+                            if (!d || Number.isNaN(d.getTime())) return '—';
+                            return d.toLocaleDateString();
+                        };
+
+                        const TrophyBadge = ({ rarity }: { rarity: Rarity }) => {
+                            const s = rarityStyles[rarity];
+                            return (
+                                <span
+                                    className={[
+                                        'inline-flex items-center',
+                                        'px-2.5 py-1',
+                                        'text-[10px] font-black uppercase tracking-widest',
+                                        'rounded-full',
+                                        s.badgeBg,
+                                        s.badgeBorder,
+                                        s.badgeText,
+                                        'shadow-[0_0_0_1px_rgba(255,255,255,0.03)]',
+                                    ].join(' ')}
+                                >
+                                    <span className="opacity-90">{rarityLabel[rarity]}</span>
+                                </span>
+                            );
+                        };
+
                         return (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {/* Primary large card */}
-                                {primary && (
-                                    <div className="col-span-1 md:col-span-2 relative group rounded-2xl border bg-gradient-to-br from-[#2e1065] to-[#161d30] p-6 transition-transform hover:scale-[1.02] hover:shadow-lg">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-16 h-16 bg-gradient-to-br from-[#22D3EE] to-[#3B82F6] rounded-xl flex items-center justify-center text-3xl font-black text-white shadow-lg">
-                                                {React.createElement(IconMap[primary.icon] || Trophy, { size: 32 })}
+                                {primary && (() => {
+                                    const rarity = getRarity(primary);
+                                    const s = rarityStyles[rarity];
+                                    const Icon = IconMap[primary.icon] || Trophy;
+
+                                    return (
+                                        <div
+                                            className={[
+                                                'col-span-1 md:col-span-2 relative group rounded-2xl border p-6 transition-all',
+                                                'bg-gradient-to-br',
+                                                s.cardBg,
+                                                s.cardBorder,
+                                                'hover:scale-[1.02] hover:shadow-lg',
+                                                s.cardGlow,
+                                            ].join(' ')}
+                                        >
+                                            {/* Spotlight behind icon */}
+                                            <div className="absolute inset-0 pointer-events-none">
+                                                <div
+                                                    className={[
+                                                        'absolute -top-16 -left-16 h-44 w-44 rounded-full blur-2xl opacity-80',
+                                                        rarity === 'gold'
+                                                            ? 'bg-amber-500/25'
+                                                            : rarity === 'orange'
+                                                              ? 'bg-orange-500/25'
+                                                              : rarity === 'purple'
+                                                                ? 'bg-purple-500/25'
+                                                                : 'bg-cyan-500/25',
+                                                    ].join(' ')}
+                                                />
+                                                <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/5 via-transparent to-transparent" />
                                             </div>
-                                            <div className="flex-1">
-                                                <p className="text-white font-black text-lg uppercase">{primary.title}</p>
-                                                <p className="text-sm text-zinc-400 mt-1">Unlocked {new Date(primary.unlockedAt || '').toLocaleDateString()}</p>
+
+                                            <div className="relative flex items-center gap-4">
+                                                <div className="relative">
+                                                    <div
+                                                        className={[
+                                                            'w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-black text-white',
+                                                            'bg-gradient-to-br',
+                                                            s.iconBg,
+                                                            'shadow-lg',
+                                                            s.iconGlow,
+                                                            'transition-transform group-hover:scale-[1.04]',
+                                                        ].join(' ')}
+                                                    >
+                                                        <div className="absolute inset-0 rounded-xl bg-white/15 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        {React.createElement(Icon, { size: 32, className: s.iconColor })}
+                                                    </div>
+                                                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-24 h-3 rounded-full bg-white/5 blur-md opacity-60" />
+                                                </div>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-white font-black text-lg uppercase leading-tight break-words">
+                                                        {primary.title}
+                                                    </p>
+                                                    <p className="text-sm text-zinc-400 mt-1">
+                                                        Unlocked {formatUnlocked(primary.unlockedAt)}
+                                                    </p>
+                                                </div>
+
+                                                <TrophyBadge rarity={rarity} />
                                             </div>
-                                            <span className="px-2 py-1 text-xs font-black uppercase rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">{(primary.icon === 'Trophy' ? 'Gold' : primary.icon === 'Flame' ? 'Orange' : primary.icon === 'Medal' ? 'Purple' : 'Blue')}</span>
                                         </div>
-                                    </div>
-                                )}
+                                    );
+                                })()}
+
                                 {/* Secondary cards */}
                                 <div className="flex flex-col gap-4">
-                                    {secondary.map((ach) => (
-                                        <div key={ach.id} className="relative group rounded-2xl border bg-gradient-to-br from-[#3B82F6] to-[#818cf8] p-4 transition-transform hover:scale-[1.02] hover:shadow-lg">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-12 h-12 bg-gradient-to-br from-[#ff7f50] to-[#ffa500] rounded-lg flex items-center justify-center text-xl font-black text-white">
-                                                    {React.createElement(IconMap[ach.icon] || Trophy, { size: 20 })}
+                                    {secondary.map((ach) => {
+                                        const rarity = getRarity(ach);
+                                        const s = rarityStyles[rarity];
+                                        const Icon = IconMap[ach.icon] || Trophy;
+
+                                        return (
+                                            <div
+                                                key={ach.id}
+                                                className={[
+                                                    'relative group rounded-2xl border p-4 transition-all',
+                                                    'bg-gradient-to-br',
+                                                    s.cardBg,
+                                                    s.cardBorder,
+                                                    'hover:scale-[1.02] hover:shadow-lg',
+                                                    'hover:border-white/15',
+                                                ].join(' ')}
+                                            >
+                                                {/* inner highlight */}
+                                                <div className="absolute inset-0 pointer-events-none rounded-2xl">
+                                                    <div className="absolute inset-0 bg-gradient-to-tr from-white/6 via-transparent to-transparent" />
                                                 </div>
-                                                <div className="flex-1">
-                                                    <p className="text-white font-black text-sm uppercase">{ach.title}</p>
-                                                    <p className="text-xs text-zinc-400 mt-1">Unlocked {new Date(ach.unlockedAt || '').toLocaleDateString()}</p>
+
+                                                <div className="relative flex items-center gap-3">
+                                                    <div className="relative">
+                                                        <div
+                                                            className={[
+                                                                'w-12 h-12 rounded-lg flex items-center justify-center text-xl font-black text-white',
+                                                                'bg-gradient-to-br',
+                                                                s.iconBg,
+                                                                s.iconGlow,
+                                                                'shadow-lg',
+                                                                'transition-transform group-hover:scale-[1.03]',
+                                                            ].join(' ')}
+                                                        >
+                                                            <div className="absolute inset-0 rounded-lg bg-white/12 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                            {React.createElement(Icon, { size: 20, className: s.iconColor })}
+                                                        </div>
+                                                        {/* subtle icon spotlight */}
+                                                        <div
+                                                            className={[
+                                                                'absolute -inset-2 rounded-full blur-xl opacity-70 pointer-events-none',
+                                                                rarity === 'gold'
+                                                                    ? 'bg-amber-500/20'
+                                                                    : rarity === 'orange'
+                                                                      ? 'bg-orange-500/20'
+                                                                      : rarity === 'purple'
+                                                                        ? 'bg-purple-500/20'
+                                                                        : 'bg-cyan-500/18',
+                                                            ].join(' ')}
+                                                        />
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-white font-black text-sm uppercase leading-tight break-words">
+                                                            {ach.title}
+                                                        </p>
+                                                        <p className="text-xs text-zinc-400 mt-1">
+                                                            Unlocked {formatUnlocked(ach.unlockedAt)}
+                                                        </p>
+                                                    </div>
+
+                                                    <TrophyBadge rarity={rarity} />
                                                 </div>
-                                                <span className="px-2 py-0.5 text-xs font-black uppercase rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">{(ach.icon === 'Trophy' ? 'Gold' : ach.icon === 'Flame' ? 'Orange' : ach.icon === 'Medal' ? 'Purple' : 'Blue')}</span>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         );
