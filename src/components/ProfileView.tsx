@@ -1,3 +1,4 @@
+import type { Page } from '../App';
 import React, { useEffect, useMemo, useState } from 'react';
 import { auth } from '../services/firebase';
 import type { UserProfile } from '../services/userService';
@@ -27,30 +28,9 @@ const formatMemberSince = (createdAt?: any) => {
     }
 };
 
-const formatRelativeTime = (isoString?: string) => {
-    if (!isoString) return '';
-    try {
-        const d = new Date(isoString);
-        if (Number.isNaN(d.getTime())) return '';
-        const now = new Date();
-        const diffMs = now.getTime() - d.getTime();
-        const diffSecs = Math.floor(diffMs / 1000);
-        const diffMins = Math.floor(diffSecs / 60);
-        const diffHours = Math.floor(diffMins / 60);
-        const diffDays = Math.floor(diffHours / 24);
 
-        if (diffSecs < 60) return 'Just now';
-        if (diffMins < 60) return `${diffMins}m ago`;
-        if (diffHours < 24) return `${diffHours}h ago`;
-        if (diffDays < 7) return `${diffDays}d ago`;
-        
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    } catch {
-        return '';
-    }
-};
 
-export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+export const ProfileView: React.FC<{ onLogout: () => void; setActivePage: (page: Page) => void }> = ({ onLogout, setActivePage }) => {
     const [loading, setLoading] = useState(true);
     const [showSettings, setShowSettings] = useState(false);
 
@@ -77,22 +57,7 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
     );
 
     // Chronological numbering & descending ordering for fancy Achievements UI
-    const sortedAchievements = useMemo(() => {
-        if (!profileData?.achievements || profileData.achievements.length === 0) return [];
-        
-        const chronological = [...profileData.achievements].sort((a, b) => {
-            const timeA = a.unlockedAt ? new Date(a.unlockedAt).getTime() : 0;
-            const timeB = b.unlockedAt ? new Date(b.unlockedAt).getTime() : 0;
-            return timeA - timeB;
-        });
 
-        const numbered = chronological.map((ach, idx) => ({
-            ...ach,
-            number: idx + 1,
-        }));
-
-        return numbered.reverse();
-    }, [profileData?.achievements]);
 
     const loadData = async () => {
         if (!auth.currentUser) return;
@@ -184,6 +149,287 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
                 </div>
             </section>
 
+            {/* ───────────────────────── ACHIEVEMENT SHOWCASE ───────────────────────── */}
+            <section className="bg-[#1A2236] rounded-3xl shadow-xl border border-white/5 p-6 relative overflow-hidden mb-6">
+                <h3 className="text-xs font-black text-white/30 mb-4 uppercase tracking-[0.2em]">Top Achievements</h3>
+                {/* Compute top 3 achievements */}
+                {profileData?.achievements && (
+                    (() => {
+                        type Rarity = 'gold' | 'orange' | 'purple' | 'blue';
+
+                        const fallbackRarity: Rarity = 'blue';
+
+                        const iconToRarity: Record<string, Rarity> = {
+                            Trophy: 'gold',
+                            Flame: 'orange',
+                            Medal: 'purple',
+                            Sparkles: 'blue',
+                            Clock: 'blue',
+                            Star: 'blue',
+                        };
+
+                        const getRarity = (ach: { icon?: string }): Rarity => {
+                            const rarity = ach?.icon ? iconToRarity[ach.icon] : undefined;
+                            return rarity ?? fallbackRarity;
+                        };
+
+                        const rarityLabel: Record<Rarity, string> = {
+                            gold: 'Gold',
+                            orange: 'Orange',
+                            purple: 'Purple',
+                            blue: 'Blue',
+                        };
+
+                        const tierOrder: Record<Rarity, number> = { gold: 4, orange: 3, purple: 2, blue: 1 };
+
+                        const IconMap: Record<string, any> = { Trophy, Flame, Medal, Sparkles, Clock, Star };
+
+                        const rarityStyles: Record<
+                            Rarity,
+                            {
+                                cardBg: string;
+                                cardBorder: string;
+                                cardGlow: string;
+                                iconBg: string;
+                                iconGlow: string;
+                                badgeBg: string;
+                                badgeBorder: string;
+                                badgeText: string;
+                                iconColor: string;
+                            }
+                        > = {
+                            gold: {
+                                cardBg: 'from-[#2a1a05] via-[#3b2a10] to-[#161d30]',
+                                cardBorder: 'border-amber-500/35',
+                                cardGlow: 'shadow-[0_0_24px_rgba(245,158,11,0.35)]',
+                                iconBg: 'from-amber-400 to-yellow-600',
+                                iconGlow: 'shadow-[0_0_18px_rgba(245,158,11,0.35)]',
+                                badgeBg: 'bg-amber-500/15',
+                                badgeBorder: 'border-amber-500/35',
+                                badgeText: 'text-amber-300',
+                                iconColor: 'text-white',
+                            },
+                            orange: {
+                                cardBg: 'from-[#3a1208] via-[#5a1d10] to-[#161d30]',
+                                cardBorder: 'border-orange-500/35',
+                                cardGlow: 'shadow-[0_0_24px_rgba(249,115,22,0.35)]',
+                                iconBg: 'from-orange-400 to-amber-500',
+                                iconGlow: 'shadow-[0_0_18px_rgba(249,115,22,0.35)]',
+                                badgeBg: 'bg-orange-500/15',
+                                badgeBorder: 'border-orange-500/35',
+                                badgeText: 'text-orange-200',
+                                iconColor: 'text-white',
+                            },
+                            purple: {
+                                cardBg: 'from-[#2e1065] via-[#3a1b7c] to-[#161d30]',
+                                cardBorder: 'border-purple-500/35',
+                                cardGlow: 'shadow-[0_0_24px_rgba(168,85,247,0.35)]',
+                                iconBg: 'from-purple-400 to-fuchsia-500',
+                                iconGlow: 'shadow-[0_0_18px_rgba(168,85,247,0.35)]',
+                                badgeBg: 'bg-purple-500/15',
+                                badgeBorder: 'border-purple-500/35',
+                                badgeText: 'text-purple-200',
+                                iconColor: 'text-white',
+                            },
+                            blue: {
+                                cardBg: 'from-[#0b2a5a] via-[#0f3a8a] to-[#161d30]',
+                                cardBorder: 'border-cyan-500/35',
+                                cardGlow: 'shadow-[0_0_24px_rgba(34,211,238,0.28)]',
+                                iconBg: 'from-cyan-400 to-blue-600',
+                                iconGlow: 'shadow-[0_0_18px_rgba(34,211,238,0.28)]',
+                                badgeBg: 'bg-cyan-500/15',
+                                badgeBorder: 'border-cyan-500/35',
+                                badgeText: 'text-cyan-200',
+                                iconColor: 'text-white',
+                            },
+                        };
+
+                        const sorted = [...profileData.achievements]
+                            .sort((a, b) => {
+                                const rarityA = getRarity(a);
+                                const rarityB = getRarity(b);
+                                const tierA = tierOrder[rarityA];
+                                const tierB = tierOrder[rarityB];
+                                if (tierA !== tierB) return tierB - tierA;
+                                const timeA = new Date(a.unlockedAt || 0).getTime();
+                                const timeB = new Date(b.unlockedAt || 0).getTime();
+                                return timeB - timeA;
+                            })
+                            .slice(0, 3);
+
+                        const primary = sorted[0];
+                        const secondary = sorted.slice(1);
+
+                        const formatUnlocked = (unlockedAt?: any) => {
+                            const d = unlockedAt ? new Date(unlockedAt) : null;
+                            if (!d || Number.isNaN(d.getTime())) return '—';
+                            return d.toLocaleDateString();
+                        };
+
+                        const TrophyBadge = ({ rarity }: { rarity: Rarity }) => {
+                            const s = rarityStyles[rarity];
+                            return (
+                                <span
+                                    className={[
+                                        'inline-flex items-center',
+                                        'px-2.5 py-1',
+                                        'text-[10px] font-black uppercase tracking-widest',
+                                        'rounded-full',
+                                        s.badgeBg,
+                                        s.badgeBorder,
+                                        s.badgeText,
+                                        'shadow-[0_0_0_1px_rgba(255,255,255,0.03)]',
+                                    ].join(' ')}
+                                >
+                                    <span className="opacity-90">{rarityLabel[rarity]}</span>
+                                </span>
+                            );
+                        };
+
+                        return (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {/* Primary large card */}
+                                {primary && (() => {
+                                    const rarity = getRarity(primary);
+                                    const s = rarityStyles[rarity];
+                                    const Icon = IconMap[primary.icon] || Trophy;
+
+                                    return (
+                                        <div
+                                            className={[
+                                                'col-span-1 md:col-span-2 relative group rounded-2xl border p-6 transition-all',
+                                                'bg-gradient-to-br',
+                                                s.cardBg,
+                                                s.cardBorder,
+                                                'hover:scale-[1.02] hover:shadow-lg',
+                                                s.cardGlow,
+                                            ].join(' ')}
+                                        >
+                                            {/* Spotlight behind icon */}
+                                            <div className="absolute inset-0 pointer-events-none">
+                                                <div
+                                                    className={[
+                                                        'absolute -top-16 -left-16 h-44 w-44 rounded-full blur-2xl opacity-80',
+                                                        rarity === 'gold'
+                                                            ? 'bg-amber-500/25'
+                                                            : rarity === 'orange'
+                                                              ? 'bg-orange-500/25'
+                                                              : rarity === 'purple'
+                                                                ? 'bg-purple-500/25'
+                                                                : 'bg-cyan-500/25',
+                                                    ].join(' ')}
+                                                />
+                                                <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/5 via-transparent to-transparent" />
+                                            </div>
+
+                                            <div className="relative flex items-center gap-4">
+                                                <div className="relative">
+                                                    <div
+                                                        className={[
+                                                            'w-16 h-16 rounded-xl flex items-center justify-center text-3xl font-black text-white',
+                                                            'bg-gradient-to-br',
+                                                            s.iconBg,
+                                                            'shadow-lg',
+                                                            s.iconGlow,
+                                                            'transition-transform group-hover:scale-[1.04]',
+                                                        ].join(' ')}
+                                                    >
+                                                        <div className="absolute inset-0 rounded-xl bg-white/15 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                        {React.createElement(Icon, { size: 32, className: s.iconColor })}
+                                                    </div>
+                                                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-24 h-3 rounded-full bg-white/5 blur-md opacity-60" />
+                                                </div>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-white font-black text-lg uppercase leading-tight break-words">
+                                                        {primary.title}
+                                                    </p>
+                                                    <p className="text-sm text-zinc-400 mt-1">
+                                                        Unlocked {formatUnlocked(primary.unlockedAt)}
+                                                    </p>
+                                                </div>
+
+                                                <TrophyBadge rarity={rarity} />
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Secondary cards */}
+                                <div className="flex flex-col gap-4">
+                                    {secondary.map((ach) => {
+                                        const rarity = getRarity(ach);
+                                        const s = rarityStyles[rarity];
+                                        const Icon = IconMap[ach.icon] || Trophy;
+
+                                        return (
+                                            <div
+                                                key={ach.id}
+                                                className={[
+                                                    'relative group rounded-2xl border p-4 transition-all',
+                                                    'bg-gradient-to-br',
+                                                    s.cardBg,
+                                                    s.cardBorder,
+                                                    'hover:scale-[1.02] hover:shadow-lg',
+                                                    'hover:border-white/15',
+                                                ].join(' ')}
+                                            >
+                                                {/* inner highlight */}
+                                                <div className="absolute inset-0 pointer-events-none rounded-2xl">
+                                                    <div className="absolute inset-0 bg-gradient-to-tr from-white/6 via-transparent to-transparent" />
+                                                </div>
+
+                                                <div className="relative flex items-center gap-3">
+                                                    <div className="relative">
+                                                        <div
+                                                            className={[
+                                                                'w-12 h-12 rounded-lg flex items-center justify-center text-xl font-black text-white',
+                                                                'bg-gradient-to-br',
+                                                                s.iconBg,
+                                                                s.iconGlow,
+                                                                'shadow-lg',
+                                                                'transition-transform group-hover:scale-[1.03]',
+                                                            ].join(' ')}
+                                                        >
+                                                            <div className="absolute inset-0 rounded-lg bg-white/12 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                            {React.createElement(Icon, { size: 20, className: s.iconColor })}
+                                                        </div>
+                                                        {/* subtle icon spotlight */}
+                                                        <div
+                                                            className={[
+                                                                'absolute -inset-2 rounded-full blur-xl opacity-70 pointer-events-none',
+                                                                rarity === 'gold'
+                                                                    ? 'bg-amber-500/20'
+                                                                    : rarity === 'orange'
+                                                                      ? 'bg-orange-500/20'
+                                                                      : rarity === 'purple'
+                                                                        ? 'bg-purple-500/20'
+                                                                        : 'bg-cyan-500/18',
+                                                            ].join(' ')}
+                                                        />
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-white font-black text-sm uppercase leading-tight break-words">
+                                                            {ach.title}
+                                                        </p>
+                                                        <p className="text-xs text-zinc-400 mt-1">
+                                                            Unlocked {formatUnlocked(ach.unlockedAt)}
+                                                        </p>
+                                                    </div>
+
+                                                    <TrophyBadge rarity={rarity} />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })()
+                )}
+            </section>
+
             {/* ───────────────────────── BODY METRICS ───────────────────────── */}
             <section className="bg-[#1A2236] rounded-3xl shadow-xl border border-white/5 p-5">
                 <h3 className="text-[10px] font-black text-white/30 mb-4 uppercase tracking-[0.2em]">
@@ -207,107 +453,25 @@ export const ProfileView: React.FC<{ onLogout: () => void }> = ({ onLogout }) =>
             </section>
 
             {/* ───────────────────────── ACHIEVEMENTS ───────────────────────── */}
-            {sortedAchievements.length > 0 && (
-                <section className="bg-[#1A2236] rounded-3xl shadow-xl border border-white/5 p-5 relative overflow-hidden">
-                    {/* Visual glowing aura behind the achievements header */}
-                    <div className="absolute top-0 left-1/4 w-1/2 h-12 bg-cyan-500/5 blur-[50px] pointer-events-none" />
-
-                    <div className="flex items-center justify-between mb-5 relative z-10">
-                        <div className="flex items-center gap-2">
-                            <div className="p-1.5 bg-cyan-500/10 rounded-lg text-cyan-400 border border-cyan-500/20 shadow-sm shadow-cyan-500/10">
-                                <Trophy size={16} className="animate-pulse" />
-                            </div>
-                            <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">
-                                Achievements
-                            </h3>
-                        </div>
-                        <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest bg-cyan-950/40 border border-cyan-500/20 px-3 py-1 rounded-full shadow-lg shadow-cyan-500/5">
-                            {sortedAchievements.length} Unlocked
-                        </span>
+            {/* ───────────────────────── ACHIEVEMENT HISTORY NAVIGATION ───────────────────────── */}
+            <section className="bg-[#1A2236] rounded-3xl shadow-xl border border-white/5 p-5 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => setActivePage('achievements')}>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Trophy size={20} className="text-cyan-400" />
+                        <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Achievements History</h3>
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10">
-                        {sortedAchievements.map((ach, idx) => {
-                            const IconMap: Record<string, React.FC<any>> = { Trophy, Flame, Medal, Sparkles, Clock, Star };
-                            const Icon = IconMap[ach.icon] || Trophy;
-                            const isLatest = idx === 0;
-
-                            const typeBadgeColors = {
-                                pr: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-                                milestone: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
-                                first: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-                            };
-
-                            return (
-                                <div
-                                    key={ach.id}
-                                    className={`flex items-center p-5 sm:p-6 min-h-[108px] sm:min-h-[116px] rounded-2.5xl border transition-all duration-300 group relative overflow-hidden ${
-                                        isLatest
-                                            ? 'bg-gradient-to-br from-[#1E293B] via-[#161D30] to-[#2E1065]/10 border-amber-500/30 shadow-[0_4px_20px_rgba(245,158,11,0.06)] hover:border-amber-400/60 hover:shadow-[0_4px_25px_rgba(245,158,11,0.12)]'
-                                            : 'bg-[#131B2E]/50 border-white/5 hover:border-cyan-500/30 hover:bg-[#1A2236]/80 hover:shadow-[0_4px_20px_rgba(34,211,238,0.04)]'
-                                    }`}
-                                    style={{
-                                        borderRadius: '20px'
-                                    }}
-                                >
-                                    {/* Subtly glowing backlights for cards */}
-                                    {isLatest && (
-                                        <div className="absolute right-0 top-0 w-24 h-24 bg-gradient-to-br from-amber-500/5 to-transparent blur-[20px] pointer-events-none" />
-                                    )}
-
-                                    {/* Fancy badge displaying dynamic rank Number (No # prefix, size reduced by ~15-20%) */}
-                                    <div className={`relative w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border transition-all duration-300 mr-3.5 ${
-                                        isLatest
-                                            ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-black border-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.25)] group-hover:scale-105 group-hover:rotate-1'
-                                            : 'bg-gradient-to-br from-[#1E293B] to-[#0F172A] text-cyan-400 border-white/10 group-hover:border-cyan-500/40 group-hover:text-cyan-300'
-                                    }`}>
-                                        <span className="text-sm font-black tracking-tight">{ach.number}</span>
-                                        
-                                        {/* Overlay miniature category icon (reduced relative size) */}
-                                        <div className={`absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-lg flex items-center justify-center border text-[9px] shadow-md transition-all duration-300 ${
-                                            isLatest
-                                                ? 'bg-slate-900 text-amber-400 border-amber-400/50 group-hover:scale-110'
-                                                : 'bg-[#1E293B] text-zinc-400 border-white/10 group-hover:text-cyan-300 group-hover:border-cyan-500/30 group-hover:scale-110'
-                                        }`}>
-                                            <Icon size={10} />
-                                        </div>
-                                    </div>
-
-                                    <div className="min-w-0 flex-1 relative z-10 flex flex-col justify-center">
-                                        <div className="flex items-center gap-2">
-                                            {/* Priority achievement title: Full line, wrap-around, no truncation */}
-                                            <p className="text-white font-black text-[13px] sm:text-sm uppercase tracking-tight leading-snug break-words whitespace-normal flex-1">
-                                                {ach.title}
-                                            </p>
-                                        </div>
-
-                                        {/* Dynamic Unlock Time in place of Description: prominent, spaced and legible */}
-                                        {ach.unlockedAt && (
-                                            <p className={`text-[10px] sm:text-[11px] font-semibold tracking-wide mt-1.5 sm:mt-2 flex items-center gap-1.5 ${
-                                                isLatest ? 'text-amber-300' : 'text-zinc-400'
-                                            }`}>
-                                                <span className={`w-1 h-1 rounded-full shrink-0 ${isLatest ? 'bg-amber-400 animate-pulse' : 'bg-cyan-400'}`} />
-                                                Unlocked {formatRelativeTime(ach.unlockedAt)}
-                                            </p>
-                                        )}
-                                        
-                                        <div className="flex items-center gap-1.5 mt-2.5 sm:mt-3">
-                                            <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${typeBadgeColors[ach.type] || 'bg-white/5 text-white/50 border-white/10'}`}>
-                                                {ach.type === 'pr' ? 'PR' : ach.type === 'first' ? 'New' : 'Milestone'}
-                                            </span>
-                                            {isLatest && (
-                                                <span className="text-[7px] font-black tracking-widest text-amber-400 bg-amber-400/10 border border-amber-400/20 px-1.5 py-0.5 rounded-full uppercase animate-[pulse_2s_infinite]">
-                                                    Latest
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                    <div className="flex items-center gap-2 text-xs font-black uppercase text-cyan-400">
+                        <span>{profileData?.achievements?.length || 0} Unlocked</span>
+                        <ChevronRight size={16} />
                     </div>
-                </section>
-            )}
+                </div>
+                {(profileData?.achievements?.length ?? 0) > 0 && (
+                    <p className="mt-2 text-sm text-zinc-400">
+                        Latest: {profileData!.achievements!.at(-1)?.title}
+                    </p>
+                )}
+            </section>
+
 
             {/* ───────────────────────── SETTINGS ───────────────────────── */}
             <section className="bg-[#1A2236] rounded-3xl shadow-xl border border-white/5 overflow-hidden">

@@ -9,12 +9,13 @@ import { WorkoutLog } from './components/WorkoutLog';
 import { CalendarView } from './components/CalendarView';
 import { AnalyticsView } from './components/AnalyticsView';
 import { ProfileView } from './components/ProfileView';
+import { AchievementsHistoryView } from './components/AchievementsHistoryView';
 import { OnboardingModal } from './components/OnboardingModal';
 import { UserService } from './services/userService';
 import { NotificationProvider } from './context/NotificationContext';
 import { AchievementProvider } from './context/AchievementContext';
 
-export type Page = 'home' | 'workout' | 'calendar' | 'analytics' | 'profile';
+export type Page = 'home' | 'workout' | 'calendar' | 'analytics' | 'profile' | 'achievements';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -97,7 +98,8 @@ const App: React.FC = () => {
           {activePage === 'workout' && <WorkoutLog initialDate={workoutDate} />}
           {activePage === 'calendar' && <CalendarView onNavigateToWorkout={handleNavigateToWorkout} />}
           {activePage === 'analytics' && <AnalyticsView />}
-          {activePage === 'profile' && <ProfileView onLogout={handleLogout} />}
+          {activePage === 'profile' && <ProfileView onLogout={handleLogout} setActivePage={setActivePage} />}
+          {activePage === 'achievements' && <AchievementsHistoryView onBack={() => setActivePage('profile')} />}
         </Layout>
         {showOnboarding && user && (
           <OnboardingModal
