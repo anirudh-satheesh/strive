@@ -46,12 +46,11 @@ export const Auth: React.FC = () => {
 
             <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-zinc-800 p-8 w-full max-w-md relative z-10">
                 <div className="flex flex-col items-center mb-10">
-                    <div className="relative mb-6 group">
-                        <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-2xl blur opacity-40 group-hover:opacity-60 transition-opacity" />
-                        <img src="/strive-logo.png" alt="Strive Logo" className="relative h-20 w-20 rounded-2xl shadow-lg" />
+                    <div className="relative mb-2 group">
+                        <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 rounded-full blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
+                        <img src="/strive-logo-full.png" alt="Strive Logo" className="relative h-36 w-36 object-contain" />
                     </div>
-                    <h1 className="text-3xl font-black text-white tracking-tight">STRIVE</h1>
-                    <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs mt-2">
+                    <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs mt-1">
                         {isLogin ? 'Welcome Back' : 'Join the Elite'}
                     </p>
                 </div>
