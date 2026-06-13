@@ -28,6 +28,7 @@ export interface UserProfile {
     };
 
     restTimerEnabled?: boolean;
+    prefillPreviousWorkout?: boolean;
     defaultRestTime?: number;
     createdAt?: any;
     

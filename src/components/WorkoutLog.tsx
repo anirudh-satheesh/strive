@@ -44,6 +44,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
     const [showSaveTemplateName, setShowSaveTemplateName] = useState(false);
     const [templateName, setTemplateName] = useState('');
     const [restTimerEnabled, setRestTimerEnabled] = useState(false);
+    const [prefillPreviousWorkout, setPrefillPreviousWorkout] = useState(false);
     const [isRestTimerActive, setIsRestTimerActive] = useState(false);
     const [restTimeRemaining, setRestTimeRemaining] = useState(90);
     const { showToast, confirm } = useNotification();
@@ -58,6 +59,9 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                 const profile = await UserService.getProfile(auth.currentUser.uid);
                 if (profile?.restTimerEnabled) {
                     setRestTimerEnabled(true);
+                }
+                if (profile?.prefillPreviousWorkout) {
+                    setPrefillPreviousWorkout(true);
                 }
             }
         };
@@ -219,7 +223,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
             weight: 0, reps: 0, duration: 0, distance: 0, completed: false
         }];
 
-        if (auth.currentUser) {
+        if (auth.currentUser && prefillPreviousWorkout) {
             try {
                 const allWorkouts = await WorkoutService.getAllWorkouts(auth.currentUser.uid);
                 for (const w of allWorkouts) {

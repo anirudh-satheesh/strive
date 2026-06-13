@@ -18,6 +18,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onBack }) => {
 
     // Preferences
     const [restTimerEnabled, setRestTimerEnabled] = useState(false);
+    const [prefillPreviousWorkout, setPrefillPreviousWorkout] = useState(false);
 
     // Custom exercises
     const [customExercises, setCustomExercises] = useState<Exercise[]>([]);
@@ -60,6 +61,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onBack }) => {
                     WorkoutService.getTemplates(userId)
                 ]);
                 if (profile?.restTimerEnabled !== undefined) setRestTimerEnabled(profile.restTimerEnabled);
+                if (profile?.prefillPreviousWorkout !== undefined) setPrefillPreviousWorkout(profile.prefillPreviousWorkout);
                 setCustomExercises(custom);
                 setTemplates(templateDocs);
             } catch (error) {
@@ -178,6 +180,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onBack }) => {
                                 setRestTimerEnabled(val);
                                 if (auth.currentUser) await UserService.updateUserProfile(auth.currentUser.uid, { restTimerEnabled: val });
                                 showToast('Rest timer preference updated', 'success');
+                            }} />
+                            <div className="w-11 h-6 bg-white/10 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#22D3EE]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#111827] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#22D3EE]"></div>
+                        </label>
+                    </div>
+
+                    {/* Prefill Previous Workout */}
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                        <div>
+                            <p className="font-bold text-white text-sm">Prefill Previous Workout</p>
+                            <p className="text-xs text-[#94a3b8]">Auto-fill sets, reps, and weights from your last session</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" className="sr-only peer" checked={prefillPreviousWorkout} onChange={async (e) => {
+                                const val = e.target.checked;
+                                setPrefillPreviousWorkout(val);
+                                if (auth.currentUser) await UserService.updateUserProfile(auth.currentUser.uid, { prefillPreviousWorkout: val });
+                                showToast('Workout prefill preference updated', 'success');
                             }} />
                             <div className="w-11 h-6 bg-white/10 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#22D3EE]/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#111827] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#22D3EE]"></div>
                         </label>
