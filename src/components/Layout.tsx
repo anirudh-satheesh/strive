@@ -42,7 +42,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activePage, setActiveP
                         onClick={() => setActivePage('home')}
                         aria-label="Go to Home"
                     >
-                        <img src="/strive-logo.png" alt="Strive Logo" className="h-8 w-8 object-contain" />
+                        <img src="/Logo/strive-192.png" alt="Strive Logo" className="h-8 w-8 object-contain" />
                         <h1 className="text-xl font-black bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent tracking-tight">
                             Strive
                         </h1>

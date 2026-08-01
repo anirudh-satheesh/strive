@@ -48,7 +48,7 @@ export const Auth: React.FC = () => {
                 <div className="flex flex-col items-center mb-10">
                     <div className="relative mb-2 group">
                         <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 rounded-full blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
-                        <img src="/strive-logo-full.png" alt="Strive Logo" className="relative h-36 w-36 object-contain" />
+                        <img src="/Logo/strive-512.png" alt="Strive Logo" className="relative h-36 w-36 object-contain" />
                     </div>
                     <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs mt-1">
                         {isLogin ? 'Welcome Back' : 'Join the Elite'}
