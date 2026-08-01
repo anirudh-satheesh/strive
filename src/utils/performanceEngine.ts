@@ -114,15 +114,18 @@ export const calculatePerformanceScores = (workouts: Workout[], evaluationDate: 
     const recentEvents = events.filter(e => inLast28(e.timestamp));
 
     // Helper to aggregate event intensities (or recovery costs) per day before averaging.
-    // Fixes the issue where multiple exercises in one workout diluted the average 
+    // Fixes the issue where multiple exercises in one workout diluted the average
     // instead of accumulating their volume/effort for the day's total.
+    // Now normalizes sums against expected per-day volume to prevent saturation.
+    const EXPECTED_PER_DAY_VOLUME = 3.0; // Reasonable max for a typical multi-exercise day
     const getDailySums = (eventList: typeof recentEvents, valueMapper: (e: typeof recentEvents[0]) => number) => {
         const sums = new Map<string, number>();
         for (const e of eventList) {
             const dateStr = e.timestamp.slice(0, 10);
             sums.set(dateStr, (sums.get(dateStr) || 0) + valueMapper(e));
         }
-        return Array.from(sums.values());
+        // Normalize each daily sum using soft saturation to preserve sensitivity
+        return Array.from(sums.values()).map(sum => sum / (sum + EXPECTED_PER_DAY_VOLUME));
     };
 
     // ==========================
@@ -130,17 +133,18 @@ export const calculatePerformanceScores = (workouts: Workout[], evaluationDate: 
     // (Strength is this app's dominant, well-instrumented training signal;
     // applying fatigue derived from it to unrelated pillars like Mobility/
     // Endurance was never a meaningful relationship.)
+    // getDailySums now normalizes, so no need for clamp01 on individual values
     // ==========================
     const strengthEvents = recentEvents.filter(e => e.attribute === 'strength');
-    const fatigueProxy = avg(getDailySums(strengthEvents.filter(e => e.recoveryCost > 0), e => e.recoveryCost).map(clamp01));
+    const fatigueProxy = avg(getDailySums(strengthEvents.filter(e => e.recoveryCost > 0), e => e.recoveryCost));
     const fatigueRaw = clamp01(fatigueProxy * 1.3);
 
     // adaptation: net beneficial intensity vs recovery cost, still cross-category
     // for the readiness blend (this one is fine to stay broad — readiness is
     // meant to reflect overall training load, not one pillar).
     const nonRecoveryEvents = recentEvents.filter(e => e.attribute !== 'recovery');
-    const beneficialIntensity = avg(getDailySums(nonRecoveryEvents, e => e.intensity).map(clamp01));
-    const overallFatigueForReadiness = avg(getDailySums(recentEvents.filter(e => e.recoveryCost > 0), e => e.recoveryCost).map(clamp01));
+    const beneficialIntensity = avg(getDailySums(nonRecoveryEvents, e => e.intensity));
+    const overallFatigueForReadiness = avg(getDailySums(recentEvents.filter(e => e.recoveryCost > 0), e => e.recoveryCost));
     const adaptationRaw = clamp01(beneficialIntensity * 1.1 - overallFatigueForReadiness * 0.9);
 
     // ==========================
@@ -148,21 +152,21 @@ export const calculatePerformanceScores = (workouts: Workout[], evaluationDate: 
     // ==========================
     // Fix: only real strength events feed this now — no more mixing in
     // dampened fatigue-proxy duplicates that used to dilute the signal.
-    const overloadStrength = avg(getDailySums(strengthEvents, e => e.intensity).map(clamp01));
+    const overloadStrength = avg(getDailySums(strengthEvents, e => e.intensity));
 
     const enduranceEvents = recentEvents.filter(e => e.attribute === 'endurance');
-    const overloadEndurance = avg(getDailySums(enduranceEvents, e => e.intensity).map(clamp01));
+    const overloadEndurance = avg(getDailySums(enduranceEvents, e => e.intensity));
 
     // ==========================
     // Consistency — now gap-aware, not just average quality of logged days.
     // ==========================
     const consistencyEvents = recentEvents.filter(e => e.attribute === 'consistency');
-    const consistencyIntensity = avg(getDailySums(consistencyEvents, e => e.intensity).map(clamp01));
+    const consistencyIntensity = avg(getDailySums(consistencyEvents, e => e.intensity));
 
     const uniqueLoggedDays = new Set(consistencyEvents.map(e => e.timestamp.slice(0, 10))).size;
     const activeDaysRatio = clamp01(uniqueLoggedDays / 28);
 
-    const currentStreak = calculateStreak(workouts);
+    const currentStreak = calculateStreak(workouts, now);
     const streakRaw = clamp01(currentStreak / 30);
 
     const consistencyRaw = clamp01(
@@ -175,11 +179,11 @@ export const calculatePerformanceScores = (workouts: Workout[], evaluationDate: 
     // Mobility / Recovery balance
     // ==========================
     const mobilityEvents = recentEvents.filter(e => e.attribute === 'mobility');
-    const mobilityDaily = getDailySums(mobilityEvents, e => e.intensity).map(clamp01);
+    const mobilityDaily = getDailySums(mobilityEvents, e => e.intensity);
     const mobilityRaw = confidenceDamp(avg(mobilityDaily), mobilityDaily.length);
 
     const recoveryEvents = recentEvents.filter(e => e.attribute === 'recovery');
-    const recoveryRawEvent = avg(getDailySums(recoveryEvents, e => e.intensity).map(clamp01));
+    const recoveryRawEvent = avg(getDailySums(recoveryEvents, e => e.intensity));
 
     // Fix: no longer subtracts fatigueRaw — fatigue is scoped to strength/readiness now.
     const recoveryBalanceRaw = clamp01(
@@ -191,15 +195,15 @@ export const calculatePerformanceScores = (workouts: Workout[], evaluationDate: 
     // Skill — dampened by sample size so one logged event can't spike it.
     // ==========================
     const skillEvents = recentEvents.filter(e => e.attribute === 'skill');
-    const skillDaily = getDailySums(skillEvents, e => e.intensity).map(clamp01);
+    const skillDaily = getDailySums(skillEvents, e => e.intensity);
     const skillRaw = confidenceDamp(avg(skillDaily), skillDaily.length);
 
     // ==========================
     // Balance across categories (still used for readiness only)
     // ==========================
     const spreadValues = [overloadStrength, overloadEndurance, mobilityRaw, skillRaw];
-    const maxSpread = Math.max(...spreadValues, 0);
-    const minSpread = Math.min(...spreadValues, 0);
+    const maxSpread = Math.max(...spreadValues);
+    const minSpread = Math.min(...spreadValues);
     const balanceRaw = clamp01(1 - (maxSpread - minSpread) * 0.7);
 
     // ==========================

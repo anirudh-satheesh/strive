@@ -16,6 +16,7 @@ import {
 } from 'chart.js';
 import type { Workout } from '../types';
 import { calculatePerformanceScores } from '../utils/performanceEngine';
+import { getLocalDateString } from '../utils/workoutAnalytics';
 import { Activity, Trophy, Dumbbell, Clock, Zap } from 'lucide-react';
 
 ChartJS.register(
@@ -51,13 +52,6 @@ export const PerformanceTimeline: React.FC<PerformanceTimelineProps> = ({ workou
     const [timeRange, setTimeRange] = useState<TimeRange>('1M');
     const [selectedPoint, setSelectedPoint] = useState<TimelineDataPoint | null>(null);
     const [isHovering, setIsHovering] = useState(false);
-    
-    // Auto-select latest data point when not hovering
-    useEffect(() => {
-        if (!isHovering && chartDataPoints.length > 0) {
-            setSelectedPoint(chartDataPoints[chartDataPoints.length - 1]);
-        }
-    }, [isHovering, timeRange]);
 
     const chartDataPoints = useMemo(() => {
         const points: TimelineDataPoint[] = [];
@@ -91,9 +85,9 @@ export const PerformanceTimeline: React.FC<PerformanceTimelineProps> = ({ workou
             evalDate.setDate(startDate.getDate() + i);
             evalDate.setHours(23, 59, 59, 999); // end of that day
 
-            const dateStr = evalDate.toISOString().split('T')[0];
+            const dateStr = getLocalDateString(evalDate);
             const workoutsOnDay = workouts.filter(w => w.date === dateStr);
-            
+
             // Calculate scores up to this date
             const scores = calculatePerformanceScores(workouts, evalDate);
             const overallScore = Math.round(
@@ -114,14 +108,14 @@ export const PerformanceTimeline: React.FC<PerformanceTimelineProps> = ({ workou
             let dayVol = 0;
             let dayDur = 0;
             const dayExercises: string[] = [];
-            
+
             workoutsOnDay.forEach(w => {
                 if (!w.isRestDay) {
                     w.exercises.forEach(ex => {
                         dayExercises.push(ex.name);
                         const dur = Number(ex.duration) || 0;
                         dayDur += dur;
-                        
+
                         let eSets = Array.isArray(ex.sets) ? ex.sets.length : (Number(ex.sets) || 0);
                         if (Array.isArray(ex.sets)) {
                             ex.sets.forEach(set => {
@@ -170,14 +164,16 @@ export const PerformanceTimeline: React.FC<PerformanceTimelineProps> = ({ workou
                 milestoneIcon
             });
         }
-        
-        // Ensure last data point gets set immediately if not hovering
-        if (!isHovering && points.length > 0) {
-             setTimeout(() => setSelectedPoint(points[points.length - 1]), 0);
-        }
 
         return points;
     }, [workouts, timeRange]);
+
+    // Auto-select latest data point when not hovering
+    useEffect(() => {
+        if (!isHovering && chartDataPoints.length > 0) {
+            setSelectedPoint(chartDataPoints[chartDataPoints.length - 1]);
+        }
+    }, [isHovering, chartDataPoints]);
 
     const chartData: ChartData<'line'> = {
         labels: chartDataPoints.map(p => p.dateString),

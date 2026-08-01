@@ -15,8 +15,10 @@ const computeFatigueProxy = (scores: PerformanceScores) => {
   const overload = (scoreTo01(scores.strengthScore) * 0.55 + scoreTo01(scores.enduranceScore) * 0.45);
   const recovery = scoreTo01(scores.recoveryScore);
 
-  // If recovery is low, fatigue proxy rises.
-  return clamp01(overload * 0.85 + (1 - recovery) * 0.35);
+  // Only apply low-recovery contribution if there is actual overload evidence
+  // (prevents classifying unlogged or strength-focused users as distressed purely due to low recovery)
+  const recoveryPenalty = overload > 0.3 ? (1 - recovery) * 0.35 : 0;
+  return clamp01(overload * 0.85 + recoveryPenalty);
 };
 
 const computeRecoveryStateInputs = (scores: PerformanceScores) => {

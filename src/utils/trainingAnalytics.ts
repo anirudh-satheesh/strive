@@ -122,13 +122,13 @@ const classifyExercise = (ex: WorkoutExercise): ExerciseClass => {
  * A double session means two or more distinct workouts on the same day.
  */
 const classifyWorkout = (workoutsForDate: Workout[]): DayType => {
-    const activeWorkouts = workoutsForDate.filter(w => !w.isRestDay && w.exercises.length > 0);
+    const activeWorkouts = workoutsForDate.filter(w => !w.isRestDay && (w.exercises ?? []).length > 0);
 
     // Double session — two distinct workouts logged on the same date.
     if (activeWorkouts.length >= 2) return 'double';
 
     // Active recovery — a rest day with light work logged.
-    if (activeWorkouts.length === 0 && workoutsForDate.some(w => w.isRestDay && w.exercises.length > 0)) {
+    if (activeWorkouts.length === 0 && workoutsForDate.some(w => w.isRestDay && (w.exercises ?? []).length > 0)) {
         return 'recovery';
     }
 
@@ -140,7 +140,7 @@ const classifyWorkout = (workoutsForDate: Workout[]): DayType => {
     const counts = { strength: 0, cardio: 0, recovery: 0 };
     let classified = 0;
 
-    for (const ex of workout.exercises) {
+    for (const ex of (workout.exercises ?? [])) {
         const cls = classifyExercise(ex);
         if (cls === 'strength') { counts.strength++; classified++; }
         else if (cls === 'cardio') { counts.cardio++; classified++; }
@@ -203,7 +203,7 @@ export const computeDayPRs = (workouts: Workout[]): Map<string, PRInfo> => {
         if (w.isRestDay) continue;
 
         const dayPRs: string[] = [];
-        for (const ex of w.exercises) {
+        for (const ex of (w.exercises ?? [])) {
             const weight = getExerciseMaxWeight(ex);
             if (weight <= 0) continue;
 
@@ -239,7 +239,7 @@ export const analyzeWorkouts = (workouts: Workout[]): Map<string, DayAnalysis> =
     const result = new Map<string, DayAnalysis>();
 
     for (const [date, wos] of byDate) {
-        const activeWorkouts = wos.filter(w => !w.isRestDay && w.exercises.length > 0);
+        const activeWorkouts = wos.filter(w => !w.isRestDay && (w.exercises ?? []).length > 0);
         const hasRestDay = wos.some(w => w.isRestDay);
 
         let exerciseCount = 0;
@@ -249,7 +249,7 @@ export const analyzeWorkouts = (workouts: Workout[]): Map<string, DayAnalysis> =
         const exerciseNames: string[] = [];
 
         for (const w of activeWorkouts) {
-            for (const ex of w.exercises) {
+            for (const ex of (w.exercises ?? [])) {
                 exerciseCount++;
                 totalSets += Array.isArray(ex.sets) ? ex.sets.length : Number(ex.sets) || 0;
                 totalVolume += getExerciseVolume(ex);

@@ -169,16 +169,18 @@ const CareerBestPill: React.FC<{
     label: string;
     value: string | number;
     subtitle?: string;
-    color: string;
-}> = ({ icon, label, value, subtitle, color }) => (
+    textColor: string;
+    bgClass: string;
+    borderClass: string;
+}> = ({ icon, label, value, subtitle, textColor, bgClass, borderClass }) => (
     <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 group hover:bg-white/10 transition-all">
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${color.replace('text-', 'bg-').replace('500', '500/15')} border ${color.replace('text-', 'border-').replace('500', '500/20')}`}>
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${bgClass} border ${borderClass}`}>
             {icon}
         </div>
         <div className="flex-1 min-w-0">
             <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-0.5">{label}</p>
             <div className="flex items-baseline gap-1.5">
-                <span className={`text-2xl font-black tracking-tight ${color}`}>{value}</span>
+                <span className={`text-2xl font-black tracking-tight ${textColor}`}>{value}</span>
                 {subtitle && <span className="text-[10px] font-bold text-zinc-500">{subtitle}</span>}
             </div>
         </div>
@@ -242,21 +244,27 @@ export const HallOfFame: React.FC<HallOfFameProps> = ({ entries, careerBests, to
                             label="Heaviest Lift"
                             value={careerBests.maxWeight}
                             subtitle="kg"
-                            color="text-amber-400"
+                            textColor="text-amber-400"
+                            bgClass="bg-amber-400/15"
+                            borderClass="border-amber-400/20"
                         />
                         <CareerBestPill
                             icon={<Activity size={18} className="text-emerald-400" />}
                             label="Most Reps (Single Set)"
                             value={careerBests.maxReps}
                             subtitle="reps"
-                            color="text-emerald-400"
+                            textColor="text-emerald-400"
+                            bgClass="bg-emerald-400/15"
+                            borderClass="border-emerald-400/20"
                         />
                         <CareerBestPill
                             icon={<Clock size={18} className="text-sky-400" />}
                             label="Longest Duration"
                             value={careerBests.maxDuration > 0 ? careerBests.maxDuration : '--'}
                             subtitle={careerBests.maxDuration > 0 ? 's' : ''}
-                            color="text-sky-400"
+                            textColor="text-sky-400"
+                            bgClass="bg-sky-400/15"
+                            borderClass="border-sky-400/20"
                         />
                     </div>
 

@@ -247,11 +247,9 @@ export const AnalyticsView: React.FC = () => {
             color: 'text-orange-500',
             bgGlow: 'bg-orange-500/10',
             borderColor: 'border-orange-500/20',
-            trend: '+2.4%',
             desc: 'Calculated from your pure strength training volume. This score increases as you progressively overload and log heavy compound lifts.',
             metricLabel: 'Total Strength Volume',
             metricValue: `${Math.round(totalVolume).toLocaleString()} kg`,
-            sparkline: [Math.max(0, performanceScores.strengthScore - 15), Math.max(0, performanceScores.strengthScore - 8), Math.max(0, performanceScores.strengthScore - 10), performanceScores.strengthScore]
         },
         {
             label: 'Consistency',
@@ -259,11 +257,9 @@ export const AnalyticsView: React.FC = () => {
             color: 'text-emerald-500',
             bgGlow: 'bg-emerald-500/10',
             borderColor: 'border-emerald-500/20',
-            trend: '+5.1%',
             desc: 'Calculated based on your workout habits. Increases the more days in a row you train and stays high if you log workouts frequently.',
             metricLabel: 'Workout Streak',
             metricValue: `${streak} Days`,
-            sparkline: [Math.max(0, performanceScores.consistencyScore - 20), Math.max(0, performanceScores.consistencyScore - 10), Math.max(0, performanceScores.consistencyScore - 5), performanceScores.consistencyScore]
         },
         {
             label: 'Mobility',
@@ -271,11 +267,7 @@ export const AnalyticsView: React.FC = () => {
             color: 'text-teal-500',
             bgGlow: 'bg-teal-500/10',
             borderColor: 'border-teal-500/20',
-            trend: '+1.2%',
             desc: 'Calculated from time spent stretching. Increases when you regularly log mobility sessions, helping balance out stress.',
-            metricLabel: 'Mobility Balance',
-            metricValue: 'Optimal',
-            sparkline: [Math.max(0, performanceScores.mobilityScore - 12), Math.max(0, performanceScores.mobilityScore - 6), Math.max(0, performanceScores.mobilityScore - 2), performanceScores.mobilityScore]
         },
         {
             label: 'Endurance',
@@ -283,11 +275,9 @@ export const AnalyticsView: React.FC = () => {
             color: 'text-sky-500',
             bgGlow: 'bg-sky-500/10',
             borderColor: 'border-sky-500/20',
-            trend: '+3.5%',
             desc: 'Calculated from the duration and intensity of cardio sessions. Rises as you accumulate more continuous aerobic effort.',
             metricLabel: 'Endurance Duration',
             metricValue: `${prStats.maxDuration > 0 ? prStats.maxDuration + 's' : '0s'}`,
-            sparkline: [Math.max(0, performanceScores.enduranceScore - 25), Math.max(0, performanceScores.enduranceScore - 15), Math.max(0, performanceScores.enduranceScore - 5), performanceScores.enduranceScore]
         },
         {
             label: 'Skill',
@@ -295,11 +285,7 @@ export const AnalyticsView: React.FC = () => {
             color: 'text-indigo-500',
             bgGlow: 'bg-indigo-500/10',
             borderColor: 'border-indigo-500/20',
-            trend: '+0.8%',
             desc: 'Calculated from practice of complex movements. Logging gymnastics or difficult skill holds will make this score go up.',
-            metricLabel: 'Skill Progression',
-            metricValue: 'Steady',
-            sparkline: [Math.max(0, performanceScores.skillScore - 10), Math.max(0, performanceScores.skillScore - 4), Math.max(0, performanceScores.skillScore - 2), performanceScores.skillScore]
         },
         {
             label: 'Recovery',
@@ -307,11 +293,7 @@ export const AnalyticsView: React.FC = () => {
             color: 'text-purple-500',
             bgGlow: 'bg-purple-500/10',
             borderColor: 'border-purple-500/20',
-            trend: '+4.2%',
             desc: 'Calculated by balancing intense training with proper rest. Increases when you take rest days or log active recovery.',
-            metricLabel: 'Recovery Quality',
-            metricValue: 'High',
-            sparkline: [Math.max(0, performanceScores.recoveryScore - 15), Math.max(0, performanceScores.recoveryScore - 5), Math.max(0, performanceScores.recoveryScore + 5), performanceScores.recoveryScore]
         }
     ], [performanceScores, totalVolume, streak, prStats]);
 
@@ -382,16 +364,6 @@ export const AnalyticsView: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Trend & Insight */}
-                    <div className="flex flex-col items-center gap-2 md:gap-3 mt-4 mb-6 md:mb-8">
-                        <div className="flex items-center gap-1.5 text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full text-[10px] md:text-xs font-bold border border-emerald-500/20">
-                            <TrendingUp size={14} />
-                            <span>+5 this month</span>
-                        </div>
-                        <p className="text-xs md:text-sm font-medium text-zinc-400 max-w-md leading-relaxed px-4">
-                            Performance improving steadily. Consistency and recovery habits are driving your current progression.
-                        </p>
-                    </div>
 
                     {/* Top Contributors Chips */}
                     <div className="flex flex-wrap justify-center gap-2 md:gap-3 w-full border-t border-white/5 pt-4 md:pt-6">
@@ -486,10 +458,6 @@ Hall of Fame
                                                 <h4 className={`text-[10px] font-black uppercase tracking-widest ${activePillar.color} mb-2`}>{activePillar.label} Score</h4>
                                                 <div className="flex items-end gap-3">
                                                     <span className="text-6xl font-black text-white leading-none tracking-tighter">{activePillar.score}</span>
-                                                    <div className="flex items-center gap-1 text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md text-[10px] font-bold border border-emerald-500/20 mb-1.5">
-                                                        <TrendingUp size={12} />
-                                                        <span>{activePillar.trend}</span>
-                                                    </div>
                                                 </div>
                                             </div>
                                             <div className="p-3 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm shadow-inner flex-shrink-0">
@@ -501,26 +469,14 @@ Hall of Fame
                                             {activePillar.desc}
                                         </p>
 
-                                        <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/10 relative z-10">
-                                            <div>
-                                                <h5 className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1.5">Key Metric: {activePillar.metricLabel}</h5>
-                                                <span className="text-xl font-black text-white">{activePillar.metricValue}</span>
-                                            </div>
-                                            <div className="flex flex-col items-end justify-end">
-                                                <h5 className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-2">Recent Progress</h5>
-                                                <div className="flex items-end gap-1.5 h-8">
-                                                    {activePillar.sparkline.map((val, i) => (
-                                                        <motion.div
-                                                            key={i}
-                                                            initial={{ height: 0 }}
-                                                            animate={{ height: `${Math.max(10, (val / 100) * 100)}%` }}
-                                                            transition={{ duration: 0.5, delay: i * 0.1 }}
-                                                            className={`w-3 rounded-t-[3px] ${activePillar.color.replace('text-', 'bg-')}`}
-                                                        />
-                                                    ))}
+                                        {activePillar.metricLabel && activePillar.metricValue && (
+                                            <div className="pt-6 border-t border-white/10 relative z-10">
+                                                <div>
+                                                    <h5 className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1.5">Key Metric: {activePillar.metricLabel}</h5>
+                                                    <span className="text-xl font-black text-white">{activePillar.metricValue}</span>
                                                 </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </motion.div>
                                 </AnimatePresence>
                                 <div className="mt-6 text-center">

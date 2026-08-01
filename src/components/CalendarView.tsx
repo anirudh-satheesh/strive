@@ -5,6 +5,7 @@ import { WorkoutService } from '../services/workoutService';
 import { auth } from '../services/firebase';
 import type { Workout } from '../types';
 import { useNotification } from '../context/NotificationContext';
+import { calculateStreak } from '../utils/workoutAnalytics';
 import {
     analyzeWorkouts,
     computeMonthSummary,
@@ -59,7 +60,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
             }
         };
         load();
-    }, []);
+    }, [auth.currentUser?.uid, showToast]);
 
     // ── Subscribe to live updates ────────────────────────────────
     useEffect(() => {
@@ -68,7 +69,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
             setWorkouts(updated);
         });
         return () => unsub();
-    }, []);
+    }, [auth.currentUser?.uid]);
 
     // ── Derived data ─────────────────────────────────────────────
     const analysis = useMemo(() => analyzeWorkouts(workouts), [workouts]);
@@ -125,6 +126,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
         // Horizontal: day N → day N+1 (both active)
         for (let i = 0; i < days.length - 1; i++) {
             if (days[i] === null || days[i + 1] === null) continue;
+            // Skip if i is in the last column of a row (would incorrectly connect to next row)
+            if (i % 7 === 6) continue;
             const d1 = getDateStr(days[i]!);
             const d2 = getDateStr(days[i + 1]!);
             const a1 = analysis.get(d1);
@@ -189,24 +192,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                         <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-0.5">Streak</span>
                         <span className="text-xl font-black text-emerald-400 flex items-center gap-1.5">
                             <Trophy size={14} className="text-yellow-500" />
-                            {(() => {
-                                // Calculate current streak from analysis
-                                let streak = 0;
-                                const d = new Date();
-                                for (let i = 0; i < 365; i++) {
-                                    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                                    const day = analysis.get(ds);
-                                    if (day?.hasWorkout || day?.isRestDay) {
-                                        streak++;
-                                        d.setDate(d.getDate() - 1);
-                                    } else if (i !== 0) {
-                                        break;
-                                    } else {
-                                        break;
-                                    }
-                                }
-                                return streak;
-                            })()}
+                            {calculateStreak(workouts)}
                         </span>
                     </div>
                 </div>

@@ -151,12 +151,25 @@ export const PerformanceCore: React.FC<PerformanceCoreProps> = ({
                     const labelOffset = maxRadius + 32;
                     const lx = center + labelOffset * p.baseX;
                     const ly = center + labelOffset * p.baseY;
-                    
+
                     return (
-                        <g key={`node-${i}`} className="cursor-pointer group" onClick={() => onSelect(i)}>
+                        <g
+                            key={`node-${i}`}
+                            className="cursor-pointer group"
+                            onClick={() => onSelect(i)}
+                            tabIndex={0}
+                            role="button"
+                            aria-label={`${p.label} pillar, score ${p.score}`}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    onSelect(i);
+                                }
+                            }}
+                        >
                             {/* Hit area */}
                             <circle cx={center + maxRadius * p.baseX} cy={center + maxRadius * p.baseY} r="35" fill="transparent" />
-                            
+
                             {/* Node Point */}
                             <motion.circle
                                 animate={{ cx: p.x, cy: p.y, r: isSelected ? 5 : 3.5 }}
@@ -166,7 +179,7 @@ export const PerformanceCore: React.FC<PerformanceCoreProps> = ({
                                 strokeWidth={isSelected ? 3 : 2}
                                 className="drop-shadow-md"
                             />
-                            
+
                             {/* Label */}
                             <text
                                 x={lx}
@@ -176,7 +189,7 @@ export const PerformanceCore: React.FC<PerformanceCoreProps> = ({
                                 className={`text-[9px] sm:text-[10px] uppercase tracking-[0.2em] transition-all duration-300 font-bold ${
                                     isSelected ? 'fill-white' : 'fill-zinc-500 group-hover:fill-zinc-300'
                                 }`}
-                                style={{ 
+                                style={{
                                     fontFamily: 'Outfit, sans-serif',
                                     textShadow: isSelected ? '0 0 10px rgba(34,211,238,0.5)' : 'none'
                                 }}
