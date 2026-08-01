@@ -1,47 +1,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    Chart as ChartJS,
-    RadialLinearScale,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Filler,
-    Tooltip,
-    Legend
-} from 'chart.js';
-import { Radar } from 'react-chartjs-2';
 import { WorkoutService } from '../services/workoutService';
+import { PerformanceCore } from './PerformanceCore';
+import { PerformanceTimeline } from './PerformanceTimeline';
 import { UserService, type UserProfile } from '../services/userService';
 import { auth } from '../services/firebase';
 import type { Workout, WorkoutExercise } from '../types';
-import { 
-    Flame, TrendingUp, BarChart3, Activity, Clock, Zap, X, Dumbbell, 
-    Calendar, Medal, Trophy, Brain, Sparkles, RefreshCw, Info
+import {
+    Flame, TrendingUp, BarChart3, Activity, Clock, X,
+    Trophy, Brain, Sparkles, RefreshCw, Info
 } from 'lucide-react';
 
 import { useNotification } from '../context/NotificationContext';
-import { StatCard, type CardColor } from './StatCard';
+import { StatCard } from './StatCard';
 import { calculateStreak } from '../utils/workoutAnalytics';
 import { calculatePerformanceScores } from '../utils/performanceEngine';
-import { computeRefinedArchetype } from '../utils/athleteIdentityEngine';
-import { computeReadiness } from '../utils/readinessEngine';
-import { generateInsights } from '../utils/dynamicInsightEngine';
+import { computeHallOfFame } from '../utils/hallOfFameEngine';
+import { HallOfFame } from './HallOfFame';
+import { TrainingMomentum } from './TrainingMomentum';
 
 
 
-// Register ChartJS modules including RadialLinearScale for the Radar chart
-ChartJS.register(
-    RadialLinearScale,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Filler,
-    Tooltip,
-    Legend
-);
+
+
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -53,8 +34,8 @@ const containerVariants = {
 
 const sectionVariants = {
     hidden: { opacity: 0, y: 15 },
-    visible: { 
-        opacity: 1, 
+    visible: {
+        opacity: 1,
         y: 0,
         transition: { duration: 0.5 }
     }
@@ -66,31 +47,23 @@ export const AnalyticsView: React.FC = () => {
     const { showToast } = useNotification();
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [allWorkouts, setAllWorkouts] = useState<Workout[]>([]);
-    
+
     // Active Tab
     const [activeTab, setActiveTab] = useState<'radar' | 'prs' | 'composition'>('radar');
 
     // Stats
     const [totalWorkouts, setTotalWorkouts] = useState(0);
     const [totalVolume, setTotalVolume] = useState(0);
-    const [monthlyWorkouts, setMonthlyWorkouts] = useState(0);
     const [avgPerWeek, setAvgPerWeek] = useState(0);
     const [streak, setStreak] = useState(0);
+    const [totalHours, setTotalHours] = useState(0);
 
-    // Personal Records & Contributors
+// Personal Records & Contributors
     const [prStats, setPrStats] = useState({ maxWeight: 0, maxReps: 0, maxDuration: 0 });
     const [top3Exercises, setTop3Exercises] = useState<{ name: string; reps: number; sets: number; weight: number }[]>([]);
-    type SelectedExercise = { name: string; reps: number; sets: number; weight: number };
-    const [selectedExercise, setSelectedExercise] = useState<SelectedExercise | null>(null);
     const [selectedPillarInfo, setSelectedPillarInfo] = useState<{ title: string; description: string; colorClass: string } | null>(null);
     const [showOverallPillarInfo, setShowOverallPillarInfo] = useState(false);
-
-    const getLocalDateString = (date: Date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
+    const [selectedPillarIndex, setSelectedPillarIndex] = useState<number>(0);
 
     const loadAnalytics = async (silent = false) => {
         if (!auth.currentUser) return;
@@ -111,12 +84,13 @@ export const AnalyticsView: React.FC = () => {
             let totalVol = 0;
             let totalWork = 0;
             let monthWork = 0;
-            
+            let totalSecs = 0;
+
             const now = new Date();
             const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-            
+
             const exerciseStats: Record<string, { reps: number; sets: number; weight: number }> = {};
-            
+
             let firstDate: Date | null = null;
             let maxW = 0;
             let maxR = 0;
@@ -128,7 +102,7 @@ export const AnalyticsView: React.FC = () => {
 
                     const [y, m, d] = w.date.split('-').map(Number);
                     const workoutDate = new Date(y, m - 1, d);
-                    
+
                     if (!firstDate || workoutDate < firstDate) firstDate = workoutDate;
                     if (workoutDate >= monthStart) monthWork++;
 
@@ -144,26 +118,28 @@ export const AnalyticsView: React.FC = () => {
                                 const r = Number(set.reps) || 0;
                                 const weight = Number(set.weight) || 0;
                                 const dur = Number(set.duration) || 0;
-                                
+
                                 if (weight > maxW) maxW = weight;
                                 if (r > maxR) maxR = r;
                                 if (dur > maxD) maxD = dur;
 
                                 totalReps += r;
                                 vol += r * weight;
+                                totalSecs += dur;
                             });
                         } else {
                             eSets = Number(ex.sets) || 0;
                             const eReps = Number(ex.reps) || 0;
                             const eWeight = Number(ex.weight) || 0;
                             const eDur = Number(ex.duration) || 0;
-                            
+
                             if (eWeight > maxW) maxW = eWeight;
                             if (eReps > maxR) maxR = eReps;
                             if (eDur > maxD) maxD = eDur;
 
                             totalReps = eSets * eReps;
                             vol = eSets * eReps * eWeight;
+                            totalSecs += eDur;
                         }
 
                         dVol += vol;
@@ -183,27 +159,33 @@ export const AnalyticsView: React.FC = () => {
             // Streak
             const currentStreak = calculateStreak(workouts);
 
+            // Fix: sort by volume (weight*reps, i.e. actual training load)
+            // instead of raw rep count — a high-rep bodyweight move shouldn't
+            // outrank a heavy low-rep lift as a "top contributor".
             const sortedExercises = Object.entries(exerciseStats)
                 .map(([name, stats]) => ({ name, ...stats }))
-                .sort((a, b) => b.reps - a.reps)
+                .sort((a, b) => b.weight - a.weight)
                 .slice(0, 3);
 
             let avgWks = 0;
             if (firstDate) {
                 const fd = firstDate as Date;
                 const diffTime = Math.abs(now.getTime() - fd.getTime());
-                const diffWeeks = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7));
-                avgWks = totalWork / Math.max(1, diffWeeks);
+                // Fix: use fractional weeks instead of Math.ceil, which rounded
+                // elapsed time up to the next full week and understated
+                // average frequency right after a week boundary was crossed.
+                const diffWeeks = diffTime / (1000 * 60 * 60 * 24 * 7);
+                avgWks = totalWork / Math.max(1 / 7, diffWeeks); // floor at 1 day-equivalent to avoid divide-by-near-zero for brand new users
             }
 
             setTotalWorkouts(totalWork);
             setTotalVolume(totalVol);
-            setMonthlyWorkouts(monthWork);
             setAvgPerWeek(avgWks);
             setStreak(currentStreak);
             setTop3Exercises(sortedExercises);
             setPrStats({ maxWeight: maxW, maxReps: maxR, maxDuration: maxD });
-            
+            setTotalHours(Math.round(totalSecs / 3600));
+
             if (silent) showToast('Scores calculated and updated!', 'success');
         } catch (error) {
             console.error('Error loading performance hub:', error);
@@ -223,136 +205,101 @@ export const AnalyticsView: React.FC = () => {
         return calculatePerformanceScores(allWorkouts);
     }, [allWorkouts]);
 
-    // Phase 5.3/5.4 — Refined Athlete Identity
-    const athleteIdentity = useMemo(() => {
-        return computeRefinedArchetype(performanceScores, { recoveryBias: true });
+    const overallScore = useMemo(() => {
+        return Math.round(
+            (performanceScores.strengthScore + 
+             performanceScores.consistencyScore + 
+             performanceScores.mobilityScore + 
+             performanceScores.enduranceScore + 
+             performanceScores.skillScore + 
+             performanceScores.recoveryScore) / 6
+        );
     }, [performanceScores]);
 
-    // Phase 5.1/5.4 — Readiness Engine + Insights
-    const readinessMetrics = useMemo(() => {
-        const readiness = computeReadiness(performanceScores);
+    const getTier = (score: number) => {
+        if (score < 30) return 'Beginner';
+        if (score < 60) return 'Intermediate';
+        if (score < 80) return 'Advanced';
+        return 'Elite';
+    };
 
-        const recommendation = (() => {
-            if (readiness.recoveryState === 'overreached') {
-                return 'Overreached signals detected. Keep intensity low today and prioritize recovery fundamentals.';
-            }
-            if (readiness.recoveryState === 'recovering') {
-                return 'Recovery is building. Choose moderate-to-light work and include mobility + hydration to restore readiness.';
-            }
-            if (readiness.recoveryState === 'peaking') {
-                return 'You’re peaking. This is a strong day for a high-quality training session—commit to effort with crisp technique.';
-            }
-            // ready
-            if (performanceScores.mobilityScore < 60) {
-                return 'Mobility balance looks low. Start with a mobility flow to improve range and session quality.';
-            }
-            return 'You are ready for performance. Train with intent and progress safely within today’s recommended intensity.';
-        })();
-
-        const insights = generateInsights(performanceScores, readiness);
-
-        return {
-            readiness: readiness.readinessScore,
-            recommendation,
-            readinessState: readiness.recoveryState,
-            intensityRecommendation: readiness.intensityRecommendation,
-            limitingFactor: readiness.limitingFactor,
-            insights,
-        };
+    const topPillars = useMemo(() => {
+        return [
+            { name: 'Strength', score: performanceScores.strengthScore },
+            { name: 'Consistency', score: performanceScores.consistencyScore },
+            { name: 'Mobility', score: performanceScores.mobilityScore },
+            { name: 'Endurance', score: performanceScores.enduranceScore },
+            { name: 'Skill', score: performanceScores.skillScore },
+            { name: 'Recovery', score: performanceScores.recoveryScore },
+        ].sort((a, b) => b.score - a.score).slice(0, 3);
     }, [performanceScores]);
 
 
-    // Active momentum timeline grid (last 28 days: 4 weeks * 7 days)
-    const momentumTimeline = useMemo(() => {
-        const days = [];
-        const today = new Date();
-        
-        for (let i = 27; i >= 0; i--) {
-            const date = new Date(today);
-            date.setDate(today.getDate() - i);
-            const dateStr = getLocalDateString(date);
-
-            const matchedWorkout = allWorkouts.find(w => w.date === dateStr);
-            let state: 'none' | 'workout' | 'rest' = 'none';
-
-            if (matchedWorkout) {
-                state = matchedWorkout.isRestDay ? 'rest' : 'workout';
-            }
-
-            days.push({
-                dateStr,
-                label: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-                state
-            });
-        }
-        return days;
+    const hallOfFameEntries = useMemo(() => {
+        return computeHallOfFame(allWorkouts);
     }, [allWorkouts]);
 
-
-
-    // Radar Chart configuration
-    const radarData = useMemo(() => ({
-        labels: ['Strength', 'Consistency', 'Mobility', 'Endurance', 'Skill', 'Recovery'],
-        datasets: [{
-            label: 'Performance Level',
-            data: [
-                performanceScores.strengthScore,
-                performanceScores.consistencyScore,
-                performanceScores.mobilityScore,
-                performanceScores.enduranceScore,
-                performanceScores.skillScore,
-                performanceScores.recoveryScore
-            ],
-            backgroundColor: 'rgba(34, 211, 238, 0.15)', // Glass cyan glow
-            borderColor: '#22D3EE',
-            borderWidth: 2,
-            pointBackgroundColor: '#22D3EE',
-            pointBorderColor: '#0B1220',
-            pointHoverBackgroundColor: '#ffffff',
-            pointHoverBorderColor: '#22D3EE',
-            pointRadius: 4.5,
-            pointHoverRadius: 7,
-            fill: true
-        }]
-    }), [performanceScores]);
-
-    const radarOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            r: {
-                angleLines: { color: 'rgba(255, 255, 255, 0.06)' },
-                grid: { color: 'rgba(255, 255, 255, 0.06)' },
-                pointLabels: {
-                    color: '#94a3b8',
-                    // chart.js typings don’t like arbitrary weight strings in nested font objects
-                    font: { size: 10, family: 'Outfit, sans-serif' }
-                },
-                ticks: {
-                    backdropColor: 'transparent',
-                    color: '#4b5563',
-                    font: { size: 8 },
-                    max: 100,
-                    min: 0,
-                    stepSize: 20,
-                    showLabelBackdrop: false
-                },
-                suggestedMin: 0,
-                suggestedMax: 100
-            }
+    // Dynamic Pillar Details
+    const pillarDetails = useMemo(() => [
+        {
+            label: 'Strength',
+            score: performanceScores.strengthScore,
+            color: 'text-orange-500',
+            bgGlow: 'bg-orange-500/10',
+            borderColor: 'border-orange-500/20',
+            desc: 'Calculated from your pure strength training volume. This score increases as you progressively overload and log heavy compound lifts.',
+            metricLabel: 'Total Strength Volume',
+            metricValue: `${Math.round(totalVolume).toLocaleString()} kg`,
         },
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                backgroundColor: '#18181b',
-                titleFont: { size: 12, weight: 'bold' as const },
-                bodyFont: { size: 14, weight: 'bold' as const },
-                padding: 12,
-                cornerRadius: 12,
-                displayColors: false,
-            }
+        {
+            label: 'Consistency',
+            score: performanceScores.consistencyScore,
+            color: 'text-emerald-500',
+            bgGlow: 'bg-emerald-500/10',
+            borderColor: 'border-emerald-500/20',
+            desc: 'Calculated based on your workout habits. Increases the more days in a row you train and stays high if you log workouts frequently.',
+            metricLabel: 'Workout Streak',
+            metricValue: `${streak} Days`,
+        },
+        {
+            label: 'Mobility',
+            score: performanceScores.mobilityScore,
+            color: 'text-teal-500',
+            bgGlow: 'bg-teal-500/10',
+            borderColor: 'border-teal-500/20',
+            desc: 'Calculated from time spent stretching. Increases when you regularly log mobility sessions, helping balance out stress.',
+        },
+        {
+            label: 'Endurance',
+            score: performanceScores.enduranceScore,
+            color: 'text-sky-500',
+            bgGlow: 'bg-sky-500/10',
+            borderColor: 'border-sky-500/20',
+            desc: 'Calculated from the duration and intensity of cardio sessions. Rises as you accumulate more continuous aerobic effort.',
+            metricLabel: 'Endurance Duration',
+            metricValue: `${prStats.maxDuration > 0 ? prStats.maxDuration + 's' : '0s'}`,
+        },
+        {
+            label: 'Skill',
+            score: performanceScores.skillScore,
+            color: 'text-indigo-500',
+            bgGlow: 'bg-indigo-500/10',
+            borderColor: 'border-indigo-500/20',
+            desc: 'Calculated from practice of complex movements. Logging gymnastics or difficult skill holds will make this score go up.',
+        },
+        {
+            label: 'Recovery',
+            score: performanceScores.recoveryScore,
+            color: 'text-purple-500',
+            bgGlow: 'bg-purple-500/10',
+            borderColor: 'border-purple-500/20',
+            desc: 'Calculated by balancing intense training with proper rest. Increases when you take rest days or log active recovery.',
         }
-    };
+    ], [performanceScores, totalVolume, streak, prStats]);
+
+    const activePillar = pillarDetails[selectedPillarIndex];
+
+
 
 
     if (loading) {
@@ -365,7 +312,7 @@ export const AnalyticsView: React.FC = () => {
     }
 
     return (
-        <motion.div 
+        <motion.div
             initial="hidden"
             animate="visible"
             variants={containerVariants}
@@ -397,96 +344,52 @@ export const AnalyticsView: React.FC = () => {
                 </button>
             </motion.div>
 
-            {/* 2. ATHLETE IDENTITY & READINESS */}
-            <motion.div variants={sectionVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Identity Archetype Card */}
-                <div className={`lg:col-span-2 relative overflow-hidden bg-gradient-to-br ${athleteIdentity.color} rounded-[32px] p-8 shadow-2xl ${athleteIdentity.shadow} border border-white/10 flex flex-col justify-between group min-h-[220px]`}>
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.15),transparent)] pointer-events-none" />
+            {/* 2. PREMIUM PERFORMANCE OVERVIEW HERO */}
+            <motion.div variants={sectionVariants} className="w-full relative overflow-hidden bg-[#0a0f18] rounded-[32px] border border-white/5 shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex flex-col items-center justify-center p-6 md:p-8 lg:p-10">
+                {/* Soft Glassmorphism & Gradient Backgrounds */}
+                <div className="absolute inset-0 bg-gradient-to-b from-[#22D3EE]/5 via-transparent to-transparent pointer-events-none" />
+                <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#22D3EE]/10 rounded-full blur-[100px] pointer-events-none" />
+                <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none" />
+
+                <div className="relative z-10 flex flex-col items-center text-center w-full max-w-2xl">
+                    <h3 className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-3 md:mb-4">Overall Performance</h3>
                     
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-4">
-                            <span className="text-4xl filter drop-shadow-md">{athleteIdentity.emoji}</span>
-                            <div>
-                                <h3 className="text-2xl font-black text-white uppercase tracking-tight leading-none">
-                                    {athleteIdentity.name}
-                                </h3>
-                                <p className="text-[9px] font-black text-white/70 uppercase tracking-widest mt-1">Calculated Archetype</p>
-                            </div>
-                        </div>
-                        <p className="text-white/95 font-medium text-sm leading-relaxed max-w-xl">
-                            {athleteIdentity.desc}
-                        </p>
-                    </div>
-
-                    <div className="relative z-10 flex flex-wrap gap-4 mt-6 pt-4 border-t border-white/10">
-                        <div className="flex items-center gap-2">
-                            <Flame size={16} className="text-white/80" />
-                            <span className="text-xs font-black uppercase text-white/95">{streak} Day Streak</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Trophy size={16} className="text-white/80" />
-                            <span className="text-xs font-black uppercase text-white/95">{totalWorkouts} Workouts Logged</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Readiness Score Card */}
-                <div className="bg-[#111827] rounded-[32px] p-6 border border-white/5 flex flex-col justify-between shadow-xl relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl" />
-                    <div>
-                        <div className="flex items-center justify-between mb-4">
-                            <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Readiness Index</h4>
-                            <Brain size={18} className="text-indigo-400" />
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-6xl font-black tracking-tighter text-indigo-400">{readinessMetrics.readiness}%</span>
+                    {/* Score & Tier */}
+                    <div className="relative mb-2 md:mb-3 flex flex-col items-center">
+                        <span className="text-7xl md:text-8xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-zinc-100 to-zinc-500 drop-shadow-sm leading-none">
+                            {overallScore}
+                        </span>
+                        <div className="mt-2 md:mt-3 px-4 py-1 md:px-5 md:py-1.5 rounded-full bg-[#22D3EE]/10 border border-[#22D3EE]/20 text-[#22D3EE] text-[10px] md:text-xs font-black uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(34,211,238,0.1)]">
+                            {getTier(overallScore)} Athlete
                         </div>
                     </div>
 
-                        <div className="mt-4 p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
-                        <p className="text-zinc-400 font-bold text-xs leading-relaxed flex items-start gap-2">
-                            <Sparkles size={16} className="text-[#22D3EE] shrink-0 mt-0.5" />
-                            <span>{readinessMetrics.recommendation}</span>
-                        </p>
 
-                        {/* Phase 5.2 — Dynamic coach-style insights */}
-                        {readinessMetrics.insights?.length > 0 && (
-                            <div className="mt-4 space-y-2">
-                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-[#22D3EE]/70" />
-                                    Coach Insights
+                    {/* Top Contributors Chips */}
+                    <div className="flex flex-wrap justify-center gap-2 md:gap-3 w-full border-t border-white/5 pt-4 md:pt-6">
+                        <span className="w-full text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-1 md:mb-2">Strongest Contributors</span>
+                        {topPillars.map((pillar) => (
+                            <div key={pillar.name} className="flex items-center gap-2 bg-white/[0.02] hover:bg-white/[0.05] transition-colors border border-white/10 rounded-[10px] md:rounded-xl px-3 py-1.5 md:px-4 md:py-2 shadow-sm backdrop-blur-sm">
+                                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-zinc-300">{pillar.name}</span>
+                                <div className="flex items-center gap-1 text-[#22D3EE]">
+                                    <TrendingUp size={12} strokeWidth={3} className="md:w-3.5 md:h-3.5" />
                                 </div>
-                                {readinessMetrics.insights.map((insight) => (
-                                    <div
-                                        key={insight.id}
-                                        className={`p-3 rounded-xl border ${
-                                            insight.tone === 'warn'
-                                                ? 'bg-rose-500/5 border-rose-500/15 text-rose-200'
-                                                : insight.tone === 'good'
-                                                    ? 'bg-emerald-500/5 border-emerald-500/15 text-emerald-200'
-                                                    : 'bg-white/5 border-white/10 text-zinc-200'
-                                        }`}
-                                    >
-                                        <div className="text-[10px] font-black uppercase tracking-widest">
-                                            {insight.title}
-                                        </div>
-                                        <div className="text-[10px] leading-relaxed mt-1 text-zinc-300/90 font-bold">
-                                            {insight.body}
-                                        </div>
-                                    </div>
-                                ))}
                             </div>
-                        )}
+                        ))}
                     </div>
                 </div>
             </motion.div>
 
+            {/* PERFORMANCE TIMELINE */}
+            <motion.div variants={sectionVariants}>
+                <PerformanceTimeline workouts={allWorkouts} />
+            </motion.div>
 
             {/* 3. RADAR HUB & PILLAR STATS */}
             <motion.div variants={sectionVariants} className="bg-[#111827] rounded-[32px] p-6 md:p-8 border border-white/5 shadow-2xl relative overflow-hidden">
                 {/* Decorative glow */}
                 <div className="absolute -top-32 -left-32 w-80 h-80 bg-[#22D3EE]/5 rounded-full blur-3xl" />
-                
+
                 {/* Tabs to control the detail view */}
                 <div className="flex border-b border-white/5 pb-4 mb-6 gap-6 overflow-x-auto no-scrollbar relative z-10">
                     <button
@@ -499,7 +402,7 @@ export const AnalyticsView: React.FC = () => {
                         onClick={() => setActiveTab('prs')}
                         className={`text-xs font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeTab === 'prs' ? 'border-[#22D3EE] text-white' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
                     >
-                        Records & Contributors
+Hall of Fame
                     </button>
                     <button
                         onClick={() => setActiveTab('composition')}
@@ -512,7 +415,7 @@ export const AnalyticsView: React.FC = () => {
                 <AnimatePresence mode="wait">
                     {/* RADAR HUB VIEW */}
                     {activeTab === 'radar' && (
-                        <motion.div 
+                        <motion.div
                             key="radar"
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -520,149 +423,90 @@ export const AnalyticsView: React.FC = () => {
                             className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center"
                         >
                             <div className="h-80 md:h-96 relative flex items-center justify-center">
-                                <Radar data={radarData} options={radarOptions} className="w-full h-full" />
+                                <PerformanceCore
+                                    data={[
+                                        performanceScores.strengthScore,
+                                        performanceScores.consistencyScore,
+                                        performanceScores.mobilityScore,
+                                        performanceScores.enduranceScore,
+                                        performanceScores.skillScore,
+                                        performanceScores.recoveryScore
+                                    ]}
+                                    labels={['Strength', 'Consistency', 'Mobility', 'Endurance', 'Skill', 'Recovery']}
+                                    selectedIndex={selectedPillarIndex}
+                                    onSelect={setSelectedPillarIndex}
+                                    overallScore={overallScore}
+                                />
                             </div>
 
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Pillar breakdown</h4>
-                                    <button 
-                                        onClick={() => setShowOverallPillarInfo(true)}
-                                        className="text-zinc-500 hover:text-white transition-colors p-1"
-                                        title="How to maintain ideal scores"
+                            {/* DYNAMIC DETAIL PANEL */}
+                            <div className="flex flex-col justify-center h-full">
+                                <AnimatePresence mode="wait">
+                                    <motion.div
+                                        key={activePillar.label}
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -20 }}
+                                        transition={{ duration: 0.3 }}
+                                        className={`p-6 md:p-8 rounded-[32px] border ${activePillar.borderColor} ${activePillar.bgGlow} shadow-2xl relative overflow-hidden flex flex-col backdrop-blur-md`}
                                     >
-                                        <Info size={14} />
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {[
-                                        { 
-                                            label: 'Strength', 
-                                            val: performanceScores.strengthScore, 
-                                            color: 'border-l-orange-500',
-                                            desc: 'Calculated from your heavy lifting performance. This score goes up when you log high-weight compound lifts over the last 28 days, but can drop if you accumulate too much fatigue without recovery.'
-                                        },
-                                        { 
-                                            label: 'Consistency', 
-                                            val: performanceScores.consistencyScore, 
-                                            color: 'border-l-emerald-500',
-                                            desc: 'Calculated based on your workout habits. Your score increases the more days in a row you train (your streak) and stays high if you log workouts frequently without long gaps.'
-                                        },
-                                        { 
-                                            label: 'Mobility', 
-                                            val: performanceScores.mobilityScore, 
-                                            color: 'border-l-teal-500',
-                                            desc: 'Calculated from the time spent on stretching and flexibility. This score increases when you regularly log mobility sessions, helping balance out the physical stress from heavier workouts.'
-                                        },
-                                        { 
-                                            label: 'Endurance', 
-                                            val: performanceScores.enduranceScore, 
-                                            color: 'border-l-sky-500',
-                                            desc: 'Calculated from the duration and intensity of your cardio sessions. This score rises as you accumulate more continuous aerobic effort over time, adjusted for fatigue.'
-                                        },
-                                        { 
-                                            label: 'Skill', 
-                                            val: performanceScores.skillScore, 
-                                            color: 'border-l-indigo-500',
-                                            desc: 'Calculated from your practice of complex movements. Logging high-repetition bodyweight exercises, gymnastics, or difficult skill holds will make this score go up.'
-                                        },
-                                        { 
-                                            label: 'Recovery', 
-                                            val: performanceScores.recoveryScore, 
-                                            color: 'border-l-purple-500',
-                                            desc: 'Calculated by balancing intense training with proper rest. This score increases when you take rest days or log active recovery, and drops if you perform too many high-fatigue workouts in a row.'
-                                        }
-                                    ].map(p => (
-                                        <div key={p.label} className={`p-4 bg-white/5 rounded-2xl border border-white/5 border-l-4 ${p.color} hover:bg-white/10 transition-colors`}>
-                                            <div className="flex justify-between items-start">
-                                                <p className="text-zinc-500 font-black text-[9px] uppercase tracking-widest">{p.label}</p>
-                                                <button 
-                                                    onClick={() => setSelectedPillarInfo({ title: p.label, description: p.desc, colorClass: p.color })}
-                                                    className="text-zinc-500 hover:text-white transition-colors p-0.5"
-                                                    title={`Learn more about ${p.label}`}
-                                                >
-                                                    <Info size={12} />
-                                                </button>
+                                        {/* Floating background glow specific to pillar */}
+                                        <div className={`absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[80px] opacity-30 ${activePillar.color.replace('text-', 'bg-')}`} />
+
+                                        <div className="flex justify-between items-start mb-6 relative z-10">
+                                            <div>
+                                                <h4 className={`text-[10px] font-black uppercase tracking-widest ${activePillar.color} mb-2`}>{activePillar.label} Score</h4>
+                                                <div className="flex items-end gap-3">
+                                                    <span className="text-6xl font-black text-white leading-none tracking-tighter">{activePillar.score}</span>
+                                                </div>
                                             </div>
-                                            <p className="text-2xl font-black mt-1 leading-none">{p.val}</p>
+                                            <div className="p-3 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm shadow-inner flex-shrink-0">
+                                                <Activity size={24} className={activePillar.color} />
+                                            </div>
                                         </div>
-                                    ))}
+
+                                        <p className="text-sm text-zinc-300 font-medium leading-relaxed mb-8 relative z-10">
+                                            {activePillar.desc}
+                                        </p>
+
+                                        {activePillar.metricLabel && activePillar.metricValue && (
+                                            <div className="pt-6 border-t border-white/10 relative z-10">
+                                                <div>
+                                                    <h5 className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1.5">Key Metric: {activePillar.metricLabel}</h5>
+                                                    <span className="text-xl font-black text-white">{activePillar.metricValue}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                </AnimatePresence>
+                                <div className="mt-6 text-center">
+                                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center justify-center gap-2">
+                                        <Info size={14} className="text-zinc-600" /> Tap performance core to explore pillars
+                                    </p>
                                 </div>
                             </div>
                         </motion.div>
                     )}
 
-                    {/* PERSONAL RECORDS VIEW */}
+{/* HALL OF FAME VIEW */}
                     {activeTab === 'prs' && (
-                        <motion.div 
+                        <motion.div
                             key="prs"
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
-                            className="space-y-6"
                         >
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <StatCard 
-                                    icon={<Zap size={24} />}
-                                    label="PERSONAL BEST"
-                                    title="Heaviest Lift"
-                                    value={prStats.maxWeight}
-                                    subtitle="kg"
-                                    colorTheme="yellow"
-                                />
-                                <StatCard 
-                                    icon={<Activity size={24} />}
-                                    label="PERSONAL BEST"
-                                    title="Max Reps/Set"
-                                    value={prStats.maxReps}
-                                    subtitle="reps"
-                                    colorTheme="green"
-                                />
-                                <StatCard 
-                                    icon={<Clock size={24} />}
-                                    label="PERSONAL BEST"
-                                    title="Longest Dur."
-                                    value={prStats.maxDuration > 0 ? prStats.maxDuration : "--"}
-                                    subtitle={prStats.maxDuration > 0 ? "s" : ""}
-                                    colorTheme="blue"
-                                />
-                            </div>
-
-                            <div className="space-y-3 mt-6">
-                                <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">Top Volume Contributors</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    {top3Exercises.length > 0 ? (
-                                        top3Exercises.map((ex, i) => {
-                                            const themes: CardColor[] = ['gold', 'silver', 'bronze'];
-                                            const labels = ['CHAMPION', 'CONTENDER', 'CHALLENGER'];
-                                            
-                                            return (
-                                                <StatCard 
-                                                    key={ex.name}
-                                                    icon={<Medal size={24} />}
-                                                    label={labels[i]}
-                                                    title={ex.name}
-                                                    value={ex.reps}
-                                                    subtitle="total reps"
-                                                    colorTheme={themes[i]}
-                                                    onClick={() => setSelectedExercise(ex)}
-                                                />
-                                            );
-                                        })
-                                    ) : (
-                                        <div className="col-span-full py-12 text-center bg-zinc-900/20 rounded-[24px] border border-dashed border-zinc-800">
-                                            <Dumbbell size={40} className="mx-auto mb-4 text-zinc-800" />
-                                            <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px]">Log workouts to unlock contributions</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                            <HallOfFame
+                                entries={hallOfFameEntries}
+                                careerBests={prStats}
+                                topVolume={top3Exercises}
+                            />
                         </motion.div>
                     )}
 
                     {/* BODY COMPOSITION VIEW */}
                     {activeTab === 'composition' && (
-                        <motion.div 
+                        <motion.div
                             key="composition"
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -671,7 +515,7 @@ export const AnalyticsView: React.FC = () => {
                             {userProfile && (userProfile.bmi || userProfile.bodyFatPercentage) ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {userProfile.bmi && (
-                                        <StatCard 
+                                        <StatCard
                                             icon={<Activity size={24} />}
                                             label="CURRENT"
                                             title="BMI"
@@ -680,7 +524,7 @@ export const AnalyticsView: React.FC = () => {
                                         />
                                     )}
                                     {userProfile.bodyFatPercentage && (
-                                        <StatCard 
+                                        <StatCard
                                             icon={<Flame size={24} />}
                                             label="US NAVY METHOD"
                                             title="Body Fat %"
@@ -702,101 +546,154 @@ export const AnalyticsView: React.FC = () => {
                 </AnimatePresence>
             </motion.div>
 
-            {/* 4. WEEKLY MOMENTUM HEATMAP */}
-            <motion.div variants={sectionVariants} className="bg-[#111827] p-6 rounded-[24px] border border-white/5 shadow-2xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl" />
-                <h3 className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 relative z-10 flex items-center gap-2">
-                    <span className="w-6 h-[2px] bg-[#22D3EE]" />
-                    Rolling Consistency (Last 28 Days)
-                </h3>
-
-                <div className="grid grid-cols-7 gap-2 relative z-10 pt-2">
-                    {momentumTimeline.map((day, idx) => {
-                        let colorClass = "bg-zinc-800/40 border-zinc-800/80 hover:bg-zinc-800";
-                        let glowClass = "";
-                        
-                        if (day.state === 'workout') {
-                            colorClass = "bg-[#22D3EE]/25 border-[#22D3EE]/40 text-[#22D3EE] font-black";
-                            glowClass = "shadow-[0_0_8px_rgba(34,211,238,0.15)]";
-                        } else if (day.state === 'rest') {
-                            colorClass = "bg-emerald-500/20 border-emerald-500/35 text-emerald-400 font-black";
-                            glowClass = "shadow-[0_0_8px_rgba(16,185,129,0.15)]";
-                        }
-
-                        return (
-                            <div
-                                key={idx}
-                                title={`${day.label}: ${day.state === 'workout' ? 'Workout Logged' : day.state === 'rest' ? 'Rest Day Logged' : 'No Activity'}`}
-                                className={`aspect-square rounded-lg border flex flex-col items-center justify-center p-1 cursor-pointer transition-all ${colorClass} ${glowClass} hover:scale-105`}
-                            >
-                                <span className="text-[9px] font-black opacity-80">{idx + 1}</span>
-                            </div>
-                        );
-                    })}
-                </div>
-
-                <div className="flex justify-between items-center mt-6 pt-4 border-t border-white/5 text-[9px] font-black uppercase text-zinc-500">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1">
-                            <div className="w-2.5 h-2.5 bg-[#22D3EE]/25 border border-[#22D3EE]/40 rounded" />
-                            <span>Workout</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <div className="w-2.5 h-2.5 bg-emerald-500/20 border border-emerald-500/35 rounded" />
-                            <span>Active Rest</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <div className="w-2.5 h-2.5 bg-zinc-800/40 border border-zinc-800/85 rounded" />
-                            <span>Unlogged</span>
-                        </div>
-                    </div>
-                    <span>{streak} Day Streak</span>
-                </div>
+            {/* 4. TRAINING MOMENTUM */}
+            <motion.div variants={sectionVariants}>
+                <TrainingMomentum workouts={allWorkouts} />
             </motion.div>
 
-            {/* 5. SUMMARY STATS GRID */}
-            <motion.div variants={sectionVariants} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <StatCard 
-                    icon={<Calendar size={24} />}
-                    label="LIFETIME"
-                    title="Total Sessions"
-                    value={totalWorkouts}
-                    colorTheme="blue"
-                />
-                <StatCard 
-                    icon={<Dumbbell size={24} />}
-                    label="LIFETIME"
-                    title="Total Volume"
-                    value={totalVolume}
-                    subtitle="kg"
-                    colorTheme="purple"
-                />
-                <StatCard 
-                    icon={<Activity size={24} />}
-                    label="MONTHLY"
-                    title="This Month"
-                    value={monthlyWorkouts}
-                    colorTheme="green"
-                />
-                <StatCard 
-                    icon={<TrendingUp size={24} />}
-                    label="WEEKLY"
-                    title="Avg per Week"
-                    value={parseFloat(avgPerWeek.toFixed(1))}
-                    colorTheme="cyan"
-                />
+            {/* 5. JOURNEY & LIFETIME ACHIEVEMENTS */}
+            <motion.div variants={sectionVariants} className="space-y-6">
+                <div className="flex items-center gap-3 px-2">
+                    <Sparkles className="text-[#22D3EE]" size={24} />
+                    <h2 className="text-2xl font-black uppercase tracking-widest text-white">The Journey</h2>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    
+                    {/* Card 1: Workouts Completed */}
+                    <div className="bg-[#111827] rounded-[32px] p-8 border border-white/5 relative overflow-hidden group hover:border-blue-500/30 transition-all shadow-xl flex flex-col justify-between min-h-[280px]">
+                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all" />
+                        <div>
+                            <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-4">Dedication</h4>
+                            <div className="flex items-end gap-3 mb-2">
+                                <span className="text-6xl font-black text-white leading-none tracking-tighter">{totalWorkouts}</span>
+                            </div>
+                            <p className="text-sm font-medium text-zinc-400 mt-2">Total sessions completed</p>
+                        </div>
+                        
+                        <div className="mt-8">
+                            <div className="flex justify-between text-[9px] font-black text-zinc-500 mb-2 uppercase tracking-widest">
+                                <span>{totalWorkouts}</span>
+                                <span>{Math.ceil(Math.max(1, totalWorkouts + 1) / 100) * 100} Goal</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(totalWorkouts % 100)}%` }} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Card 2: Total Weight Moved (Tons) */}
+                    <div className="bg-[#111827] rounded-[32px] p-8 border border-white/5 relative overflow-hidden group hover:border-purple-500/30 transition-all shadow-xl flex flex-col justify-between min-h-[280px]">
+                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-all" />
+                        <div>
+                            <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-[0.2em] mb-4">Total Weight Moved</h4>
+                            <div className="flex items-end gap-2 mb-2">
+                                <span className="text-6xl font-black text-white leading-none tracking-tighter">{(totalVolume / 1000).toFixed(1)}</span>
+                                <span className="text-xl font-bold text-zinc-500 mb-1">Tons</span>
+                            </div>
+                            <p className="text-sm font-medium text-zinc-400 mt-2">
+                                {totalVolume > 50000 
+                                    ? "That's roughly the weight of a commercial airliner." 
+                                    : totalVolume > 5000 
+                                    ? "That's roughly the weight of an elephant." 
+                                    : "Keep lifting to move mountains."}
+                            </p>
+                        </div>
+                        
+                        <div className="mt-8 flex gap-1 h-6 items-end">
+                            {[0.4, 0.6, 0.5, 0.8, 0.7, 1.0].map((h, i) => (
+                                <div key={i} className="w-full bg-purple-500/20 rounded-t-sm" style={{ height: `${h * 100}%` }} />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Card 3: Hours Trained */}
+                    <div className="bg-[#111827] rounded-[32px] p-8 border border-white/5 relative overflow-hidden group hover:border-emerald-500/30 transition-all shadow-xl flex flex-col justify-between min-h-[280px]">
+                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all" />
+                        <div>
+                            <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4">Time Invested</h4>
+                            <div className="flex items-end gap-2 mb-2">
+                                <span className="text-6xl font-black text-white leading-none tracking-tighter">{totalHours}</span>
+                                <span className="text-xl font-bold text-zinc-500 mb-1">Hours</span>
+                            </div>
+                            <p className="text-sm font-medium text-zinc-400 mt-2">Total time under tension</p>
+                        </div>
+                        
+                        <div className="mt-8 flex items-center justify-end">
+                            <Clock size={32} className="text-emerald-500/30" />
+                        </div>
+                    </div>
+
+                    {/* Card 4: Longest Streak */}
+                    <div className="bg-[#111827] rounded-[32px] p-8 border border-white/5 relative overflow-hidden group hover:border-orange-500/30 transition-all shadow-xl flex flex-col justify-between min-h-[280px]">
+                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-orange-500/10 rounded-full blur-3xl group-hover:bg-orange-500/20 transition-all" />
+                        <div>
+                            <h4 className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em] mb-4">Unbreakable</h4>
+                            <div className="flex items-end gap-2 mb-2">
+                                <span className="text-6xl font-black text-white leading-none tracking-tighter">{streak}</span>
+                                <span className="text-xl font-bold text-zinc-500 mb-1">Days</span>
+                            </div>
+                            <p className="text-sm font-medium text-zinc-400 mt-2">Current active streak</p>
+                        </div>
+                        
+                        <div className="mt-8 flex gap-2">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <Flame key={i} size={24} className={i < Math.min(streak, 5) ? "text-orange-500" : "text-white/5"} />
+                            ))}
+                            {streak > 5 && <span className="text-xs font-bold text-orange-500/50 pt-1">+{streak - 5}</span>}
+                        </div>
+                    </div>
+
+                    {/* Card 5: Consistency */}
+                    <div className="bg-[#111827] rounded-[32px] p-8 border border-white/5 relative overflow-hidden group hover:border-[#22D3EE]/30 transition-all shadow-xl flex flex-col justify-between min-h-[280px]">
+                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-[#22D3EE]/10 rounded-full blur-3xl group-hover:bg-[#22D3EE]/20 transition-all" />
+                        <div>
+                            <h4 className="text-[10px] font-black text-[#22D3EE] uppercase tracking-[0.2em] mb-4">Consistency</h4>
+                            <div className="flex items-end gap-2 mb-2">
+                                <span className="text-6xl font-black text-white leading-none tracking-tighter">{avgPerWeek.toFixed(1)}</span>
+                            </div>
+                            <p className="text-sm font-medium text-zinc-400 mt-2">Workouts per week on average</p>
+                        </div>
+                        
+                        <div className="mt-8 h-8 flex items-center">
+                            <div className="w-full h-[2px] bg-white/10 relative rounded-full">
+                                <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 px-4 py-1.5 bg-[#22D3EE]/10 text-[#22D3EE] text-[9px] font-black rounded-full border border-[#22D3EE]/20 tracking-widest">
+                                    ON TRACK
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Card 6: Personal Records */}
+                    <div className="bg-[#111827] rounded-[32px] p-8 border border-white/5 relative overflow-hidden group hover:border-yellow-500/30 transition-all shadow-xl flex flex-col justify-between min-h-[280px]">
+                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-yellow-500/10 rounded-full blur-3xl group-hover:bg-yellow-500/20 transition-all" />
+                        <div>
+                            <h4 className="text-[10px] font-black text-yellow-400 uppercase tracking-[0.2em] mb-4">Peak Performance</h4>
+                            <div className="flex items-end gap-2 mb-2">
+                                <span className="text-6xl font-black text-white leading-none tracking-tighter">{prStats.maxWeight}</span>
+                                <span className="text-xl font-bold text-zinc-500 mb-1">kg</span>
+                            </div>
+                            <p className="text-sm font-medium text-zinc-400 mt-2">Absolute heaviest lift recorded</p>
+                        </div>
+                        
+                        <div className="mt-8 flex items-center justify-end">
+                            <Trophy size={32} className="text-yellow-500/30" />
+                        </div>
+                    </div>
+
+                </div>
             </motion.div>
 
             {/* PILLAR INFO MODAL */}
             <AnimatePresence>
                 {selectedPillarInfo && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
                     >
-                        <motion.div 
+                        <motion.div
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -834,13 +731,13 @@ export const AnalyticsView: React.FC = () => {
             {/* OVERALL PILLAR INFO MODAL */}
             <AnimatePresence>
                 {showOverallPillarInfo && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
                     >
-                        <motion.div 
+                        <motion.div
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -881,75 +778,6 @@ export const AnalyticsView: React.FC = () => {
                 )}
             </AnimatePresence>
 
-            {/* MODAL */}
-            <AnimatePresence>
-                {selectedExercise && (
-                    <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl"
-                    >
-                        <motion.div 
-                            initial={{ scale: 0.9, opacity: 0, y: 30 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.9, opacity: 0, y: 30 }}
-                            className="bg-[#1A2236] rounded-[32px] shadow-2xl border border-white/5 w-full max-w-sm overflow-hidden relative"
-                        >
-                            <div className="h-32 bg-gradient-to-br from-[#22D3EE] via-[#3B82F6] to-[#818cf8] relative">
-                                <button
-                                    onClick={() => setSelectedExercise(null)}
-                                    className="absolute top-5 right-5 text-white/50 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full backdrop-blur-sm z-10"
-                                >
-                                    <X size={20} />
-                                </button>
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
-                            </div>
-
-                            <div className="px-8 pb-10 pt-0 text-center relative">
-                                <div className="flex justify-center -mt-12 mb-6 relative z-10">
-                                    <div className="h-24 w-24 rounded-[24px] bg-[#1A2236] p-2 shadow-2xl border border-white/5 transform rotate-3">
-                                        <div className="h-full w-full rounded-[18px] bg-[#22D3EE]/10 flex items-center justify-center -rotate-3">
-                                            <Dumbbell size={40} className="text-[#22D3EE]" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <h3 className="text-2xl font-black text-white leading-tight">
-                                    {selectedExercise.name}
-                                </h3>
-                                <p className="text-[#22D3EE] font-bold uppercase tracking-[0.2em] text-[9px] mt-2 mb-8">
-                                    Personal Statistics
-                                </p>
-
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-[20px] border border-white/5">
-                                        <span className="text-[#94a3b8] font-bold uppercase text-[10px] tracking-widest">Total Reps</span>
-                                        <span className="text-xl font-black text-white">{selectedExercise.reps.toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-[20px] border border-white/5">
-                                        <span className="text-[#94a3b8] font-bold uppercase text-[10px] tracking-widest">Total Sets</span>
-                                        <span className="text-xl font-black text-white">{selectedExercise.sets.toLocaleString()}</span>
-                                    </div>
-                                    {selectedExercise.weight > 0 && (
-                                        <div className="flex items-center justify-between p-4 bg-[#22D3EE]/5 rounded-[20px] border border-[#22D3EE]/20">
-                                            <span className="text-[#22D3EE] font-bold uppercase text-[10px] tracking-widest">Total Lifted</span>
-                                            <span className="text-xl font-black text-[#22D3EE]">{Math.round(selectedExercise.weight).toLocaleString()} <span className="text-xs">kg</span></span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <button
-                                    onClick={() => setSelectedExercise(null)}
-                                    className="w-full mt-10 py-5 bg-white text-black rounded-[20px] font-black uppercase tracking-[0.1em] hover:bg-zinc-200 transition-all text-sm active:scale-95"
-                                >
-                                    Close Stats
-                                </button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </motion.div>
+</motion.div>
     );
 };

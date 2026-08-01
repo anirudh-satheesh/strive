@@ -13,8 +13,12 @@ export interface PerformanceScores {
 
 /**
  * Normalizes scores between 0 and 100, ensuring they are valid numbers.
+ * Fix: the old per-pillar "default" values (70/65/50/50/50/75) were dead code —
+ * avg([]) returns 0, not NaN, so this branch almost never fired. One honest
+ * default (0) now, with the empty-workouts early-return below being the real
+ * place "no data yet" is represented.
  */
-const clampScore = (score: number, defaultVal = 50): number => {
+const clampScore = (score: number, defaultVal = 0): number => {
     if (isNaN(score) || !isFinite(score)) return defaultVal;
     return Math.max(0, Math.min(100, Math.round(score)));
 };
@@ -26,35 +30,77 @@ const avg = (nums: number[]) => {
     return nums.reduce((a, b) => a + b, 0) / nums.length;
 };
 
+// ==========================================================
+// Named weights — was previously scattered as unlabeled magic
+// numbers throughout the formulas below. Tune here, intentionally.
+// ==========================================================
+const WEIGHTS = {
+    strength: { overload: 0.6, adaptation: 0.25, fatigue: 0.15 },
+    consistency: { activeDays: 0.5, eventQuality: 0.3, streak: 0.2 },
+    mobility: { mobilityRaw: 0.7, recoveryBalance: 0.3 },
+    endurance: { overload: 0.65, adaptation: 0.25 }, // fatigue intentionally NOT applied here anymore — see note below
+    recovery: { recoveryBalance: 0.7, readiness: 0.3 },
+    recoveryBalance: { recoveryEvent: 0.55, mobility: 0.45 }, // fatigue intentionally NOT applied here anymore — see note below
+    readiness: { adaptation: 0.35, consistency: 0.25, recoveryBalance: 0.25, balance: 0.15 },
+};
+
+// Below what sample size a pillar's signal is treated as low-confidence and
+// dampened. Fixes the "one skill event spikes the whole pillar" issue —
+// a single logged event can no longer swing a score as hard as a
+// well-supported average of many events.
+const CONFIDENCE_FLOOR_SAMPLE_SIZE = 4;
+const confidenceDamp = (raw: number, sampleSize: number): number => {
+    if (sampleSize === 0) return 0;
+    const confidence = clamp01(sampleSize / CONFIDENCE_FLOOR_SAMPLE_SIZE);
+    return raw * confidence;
+};
+
 /**
  * Phase 1.3/1.4 implementation approach:
  * - We keep the public output contract unchanged.
- * - Internally we derive “hidden raw components” from generated performance events.
+ * - Internally we derive "hidden raw components" from generated performance events.
  * - Then we map those raw components into the 6 pillar scores.
  *
- * This makes the system architecture event-first without breaking existing UI.
+ * Fix summary (see AnalyticsView session notes):
+ * 1. Scores are now `raw * 100` instead of `50 + raw*50` — pillars can
+ *    actually go near 0 when there's genuinely no supporting activity,
+ *    instead of floor-ing at ~50 regardless of behavior.
+ * 2. Fatigue is scoped to Strength + Readiness only (was incorrectly
+ *    dragging down Endurance and Mobility/Recovery too, off a fatigue
+ *    signal that was itself dominated by strength volume).
+ * 3. overloadStrength no longer mixes in strength_fatigue_proxy events —
+ *    those no longer exist as a separate event type (merged in
+ *    performanceEvents.ts), so strength score reflects real strength
+ *    training only, undiluted.
+ * 4. Consistency now accounts for actual logging gaps (activeDaysRatio),
+ *    not just the average quality of days that *were* logged.
+ *
+ * TODO: readinessEngine.ts computes a second, independent notion of
+ * "readiness" for the Readiness Index card. That should be refactored to
+ * consume `readinessRaw`/the pillar scores from this file rather than
+ * recomputing its own — otherwise the Readiness card and the Recovery
+ * pillar can visibly disagree. Needs that file to complete the merge.
  */
-export const calculatePerformanceScores = (workouts: Workout[]): PerformanceScores => {
+export const calculatePerformanceScores = (workouts: Workout[], evaluationDate: Date = new Date()): PerformanceScores => {
 
     if (!workouts || workouts.length === 0) {
         return {
-            strengthScore: 50,
-            consistencyScore: 50,
-            mobilityScore: 50,
-            enduranceScore: 50,
-            skillScore: 50,
-            recoveryScore: 50,
+            strengthScore: 0,
+            consistencyScore: 0,
+            mobilityScore: 0,
+            enduranceScore: 0,
+            skillScore: 0,
+            recoveryScore: 0,
         };
     }
 
     const events = generatePerformanceEvents(workouts);
 
     // ==========================
-    // Hidden raw components
+    // Time window
     // ==========================
-
+    const now = evaluationDate;
     const last28DaysAgo = (() => {
-        const now = new Date();
         const d = new Date(now);
         d.setDate(d.getDate() - 28);
         return d;
@@ -62,99 +108,143 @@ export const calculatePerformanceScores = (workouts: Workout[]): PerformanceScor
 
     const inLast28 = (timestamp: string) => {
         const t = new Date(timestamp);
-        return t >= last28DaysAgo && t <= new Date();
+        return t >= last28DaysAgo && t <= now;
     };
 
     const recentEvents = events.filter(e => inLast28(e.timestamp));
 
-    // adaptation: how much net beneficial intensity exists vs recovery costs
-    const beneficialIntensity = avg(
-        recentEvents
-            .filter(e => e.attribute !== 'recovery')
-            .map(e => e.intensity)
-    );
+    // Helper to aggregate event intensities (or recovery costs) per day before averaging.
+    // Fixes the issue where multiple exercises in one workout diluted the average
+    // instead of accumulating their volume/effort for the day's total.
+    // Now normalizes sums against expected per-day volume to prevent saturation.
+    const EXPECTED_PER_DAY_VOLUME = 3.0; // Reasonable max for a typical multi-exercise day
+    const getDailySums = (eventList: typeof recentEvents, valueMapper: (e: typeof recentEvents[0]) => number) => {
+        const sums = new Map<string, number>();
+        for (const e of eventList) {
+            const dateStr = e.timestamp.slice(0, 10);
+            sums.set(dateStr, (sums.get(dateStr) || 0) + valueMapper(e));
+        }
+        // Normalize each daily sum using soft saturation to preserve sensitivity
+        return Array.from(sums.values()).map(sum => sum / (sum + EXPECTED_PER_DAY_VOLUME));
+    };
 
-    const fatigueProxy = avg(recentEvents.filter(e => e.recoveryCost > 0).map(e => e.recoveryCost));
-
-    const adaptationRaw = clamp01(beneficialIntensity * 1.1 - fatigueProxy * 0.9);
-
-    // overload score: strength/endurance intensity with costs
-    const overloadStrength = avg(
-        recentEvents
-            .filter(e => e.attribute === 'strength' || e.eventType === 'strength_fatigue_proxy')
-            .map(e => e.intensity)
-    );
-
-    const overloadEndurance = avg(
-        recentEvents
-            .filter(e => e.attribute === 'endurance')
-            .map(e => e.intensity)
-    );
-
-    const overloadRaw = clamp01(overloadStrength * 0.55 + overloadEndurance * 0.45);
-
-    // fatigue raw: recoveryCost weighted
+    // ==========================
+    // Fatigue — scoped to strength only now, not a blended cross-category average.
+    // (Strength is this app's dominant, well-instrumented training signal;
+    // applying fatigue derived from it to unrelated pillars like Mobility/
+    // Endurance was never a meaningful relationship.)
+    // getDailySums now normalizes, so no need for clamp01 on individual values
+    // ==========================
+    const strengthEvents = recentEvents.filter(e => e.attribute === 'strength');
+    const fatigueProxy = avg(getDailySums(strengthEvents.filter(e => e.recoveryCost > 0), e => e.recoveryCost));
     const fatigueRaw = clamp01(fatigueProxy * 1.3);
 
-    // consistency quality: frequency/proximity proxy based on consistency events
-    const consistencyIntensity = avg(
-        recentEvents
-            .filter(e => e.attribute === 'consistency')
-            .map(e => e.intensity)
-    );
+    // adaptation: net beneficial intensity vs recovery cost, still cross-category
+    // for the readiness blend (this one is fine to stay broad — readiness is
+    // meant to reflect overall training load, not one pillar).
+    const nonRecoveryEvents = recentEvents.filter(e => e.attribute !== 'recovery');
+    const beneficialIntensity = avg(getDailySums(nonRecoveryEvents, e => e.intensity));
+    const overallFatigueForReadiness = avg(getDailySums(recentEvents.filter(e => e.recoveryCost > 0), e => e.recoveryCost));
+    const adaptationRaw = clamp01(beneficialIntensity * 1.1 - overallFatigueForReadiness * 0.9);
 
-    const currentStreak = calculateStreak(workouts);
+    // ==========================
+    // Overload (Strength / Endurance)
+    // ==========================
+    // Fix: only real strength events feed this now — no more mixing in
+    // dampened fatigue-proxy duplicates that used to dilute the signal.
+    const overloadStrength = avg(getDailySums(strengthEvents, e => e.intensity));
+
+    const enduranceEvents = recentEvents.filter(e => e.attribute === 'endurance');
+    const overloadEndurance = avg(getDailySums(enduranceEvents, e => e.intensity));
+
+    // ==========================
+    // Consistency — now gap-aware, not just average quality of logged days.
+    // ==========================
+    const consistencyEvents = recentEvents.filter(e => e.attribute === 'consistency');
+    const consistencyIntensity = avg(getDailySums(consistencyEvents, e => e.intensity));
+
+    const uniqueLoggedDays = new Set(consistencyEvents.map(e => e.timestamp.slice(0, 10))).size;
+    const activeDaysRatio = clamp01(uniqueLoggedDays / 28);
+
+    const currentStreak = calculateStreak(workouts, now);
     const streakRaw = clamp01(currentStreak / 30);
 
-    const consistencyQualityRaw = clamp01(consistencyIntensity * 0.7 + streakRaw * 0.3);
+    const consistencyRaw = clamp01(
+        activeDaysRatio * WEIGHTS.consistency.activeDays +
+        consistencyIntensity * WEIGHTS.consistency.eventQuality +
+        streakRaw * WEIGHTS.consistency.streak
+    );
 
-    // recovery balance: encourages mobility and recovery events, discourages fatigue
-    const mobilityRaw = avg(recentEvents.filter(e => e.attribute === 'mobility').map(e => e.intensity));
-    const recoveryRawEvent = avg(recentEvents.filter(e => e.attribute === 'recovery').map(e => e.intensity));
+    // ==========================
+    // Mobility / Recovery balance
+    // ==========================
+    const mobilityEvents = recentEvents.filter(e => e.attribute === 'mobility');
+    const mobilityDaily = getDailySums(mobilityEvents, e => e.intensity);
+    const mobilityRaw = confidenceDamp(avg(mobilityDaily), mobilityDaily.length);
 
-    const recoveryBalanceRaw = clamp01(recoveryRawEvent * 0.55 + mobilityRaw * 0.45 - fatigueRaw * 0.25);
+    const recoveryEvents = recentEvents.filter(e => e.attribute === 'recovery');
+    const recoveryRawEvent = avg(getDailySums(recoveryEvents, e => e.intensity));
 
-    // movement balance: use distribution across push/pull isn't available in events yet,
-    // so approximate via spread of non-recovery attribute intensities.
-    const spreadValues = [
-        avg(recentEvents.filter(e => e.attribute === 'strength').map(e => e.intensity)),
-        avg(recentEvents.filter(e => e.attribute === 'endurance').map(e => e.intensity)),
-        avg(recentEvents.filter(e => e.attribute === 'mobility').map(e => e.intensity)),
-        avg(recentEvents.filter(e => e.attribute === 'skill').map(e => e.intensity)),
-    ];
-    const maxSpread = Math.max(...spreadValues, 0);
-    const minSpread = Math.min(...spreadValues, 0);
+    // Fix: no longer subtracts fatigueRaw — fatigue is scoped to strength/readiness now.
+    const recoveryBalanceRaw = clamp01(
+        recoveryRawEvent * WEIGHTS.recoveryBalance.recoveryEvent +
+        mobilityRaw * WEIGHTS.recoveryBalance.mobility
+    );
+
+    // ==========================
+    // Skill — dampened by sample size so one logged event can't spike it.
+    // ==========================
+    const skillEvents = recentEvents.filter(e => e.attribute === 'skill');
+    const skillDaily = getDailySums(skillEvents, e => e.intensity);
+    const skillRaw = confidenceDamp(avg(skillDaily), skillDaily.length);
+
+    // ==========================
+    // Balance across categories (still used for readiness only)
+    // ==========================
+    const spreadValues = [overloadStrength, overloadEndurance, mobilityRaw, skillRaw];
+    const maxSpread = Math.max(...spreadValues);
+    const minSpread = Math.min(...spreadValues);
     const balanceRaw = clamp01(1 - (maxSpread - minSpread) * 0.7);
 
-    // readiness: blend adaptation + consistency + recovery
+    // ==========================
+    // Readiness — still a blend, fatigue-aware via adaptationRaw above.
+    // ==========================
     const readinessRaw = clamp01(
-        adaptationRaw * 0.35 +
-        consistencyQualityRaw * 0.25 +
-        recoveryBalanceRaw * 0.25 +
-        balanceRaw * 0.15
+        adaptationRaw * WEIGHTS.readiness.adaptation +
+        consistencyRaw * WEIGHTS.readiness.consistency +
+        recoveryBalanceRaw * WEIGHTS.readiness.recoveryBalance +
+        balanceRaw * WEIGHTS.readiness.balance
     );
 
     // ==========================
     // Map raw components -> 0..100 pillars
+    // Fix: score = raw * 100, not 50 + raw*50. Neglected pillars can now
+    // genuinely read low instead of floor-ing near 50 regardless of activity.
     // ==========================
-
-    // Preserve “feel” from previous engine by biasing around 50.
-    const base = 50;
-
-    const strengthScore = base + (overloadRaw * 0.6 + adaptationRaw * 0.25 - fatigueRaw * 0.15) * 50;
-    const consistencyScore = base + consistencyQualityRaw * 50;
-    const mobilityScore = base + (mobilityRaw * 0.7 + recoveryBalanceRaw * 0.3) * 50;
-    const enduranceScore = base + (overloadEndurance * 0.65 + adaptationRaw * 0.25 - fatigueRaw * 0.1) * 50;
-    const skillScore = base + (avg(recentEvents.filter(e => e.attribute === 'skill').map(e => e.intensity)) * 1.0) * 50;
-    const recoveryScore = base + (recoveryBalanceRaw * 0.7 + readinessRaw * 0.3) * 50;
+    const strengthRaw = clamp01(
+        overloadStrength * WEIGHTS.strength.overload +
+        adaptationRaw * WEIGHTS.strength.adaptation -
+        fatigueRaw * WEIGHTS.strength.fatigue
+    );
+    const enduranceRaw = clamp01(
+        overloadEndurance * WEIGHTS.endurance.overload +
+        adaptationRaw * WEIGHTS.endurance.adaptation
+    );
+    const mobilityScoreRaw = clamp01(
+        mobilityRaw * WEIGHTS.mobility.mobilityRaw +
+        recoveryBalanceRaw * WEIGHTS.mobility.recoveryBalance
+    );
+    const recoveryScoreRaw = clamp01(
+        recoveryBalanceRaw * WEIGHTS.recovery.recoveryBalance +
+        readinessRaw * WEIGHTS.recovery.readiness
+    );
 
     return {
-        strengthScore: clampScore(strengthScore, 70),
-        consistencyScore: clampScore(consistencyScore, 65),
-        mobilityScore: clampScore(mobilityScore, 50),
-        enduranceScore: clampScore(enduranceScore, 50),
-        skillScore: clampScore(skillScore, 50),
-        recoveryScore: clampScore(recoveryScore, 75),
+        strengthScore: clampScore(strengthRaw * 100),
+        consistencyScore: clampScore(consistencyRaw * 100),
+        mobilityScore: clampScore(mobilityScoreRaw * 100),
+        enduranceScore: clampScore(enduranceRaw * 100),
+        skillScore: clampScore(skillRaw * 100),
+        recoveryScore: clampScore(recoveryScoreRaw * 100),
     };
 };
-

@@ -10,9 +10,9 @@ export const getLocalDateString = (date: Date = new Date()) => {
 /**
  * Calculates current workout streak.
  * A streak is maintained if there's a non-rest day workout with exercises.
- * Returns the number of consecutive days ending today or yesterday.
+ * Returns the number of consecutive days ending at the anchor date (or today/yesterday if no workout on anchor date).
  */
-export const calculateStreak = (workouts: Workout[]): number => {
+export const calculateStreak = (workouts: Workout[], anchorDate: Date = new Date()): number => {
     const workoutDates = new Set(
         workouts
             .filter(w => !w.isRestDay)
@@ -21,13 +21,13 @@ export const calculateStreak = (workouts: Workout[]): number => {
 
     if (workoutDates.size === 0) return 0;
 
-    const now = new Date();
+    const now = new Date(anchorDate);
     now.setHours(0, 0, 0, 0);
-    
+
     const checkDate = new Date(now);
     const todayStr = getLocalDateString(now);
 
-    // If no workout today, check if streak maintained until yesterday
+    // If no workout on anchor date, check if streak maintained until day before
     if (!workoutDates.has(todayStr)) {
         checkDate.setDate(checkDate.getDate() - 1);
     }

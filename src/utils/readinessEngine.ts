@@ -15,8 +15,10 @@ const computeFatigueProxy = (scores: PerformanceScores) => {
   const overload = (scoreTo01(scores.strengthScore) * 0.55 + scoreTo01(scores.enduranceScore) * 0.45);
   const recovery = scoreTo01(scores.recoveryScore);
 
-  // If recovery is low, fatigue proxy rises.
-  return clamp01(overload * 0.85 + (1 - recovery) * 0.35);
+  // Only apply low-recovery contribution if there is actual overload evidence
+  // (prevents classifying unlogged or strength-focused users as distressed purely due to low recovery)
+  const recoveryPenalty = overload > 0.3 ? (1 - recovery) * 0.35 : 0;
+  return clamp01(overload * 0.85 + recoveryPenalty);
 };
 
 const computeRecoveryStateInputs = (scores: PerformanceScores) => {
@@ -76,8 +78,14 @@ export const computeReadiness = (
   const readinessScore = round0(readiness01 * 100);
 
   // State thresholds (heuristic).
+  // Fix: previously `recoveryScore < 50` ALONE triggered distress, even with
+  // zero actual fatigue evidence. For strength-focused users, recoveryScore is
+  // often naturally low simply because they don't log recovery-tagged activity —
+  // that's not the same as being overreached. Now requires low recovery AND
+  // real fatigue signal together, or fatigue alone being clearly high.
   let recoveryState: RecoveryState;
-  if (performanceScores.recoveryScore < 50 || fatigueProxy > 0.68) {
+  const recoveryDistress = performanceScores.recoveryScore < 40 && fatigueProxy > 0.45;
+  if (recoveryDistress || fatigueProxy > 0.68) {
     // Very stressed
     recoveryState = readinessScore < 45 ? 'overreached' : 'recovering';
   } else if (readinessScore >= 78) {
@@ -116,7 +124,7 @@ export const computeReadiness = (
   })();
 
   const limitingFactor = (() => {
-    if (recoveryState === 'overreached' || performanceScores.recoveryScore < 60) {
+    if (recoveryState === 'overreached' || (performanceScores.recoveryScore < 40 && fatigueProxy > 0.45)) {
       return 'Recovery is the limiting factor right now.';
     }
     if (lowest === 'mobilityScore' || mobilityBalance < 0.6) {
@@ -145,4 +153,3 @@ export const computeReadiness = (
     limitingFactor,
   };
 };
-
