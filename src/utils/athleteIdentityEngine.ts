@@ -60,11 +60,27 @@ export const computeRefinedArchetype = (
 
   const range = rangeAcross(performanceScores);
 
+  const allScores = [
+    performanceScores.strengthScore,
+    performanceScores.consistencyScore,
+    performanceScores.mobilityScore,
+    performanceScores.enduranceScore,
+    performanceScores.skillScore,
+    performanceScores.recoveryScore,
+  ];
+  const maxVal = Math.max(...allScores);
+
+  // Fix: a specialist (e.g. strength-focused user) will legitimately have a low
+  // recoveryScore simply because they don't log recovery-tagged activity — that's
+  // not the same as recovery actually being their defining trait. Only treat
+  // recovery as the identity-defining signal when it's critically low (not just
+  // "lowest of six," which is close to guaranteed for any specialist) AND there
+  // isn't already a clear, well-developed dominant pillar explaining the profile.
+  const isClearSpecialist = maxVal - performanceScores.recoveryScore >= 25 && maxVal >= 60;
+
   const recoveryEmphasis =
     (trajectorySignals?.recoveryBias ?? false) ||
-    performanceScores.recoveryScore < 60 ||
-    minVal === performanceScores.recoveryScore;
-
+    (performanceScores.recoveryScore < 35 && !isClearSpecialist);
 
   const isBalanced = minVal >= 65 && range <= 15;
 
@@ -180,5 +196,3 @@ export const computeRefinedArchetype = (
     evolutionIndicator,
   };
 };
-
-

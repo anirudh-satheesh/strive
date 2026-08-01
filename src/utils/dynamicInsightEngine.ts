@@ -93,7 +93,15 @@ export const generateInsights = (
   const bestScore = highest1[1];
   const delta = bestScore - lowestScore;
 
-  if (delta >= 20) {
+  // Fix: a near-zero pillar for a specialist (e.g. Endurance/Skill for a
+  // strength-only user) isn't a "limiter" to fix — it's a pillar they've
+  // deliberately not trained. Only call something a limiter if there's
+  // evidence of real engagement (score >= MIN_ENGAGEMENT_FOR_LIMITER) that's
+  // simply lagging behind their best pillar — that's an actual gap worth
+  // closing, not a specialization being reported back as a problem.
+  const MIN_ENGAGEMENT_FOR_LIMITER = 25;
+
+  if (delta >= 20 && lowestScore >= MIN_ENGAGEMENT_FOR_LIMITER) {
     const attrName = (() => {
       switch (lowestAttr) {
         case 'mobility':
@@ -150,4 +158,3 @@ export const generateInsights = (
   // Cap 2-4 insights
   return insights.slice(0, 4);
 };
-

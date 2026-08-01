@@ -76,8 +76,14 @@ export const computeReadiness = (
   const readinessScore = round0(readiness01 * 100);
 
   // State thresholds (heuristic).
+  // Fix: previously `recoveryScore < 50` ALONE triggered distress, even with
+  // zero actual fatigue evidence. For strength-focused users, recoveryScore is
+  // often naturally low simply because they don't log recovery-tagged activity —
+  // that's not the same as being overreached. Now requires low recovery AND
+  // real fatigue signal together, or fatigue alone being clearly high.
   let recoveryState: RecoveryState;
-  if (performanceScores.recoveryScore < 50 || fatigueProxy > 0.68) {
+  const recoveryDistress = performanceScores.recoveryScore < 40 && fatigueProxy > 0.45;
+  if (recoveryDistress || fatigueProxy > 0.68) {
     // Very stressed
     recoveryState = readinessScore < 45 ? 'overreached' : 'recovering';
   } else if (readinessScore >= 78) {
@@ -116,7 +122,7 @@ export const computeReadiness = (
   })();
 
   const limitingFactor = (() => {
-    if (recoveryState === 'overreached' || performanceScores.recoveryScore < 60) {
+    if (recoveryState === 'overreached' || (performanceScores.recoveryScore < 40 && fatigueProxy > 0.45)) {
       return 'Recovery is the limiting factor right now.';
     }
     if (lowest === 'mobilityScore' || mobilityBalance < 0.6) {
@@ -145,4 +151,3 @@ export const computeReadiness = (
     limitingFactor,
   };
 };
-

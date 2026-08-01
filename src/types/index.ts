@@ -17,10 +17,13 @@ export type AttributeXpGain = Record<PerformanceAttribute, number>;
 
 export type PerformanceEventType =
     | 'strength_progress'
-    | 'strength_fatigue_proxy'
+    | 'strength_progress_unmatched'
     | 'consistency_workout'
     | 'mobility_progress'
+    | 'mobility_progress_unmatched'
+    | 'mobility_implicit_credit'
     | 'endurance_progress'
+    | 'endurance_progress_unmatched'
     | 'skill_progress'
     | 'recovery_progress';
 
