@@ -98,6 +98,7 @@ export interface WorkoutSet {
 }
 
 export interface WorkoutExercise {
+    id?: string;
     name: string;
     sets: WorkoutSet[];
     // Legacy fields — stripped during migration, kept for read-time compat
