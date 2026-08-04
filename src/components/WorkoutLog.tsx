@@ -643,15 +643,16 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                                         index={idx}
                                         exerciseId={ex.id}
                                         onUpdate={(updatedEx: WorkoutExercise) => {
-                                            let nextWorkout: Workout;
-                                            setWorkout(prev => {
-                                                const newExercises = [...prev.exercises];
-                                                newExercises[idx] = updatedEx;
-                                                nextWorkout = { ...prev, exercises: newExercises };
-                                                return nextWorkout;
-                                            });
+                                            // Build the next workout synchronously from current state so
+                                            // persistWorkout always receives a valid Workout object.
+                                            // (Do NOT rely on the setWorkout updater to assign it — React may
+                                            // defer the updater, leaving the variable undefined.)
+                                            const newExercises = [...workout.exercises];
+                                            newExercises[idx] = updatedEx;
+                                            const nextWorkout = { ...workout, exercises: newExercises };
+                                            setWorkout(nextWorkout);
                                             // persist only when user starts ticking sets (see persist gate)
-                                            void persistWorkout(nextWorkout!);
+                                            void persistWorkout(nextWorkout);
                                         }}
                                         onRemove={() => removeExercise(idx)}
                                         isPR={isExercisePR(ex, idx)}
