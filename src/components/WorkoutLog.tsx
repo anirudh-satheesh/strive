@@ -156,7 +156,21 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                 }
 
                 const data = await WorkoutService.getWorkoutForDate(auth.currentUser.uid, date);
-                setWorkout(data || { date, exercises: [] });
+
+                // Normalize loaded workout: ensure every exercise and set has an ID
+                const normalizedData = data ? {
+                    ...data,
+                    exercises: data.exercises.map(ex => ({
+                        ...ex,
+                        id: ex.id || crypto.randomUUID(),
+                        sets: Array.isArray(ex.sets) ? ex.sets.map(s => ({
+                            ...s,
+                            id: s.id || crypto.randomUUID()
+                        })) : []
+                    }))
+                } : { date, exercises: [] };
+
+                setWorkout(normalizedData);
 
                 // Use cached PRs
                 setAllTimePRs(cachedPRs.current);
@@ -620,23 +634,24 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                             </div>
                             {workout.exercises.map((ex, idx) => (
                                 <motion.div
-                                    key={ex.id || idx}
+                                    key={ex.id}
                                     layout
                                     transition={{ duration: 0.25, ease: 'easeInOut' }}
                                 >
-                                    <ExerciseCard 
-                                        exercise={ex} 
+                                    <ExerciseCard
+                                        exercise={ex}
                                         index={idx}
                                         exerciseId={ex.id}
                                         onUpdate={(updatedEx: WorkoutExercise) => {
-                                            const newExercises = [...workout.exercises];
-                                            newExercises[idx] = updatedEx;
+                                            let nextWorkout: Workout;
                                             setWorkout(prev => {
-                                                const nextWorkout = { ...prev, exercises: newExercises };
-                                                // persist only when user starts ticking sets (see persist gate)
-                                                void persistWorkout(nextWorkout);
+                                                const newExercises = [...prev.exercises];
+                                                newExercises[idx] = updatedEx;
+                                                nextWorkout = { ...prev, exercises: newExercises };
                                                 return nextWorkout;
                                             });
+                                            // persist only when user starts ticking sets (see persist gate)
+                                            void persistWorkout(nextWorkout!);
                                         }}
                                         onRemove={() => removeExercise(idx)}
                                         isPR={isExercisePR(ex, idx)}

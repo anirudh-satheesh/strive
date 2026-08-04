@@ -36,15 +36,17 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
 
     // Ensure backwards compatibility by guaranteeing a sets array
     const sets = Array.isArray(exercise.sets) ? exercise.sets : [];
+    const allComplete = sets.length > 0 && sets.every(s => s.completed);
 
     // ---- Collapse state ----
     // exerciseExpanded: whether the whole exercise is expanded (vs collapsed summary card)
-    const [exerciseExpanded, setExerciseExpanded] = React.useState(true);
+    // Initialize collapsed if all sets are complete, expanded otherwise
+    const [exerciseExpanded, setExerciseExpanded] = React.useState(!allComplete);
     const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Reset collapse state when a different exercise mounts (stable id)
     useEffect(() => {
-        setExerciseExpanded(true);
+        setExerciseExpanded(!allComplete);
     }, [stableId]);
 
     // Cleanup pending collapse timer on unmount
@@ -55,7 +57,6 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
     }, []);
 
     const completedCount = sets.filter(s => s.completed).length;
-    const allComplete = sets.length > 0 && completedCount === sets.length;
     const progressPercent = sets.length > 0 ? (completedCount / sets.length) * 100 : 0;
     const activeSetIndex = sets.findIndex(s => !s.completed);
 
@@ -124,9 +125,10 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
         setExerciseExpanded(false);
     };
 
-// Exercise-level totals for the summary card
+    // Exercise-level totals for the summary card
     const totalReps = sets.reduce((acc, s) => acc + (Number(s.reps) || 0), 0);
     const totalVolume = sets.reduce((acc, s) => acc + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0);
+    const totalDuration = sets.reduce((acc, s) => acc + (Number(s.duration) || 0), 0);
 
     return (
         <motion.div
@@ -162,14 +164,17 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                                     <p className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-0.5">
                                         {completedCount} / {sets.length} Sets Complete
                                     </p>
-                                    {totalReps > 0 && (
-                                        <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mt-0.5">
-                                            {showWeight && totalVolume > 0 ? `${totalVolume} kg total volume` : ''}
-                                            {showWeight && totalVolume > 0 && showReps && totalReps > 0 ? ' · ' : ''}
-                                            {showReps && totalReps > 0 ? `${totalReps} reps` : ''}
-                                            {showDuration && sets.some(s => Number(s.duration) > 0) ? `${sets.reduce((a, s) => a + (Number(s.duration) || 0), 0)}s total` : ''}
-                                        </p>
-                                    )}
+                                    {(() => {
+                                        const segments: string[] = [];
+                                        if (showWeight && totalVolume > 0) segments.push(`${totalVolume} kg total volume`);
+                                        if (showReps && totalReps > 0) segments.push(`${totalReps} reps`);
+                                        if (showDuration && totalDuration > 0) segments.push(`${totalDuration}s total`);
+                                        return segments.length > 0 ? (
+                                            <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mt-0.5">
+                                                {segments.join(' · ')}
+                                            </p>
+                                        ) : null;
+                                    })()}
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
@@ -253,7 +258,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
                                     // Full editable set row
                                     return (
                                         <motion.div
-                                            key={set.id || String(setIndex)}
+                                            key={set.id}
                                             layout
                                             initial={{ opacity: 0, height: 0 }}
                                             animate={{ opacity: 1, height: 'auto' }}
