@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Calendar as CalendarIcon, Moon, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { WorkoutService } from '../services/workoutService';
 import { StatsService } from '../services/statsService';
 import { ExerciseService } from '../services/exerciseService';
@@ -155,7 +156,21 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                 }
 
                 const data = await WorkoutService.getWorkoutForDate(auth.currentUser.uid, date);
-                setWorkout(data || { date, exercises: [] });
+
+                // Normalize loaded workout: ensure every exercise and set has an ID
+                const normalizedData = data ? {
+                    ...data,
+                    exercises: data.exercises.map(ex => ({
+                        ...ex,
+                        id: ex.id || crypto.randomUUID(),
+                        sets: Array.isArray(ex.sets) ? ex.sets.map(s => ({
+                            ...s,
+                            id: s.id || crypto.randomUUID()
+                        })) : []
+                    }))
+                } : { date, exercises: [] };
+
+                setWorkout(normalizedData);
 
                 // Use cached PRs
                 setAllTimePRs(cachedPRs.current);
@@ -194,6 +209,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                 const last = pastWorkouts[0];
                 const cleanExercises = last.exercises.map(ex => ({
                     ...ex,
+                    id: ex.id || crypto.randomUUID(),
                     sets: Array.isArray(ex.sets) ? ex.sets.map(s => ({...s, id: crypto.randomUUID(), completed: false})) : [{
                         id: crypto.randomUUID(),
                         weight: Number(ex.weight) || 0,
@@ -249,6 +265,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
         }
 
         const newEx: WorkoutExercise = {
+            id: crypto.randomUUID(),
             name: exercise.name,
             sets: initialSets
         };
@@ -478,7 +495,7 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
     };
 
     const applyTemplate = (template: WorkoutTemplate) => {
-        const deepClonedExercises = template.exercises.map(ex => ({ ...ex }));
+        const deepClonedExercises = template.exercises.map(ex => ({ ...ex, id: ex.id || crypto.randomUUID() }));
         setWorkout(prev => ({
             ...prev,
             exercises: deepClonedExercises,
@@ -616,44 +633,51 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
                                 </button>
                             </div>
                             {workout.exercises.map((ex, idx) => (
-                                <ExerciseCard 
-                                    key={idx} 
-                                    exercise={ex} 
-                                    index={idx}
-                                    onUpdate={(updatedEx: WorkoutExercise) => {
-                                        const newExercises = [...workout.exercises];
-                                        newExercises[idx] = updatedEx;
-                                        setWorkout(prev => {
-                                            const nextWorkout = { ...prev, exercises: newExercises };
+                                <motion.div
+                                    key={ex.id}
+                                    layout
+                                    transition={{ duration: 0.25, ease: 'easeInOut' }}
+                                >
+                                    <ExerciseCard
+                                        exercise={ex}
+                                        index={idx}
+                                        exerciseId={ex.id}
+                                        onUpdate={(updatedEx: WorkoutExercise) => {
+                                            let nextWorkout: Workout;
+                                            setWorkout(prev => {
+                                                const newExercises = [...prev.exercises];
+                                                newExercises[idx] = updatedEx;
+                                                nextWorkout = { ...prev, exercises: newExercises };
+                                                return nextWorkout;
+                                            });
                                             // persist only when user starts ticking sets (see persist gate)
-                                            void persistWorkout(nextWorkout);
-                                            return nextWorkout;
-                                        });
-                                    }}
-                                    onRemove={() => removeExercise(idx)}
-                                    isPR={isExercisePR(ex, idx)}
-                                    exerciseFields={
-                                        (() => {
-                                            const config = allExercisesMap[ex.name];
-                                            if (!config) return ['sets', 'reps', 'weight'];
-                                            const fieldsSet = new Set<string>(config.fields || []);
-                                            if (config.trackingModes) {
-                                                config.trackingModes.forEach(mode => {
-                                                    if (mode === 'weight') fieldsSet.add('weight');
-                                                    if (mode === 'reps') fieldsSet.add('reps');
-                                                    if (mode === 'duration' || mode === 'holdDuration' || mode === 'stretchTime') fieldsSet.add('duration');
-                                                    if (mode === 'distance') fieldsSet.add('distance');
-                                                });
-                                            }
-                                            return Array.from(fieldsSet);
-                                        })()
-                                    }
-                                    restTimerEnabled={restTimerEnabled}
-                                    onStartRestTimer={() => {
-                                        setRestTimeRemaining(90);
-                                        setIsRestTimerActive(true);
-                                    }}
-                                />
+                                            void persistWorkout(nextWorkout!);
+                                        }}
+                                        onRemove={() => removeExercise(idx)}
+                                        isPR={isExercisePR(ex, idx)}
+                                        exerciseFields={
+                                            (() => {
+                                                const config = allExercisesMap[ex.name];
+                                                if (!config) return ['sets', 'reps', 'weight'];
+                                                const fieldsSet = new Set<string>(config.fields || []);
+                                                if (config.trackingModes) {
+                                                    config.trackingModes.forEach(mode => {
+                                                        if (mode === 'weight') fieldsSet.add('weight');
+                                                        if (mode === 'reps') fieldsSet.add('reps');
+                                                        if (mode === 'duration' || mode === 'holdDuration' || mode === 'stretchTime') fieldsSet.add('duration');
+                                                        if (mode === 'distance') fieldsSet.add('distance');
+                                                    });
+                                                }
+                                                return Array.from(fieldsSet);
+                                            })()
+                                        }
+                                        restTimerEnabled={restTimerEnabled}
+                                        onStartRestTimer={() => {
+                                            setRestTimeRemaining(90);
+                                            setIsRestTimerActive(true);
+                                        }}
+                                    />
+                                </motion.div>
                             ))}
                         </div>
                     )}
