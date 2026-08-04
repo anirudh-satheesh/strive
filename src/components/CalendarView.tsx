@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Dumbbell, Heart, Leaf, Activity, Zap, Moon, Trophy, BarChart3, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Dumbbell, Heart, Leaf, Activity, Zap, Moon, Trophy, BarChart3, CalendarDays, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutService } from '../services/workoutService';
 import { auth } from '../services/firebase';
@@ -13,6 +13,7 @@ import {
     formatVolume,
     DAY_TYPE_META,
     type DayType,
+    type DayAnalysis,
 } from '../utils/trainingAnalytics';
 
 interface CalendarViewProps {
@@ -30,14 +31,35 @@ const TypeIcon: Record<string, React.FC<{ size?: number; className?: string }>> 
     Minus: () => <span className="opacity-30">—</span>,
 };
 
+// ─── Empty-day fallback analysis ─────────────────────────────────
+// analyzeWorkouts() only emits entries for dates that have a saved
+// workout document. For dates with no data we still want the detail
+// panel to render so the user can Log Workout / Mark as Rest Day.
+const EMPTY_DAY_ANALYSIS: DayAnalysis = {
+    date: '',
+    type: 'none',
+    isRestDay: false,
+    hasWorkout: false,
+    workoutCount: 0,
+    exerciseCount: 0,
+    totalSets: 0,
+    totalVolume: 0,
+    durationSec: 0,
+    performanceScore: 0,
+    prCount: 0,
+    prExercises: [],
+    exerciseNames: [],
+};
+
 // ─── Component ───────────────────────────────────────────────────
 export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [workouts, setWorkouts] = useState<Workout[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
-    const { showToast } = useNotification();
+    const { showToast, confirm } = useNotification();
 
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -71,7 +93,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
         return () => unsub();
     }, [auth.currentUser?.uid]);
 
-    // ── Derived data ─────────────────────────────────────────────
+// ── Derived data ─────────────────────────────────────────────
     const analysis = useMemo(() => analyzeWorkouts(workouts), [workouts]);
 
     const monthSummary = useMemo(
@@ -79,7 +101,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
         [analysis, year, month],
     );
 
-    const selectedDay = selectedDate ? analysis.get(selectedDate) ?? null : null;
+    const selectedDay = selectedDate
+        ? analysis.get(selectedDate) ?? { ...EMPTY_DAY_ANALYSIS, date: selectedDate }
+        : null;
 
     // ── Calendar grid helpers ────────────────────────────────────
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -107,7 +131,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
         setSelectedDate(null);
     };
 
-    // ── Select day & scroll into view ────────────────────────────
+// ── Select day & scroll into view ────────────────────────────
     const handleDayClick = (day: number) => {
         const ds = getDateStr(day);
         setSelectedDate((prev) => (prev === ds ? null : ds));
@@ -115,6 +139,77 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
         setTimeout(() => {
             panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }, 100);
+    };
+
+    // ── Day actions ──────────────────────────────────────────────
+    const handleLogWorkout = () => {
+        if (selectedDate && onNavigateToWorkout) {
+            onNavigateToWorkout(selectedDate);
+        }
+    };
+
+    const handleMarkRestDay = async () => {
+        if (!auth.currentUser || !selectedDate) return;
+        setIsSaving(true);
+        try {
+            const restDayWorkout: Workout = { date: selectedDate, exercises: [], isRestDay: true };
+            await WorkoutService.saveWorkout(auth.currentUser.uid, restDayWorkout);
+            showToast('Enjoy your rest day!', 'success');
+        } catch (error) {
+            console.error('Error marking rest day:', error);
+            showToast('Failed to mark as rest day', 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleRemoveRestDay = async () => {
+        if (!auth.currentUser || !selectedDate) return;
+
+        const confirmed = await confirm({
+            title: 'Remove Rest Day',
+            message: 'Are you sure you want to remove this rest day?',
+            confirmText: 'Remove',
+            cancelText: 'Keep'
+        });
+
+        if (!confirmed) return;
+
+        setIsSaving(true);
+        try {
+            await WorkoutService.deleteWorkout(auth.currentUser.uid, selectedDate);
+            showToast('Rest day removed', 'success');
+        } catch (error) {
+            console.error('Error removing rest day:', error);
+            showToast('Failed to remove rest day', 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDeleteWorkout = async () => {
+        if (!auth.currentUser || !selectedDate) return;
+
+        const confirmed = await confirm({
+            title: 'Delete Workout',
+            message: 'Are you sure you want to delete this entire workout log? This cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Keep'
+        });
+
+        if (!confirmed) return;
+
+        setIsSaving(true);
+        try {
+            await WorkoutService.deleteWorkout(auth.currentUser.uid, selectedDate);
+            showToast('Workout deleted successfully', 'success');
+            setSelectedDate(null);
+        } catch (error) {
+            console.error('Error deleting workout:', error);
+            showToast('Failed to delete workout', 'error');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
 // ── Streak connectors ────────────────────────────────────────
@@ -471,15 +566,57 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onNavigateToWorkout 
                                     </div>
                                 </div>
 
-                                {/* Action */}
-                                <button
-                                    onClick={() => {
-                                        if (onNavigateToWorkout) onNavigateToWorkout(selectedDate);
-                                    }}
-                                    className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300"
-                                >
-                                    View Workout
-                                </button>
+{/* Actions — state-driven per day */}
+                                {selectedDay.hasWorkout ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <button
+                                            onClick={handleLogWorkout}
+                                            className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300"
+                                        >
+                                            View / Edit Workout
+                                        </button>
+                                        <button
+                                            onClick={handleDeleteWorkout}
+                                            disabled={isSaving}
+                                            className="w-full py-4 flex items-center justify-center gap-2 bg-white/5 border border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-2xl font-black uppercase tracking-widest text-xs transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50"
+                                        >
+                                            <Trash2 size={14} />
+                                            Delete Workout
+                                        </button>
+                                    </div>
+                                ) : selectedDay.isRestDay ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <button
+                                            onClick={handleRemoveRestDay}
+                                            disabled={isSaving}
+                                            className="w-full py-4 bg-white/5 border border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-2xl font-black uppercase tracking-widest text-xs transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50"
+                                        >
+                                            {isSaving ? 'Removing...' : 'Remove Rest Day'}
+                                        </button>
+                                        <button
+                                            onClick={handleLogWorkout}
+                                            className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300"
+                                        >
+                                            Log Workout
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <button
+                                            onClick={handleLogWorkout}
+                                            className="w-full py-4 bg-gradient-to-r from-cyan-500 to-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-300"
+                                        >
+                                            Log Workout
+                                        </button>
+                                        <button
+                                            onClick={handleMarkRestDay}
+                                            disabled={isSaving}
+                                            className="w-full py-4 bg-white/5 border border-zinc-500/30 text-zinc-300 hover:bg-white/10 rounded-2xl font-black uppercase tracking-widest text-xs transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50"
+                                        >
+                                            {isSaving ? 'Saving...' : 'Mark as Rest Day'}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </motion.div>
