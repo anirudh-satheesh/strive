@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AuthService } from '../services/authService';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
 
@@ -38,49 +39,89 @@ export const Auth: React.FC = () => {
         }
     };
 
-    return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-950 relative overflow-hidden">
-            {/* Background Elements */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-cyan-500/10 blur-[120px]" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-600/10 blur-[120px]" />
+    const container = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: { staggerChildren: 0.08, delayChildren: 0.1 },
+        },
+    };
 
-            <div className="bg-zinc-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-zinc-800 p-8 w-full max-w-md relative z-10">
-                <div className="flex flex-col items-center mb-10">
+    const item = {
+        hidden: { opacity: 0, y: 18 },
+        visible: {
+            opacity: 1,
+            y: 0,
+            transition: { duration: 0.5, ease: [0.23, 1, 0.32, 1] as const },
+        },
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center p-4 bg-[#0A0A0A] relative overflow-hidden">
+            {/* Background: soft charcoal gradient + subtle radial gold spotlight behind logo */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#0A0A0A] via-[#111111] to-[#0A0A0A]" />
+            <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[70%] h-[50%] rounded-full bg-[radial-gradient(ellipse,rgba(200,167,90,0.08),transparent_60%)] blur-[80px]" />
+            <div className="absolute bottom-[-15%] right-[-10%] w-[40%] h-[40%] rounded-full bg-[radial-gradient(circle,rgba(200,167,90,0.05),transparent_60%)] blur-[100px]" />
+            {/* Fine grain / vignette */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.5)_100%)]" />
+
+            <motion.div
+                initial="hidden"
+                animate="visible"
+                variants={container}
+                className="bg-[#151515]/90 backdrop-blur-xl rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-[#1C1C1C] p-8 w-full max-w-md relative z-10"
+            >
+                {/* Logo Section — brand focal point */}
+                <motion.div variants={item} className="flex flex-col items-center mb-10">
                     <div className="relative mb-2 group">
-                        <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 rounded-full blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
-                        <img src="/Logo/strive-512.png" alt="Strive Logo" className="relative h-36 w-36 object-contain" />
+                        {/* Subtle radial spotlight behind logo */}
+                        <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(200,167,90,0.18),transparent_70%)] rounded-full blur-xl opacity-60 group-hover:opacity-90 transition-opacity duration-500" />
+                        <motion.img
+                            src="/Logo/strive-512.png"
+                            alt="Strive Logo"
+                            className="relative h-36 w-36 object-contain drop-shadow-[0_0_20px_rgba(200,167,90,0.15)]"
+                            whileHover={{ scale: 1.04 }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                        />
                     </div>
                     <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs mt-1">
                         {isLogin ? 'Welcome Back' : 'Join the Elite'}
                     </p>
-                </div>
+                </motion.div>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
-                    {error && (
-                        <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm font-medium flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />
-                            {error}
-                        </div>
-                    )}
+                <motion.form onSubmit={handleSubmit} className="space-y-5" variants={item}>
+                    <AnimatePresence>
+                        {error && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm font-medium flex items-center gap-2 overflow-hidden"
+                            >
+                                <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />
+                                {error}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     <div className="space-y-4">
                         <div className="relative group">
-                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-cyan-500 transition-colors" size={20} />
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-[#C8A75A] transition-colors" size={20} />
                             <input
                                 type="email"
                                 placeholder="Email address"
-                                className="w-full pl-12 pr-4 py-4 border border-zinc-800 rounded-2xl bg-zinc-950/50 text-gray-100 font-medium placeholder:text-zinc-600 focus:border-cyan-500/50 focus:ring-4 focus:ring-cyan-500/10 outline-none transition-all"
+                                className="w-full pl-12 pr-4 py-4 border border-[#1C1C1C] rounded-2xl bg-[#111111]/80 text-gray-100 font-medium placeholder:text-zinc-600 focus:border-[#C8A75A]/60 focus:ring-4 focus:ring-[#C8A75A]/10 outline-none transition-all"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
                             />
                         </div>
                         <div className="relative group">
-                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-cyan-500 transition-colors" size={20} />
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-[#C8A75A] transition-colors" size={20} />
                             <input
                                 type="password"
                                 placeholder="Password"
-                                className="w-full pl-12 pr-4 py-4 border border-zinc-800 rounded-2xl bg-zinc-950/50 text-gray-100 font-medium placeholder:text-zinc-600 focus:border-cyan-500/50 focus:ring-4 focus:ring-cyan-500/10 outline-none transition-all"
+                                className="w-full pl-12 pr-4 py-4 border border-[#1C1C1C] rounded-2xl bg-[#111111]/80 text-gray-100 font-medium placeholder:text-zinc-600 focus:border-[#C8A75A]/60 focus:ring-4 focus:ring-[#C8A75A]/10 outline-none transition-all"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
@@ -88,32 +129,39 @@ export const Auth: React.FC = () => {
                         </div>
                     </div>
 
-                    <button
+                    {/* Primary gold-gradient button with soft elevation & press animation */}
+                    <motion.button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white p-4 rounded-2xl font-black uppercase tracking-widest hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
+                        whileHover={{ y: -2 }}
+                        whileTap={{ scale: 0.97 }}
+                        className="w-full bg-gradient-to-r from-[#C8A75A] via-[#D4AF37] to-[#A8862E] text-[#0A0A0A] p-4 rounded-2xl font-black uppercase tracking-widest shadow-[0_10px_30px_rgba(200,167,90,0.18),0_2px_8px_rgba(0,0,0,0.4)] transition-shadow hover:shadow-[0_14px_36px_rgba(200,167,90,0.28),0_2px_10px_rgba(0,0,0,0.5)] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
                     >
                         {loading ? (
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <div className="w-5 h-5 border-2 border-[#0A0A0A]/30 border-t-[#0A0A0A] rounded-full animate-spin" />
                         ) : (
                             <>
                                 {isLogin ? 'Sign In' : 'Create Account'}
                                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                             </>
                         )}
-                    </button>
-                </form>
+                    </motion.button>
+                </motion.form>
 
-                <div className="my-8 relative flex items-center justify-center">
+                <motion.div variants={item} className="my-8 relative flex items-center justify-center">
                     <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-zinc-800"></div>
+                        <div className="w-full border-t border-[#1C1C1C]"></div>
                     </div>
-                    <span className="relative z-10 bg-zinc-900 px-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">Or continue with</span>
-                </div>
+                    <span className="relative z-10 bg-[#151515] px-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                        Or continue with
+                    </span>
+                </motion.div>
 
-                <button
+                <motion.button
+                    variants={item}
                     onClick={handleGoogleLogin}
-                    className="w-full bg-zinc-800 hover:bg-zinc-700 text-white p-4 rounded-2xl font-bold border border-zinc-700 hover:border-zinc-600 transition-all flex items-center justify-center gap-3 group"
+                    whileTap={{ scale: 0.97 }}
+                    className="w-full bg-[#1C1C1C] hover:bg-[#242424] text-white p-4 rounded-2xl font-bold border border-[#2a2a2a] hover:border-[#3a3a3a] transition-all flex items-center justify-center gap-3 group"
                 >
                     <svg className="w-5 h-5 transition-transform group-hover:scale-110" viewBox="0 0 48 48">
                         <path fill="#4285F4" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
@@ -122,18 +170,18 @@ export const Auth: React.FC = () => {
                         <path fill="#EA4335" d="M24,48c5.268,0,9.946-1.753,13.291-4.664l-5.657-5.657c-1.716,1.154-3.915,1.823-6.634,1.823c-5.223,0-9.659-3.35-11.303-7.951l-5.657,5.657C7.953,42.44,15.325,48,24,48z"></path>
                     </svg>
                     Google
-                </button>
+                </motion.button>
 
-                <p className="text-center text-zinc-500 mt-8 text-sm font-medium">
+                <motion.p variants={item} className="text-center text-zinc-500 mt-8 text-sm font-medium">
                     {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
                     <button
                         onClick={() => setIsLogin(!isLogin)}
-                        className="text-cyan-500 font-bold hover:text-cyan-400 transition-colors ml-1 uppercase tracking-wider text-xs"
+                        className="text-[#C8A75A] font-bold hover:text-[#D4AF37] transition-colors ml-1 uppercase tracking-wider text-xs"
                     >
                         {isLogin ? 'Sign up' : 'Sign In'}
                     </button>
-                </p>
-            </div>
+                </motion.p>
+            </motion.div>
         </div>
     );
 };

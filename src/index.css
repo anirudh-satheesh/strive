@@ -25,6 +25,30 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ─────────────────────────────────────────────
+   Strive Premium Black & Gold Brand Tokens
+   Used ONLY by the authentication experience and
+   the app startup splash. Product pages keep cyan.
+   ───────────────────────────────────────────── */
+:root {
+  /* Charcoal / Matte Black canvas */
+  --brand-bg: #0A0A0A;
+  --brand-bg-elev: #111111;
+  --brand-surface: #151515;
+  --brand-surface-elev: #1C1C1C;
+
+  /* Muted premium gold palette */
+  --brand-gold: #C8A75A;
+  --brand-gold-light: #D4AF37;
+  --brand-gold-dark: #A8862E;
+
+  /* Brand borders & shadows */
+  --brand-border: rgba(200, 167, 90, 0.14);
+  --brand-border-strong: rgba(200, 167, 90, 0.32);
+  --brand-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  --brand-shadow-gold: 0 8px 30px rgba(200, 167, 90, 0.12);
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --bg-main: #0B1220;

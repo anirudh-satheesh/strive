@@ -3,6 +3,7 @@ import type { User } from 'firebase/auth';
 
 import { AuthService } from './services/authService';
 import { Auth } from './components/Auth';
+import { BrandedLoader } from './components/BrandedLoader';
 import { Layout } from './components/Layout';
 import { HomePage } from './components/HomePage';
 import { WorkoutLog } from './components/WorkoutLog';
@@ -68,11 +69,7 @@ const App: React.FC = () => {
   }, [activePage]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 shadow-lg shadow-cyan-500/20"></div>
-      </div>
-    );
+    return <BrandedLoader text="Loading" />;
   }
 
   if (!user) {
