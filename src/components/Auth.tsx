@@ -57,7 +57,7 @@ export const Auth: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-[#0A0A0A] relative overflow-hidden">
+        <div className="h-screen min-h-0 flex items-center justify-center p-3 sm:p-4 bg-[#0A0A0A] relative overflow-hidden">
             {/* Background: soft charcoal gradient + subtle radial gold spotlight behind logo */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#0A0A0A] via-[#111111] to-[#0A0A0A]" />
             <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[70%] h-[50%] rounded-full bg-[radial-gradient(ellipse,rgba(200,167,90,0.08),transparent_60%)] blur-[80px]" />
@@ -69,34 +69,34 @@ export const Auth: React.FC = () => {
                 initial="hidden"
                 animate="visible"
                 variants={container}
-                className="bg-[#151515]/90 backdrop-blur-xl rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-[#1C1C1C] p-8 w-full max-w-md relative z-10"
+                className="bg-[#151515]/90 backdrop-blur-xl rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-[#1C1C1C] p-5 sm:p-8 w-full max-w-md max-h-full overflow-hidden relative z-10"
             >
                 {/* Logo Section — brand focal point */}
-                <motion.div variants={item} className="flex flex-col items-center mb-10">
-                    <div className="relative mb-2 group">
+                <motion.div variants={item} className="flex flex-col items-center mb-4 sm:mb-10">
+                    <div className="relative mb-1 sm:mb-2 group">
                         {/* Subtle radial spotlight behind logo */}
                         <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(200,167,90,0.18),transparent_70%)] rounded-full blur-xl opacity-60 group-hover:opacity-90 transition-opacity duration-500" />
                         <motion.img
                             src="/Logo/strive-512.png"
                             alt="Strive Logo"
-                            className="relative h-36 w-36 object-contain drop-shadow-[0_0_20px_rgba(200,167,90,0.15)]"
+                            className="relative h-20 w-20 min-[500px]:h-28 min-[500px]:w-28 sm:h-36 sm:w-36 object-contain drop-shadow-[0_0_20px_rgba(200,167,90,0.15)]"
                             whileHover={{ scale: 1.04 }}
                             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                         />
                     </div>
-                    <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs mt-1">
+                    <p className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] sm:text-xs mt-1">
                         {isLogin ? 'Welcome Back' : 'Join the Elite'}
                     </p>
                 </motion.div>
 
-                <motion.form onSubmit={handleSubmit} className="space-y-5" variants={item}>
+                <motion.form onSubmit={handleSubmit} className="space-y-3 sm:space-y-5" variants={item}>
                     <AnimatePresence>
                         {error && (
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm font-medium flex items-center gap-2 overflow-hidden"
+                                className="p-3 sm:p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm font-medium flex items-center gap-2 overflow-hidden"
                             >
                                 <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />
                                 {error}
@@ -104,13 +104,13 @@ export const Auth: React.FC = () => {
                         )}
                     </AnimatePresence>
 
-                    <div className="space-y-4">
+                    <div className="space-y-2 sm:space-y-4">
                         <div className="relative group">
                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-[#C8A75A] transition-colors" size={20} />
                             <input
                                 type="email"
                                 placeholder="Email address"
-                                className="w-full pl-12 pr-4 py-4 border border-[#1C1C1C] rounded-2xl bg-[#111111]/80 text-gray-100 font-medium placeholder:text-zinc-600 focus:border-[#C8A75A]/60 focus:ring-4 focus:ring-[#C8A75A]/10 outline-none transition-all"
+                                className="w-full pl-12 pr-4 py-3 sm:py-4 border border-[#1C1C1C] rounded-2xl bg-[#111111]/80 text-gray-100 font-medium placeholder:text-zinc-600 focus:border-[#C8A75A]/60 focus:ring-4 focus:ring-[#C8A75A]/10 outline-none transition-all"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
@@ -121,7 +121,7 @@ export const Auth: React.FC = () => {
                             <input
                                 type="password"
                                 placeholder="Password"
-                                className="w-full pl-12 pr-4 py-4 border border-[#1C1C1C] rounded-2xl bg-[#111111]/80 text-gray-100 font-medium placeholder:text-zinc-600 focus:border-[#C8A75A]/60 focus:ring-4 focus:ring-[#C8A75A]/10 outline-none transition-all"
+                                className="w-full pl-12 pr-4 py-3 sm:py-4 border border-[#1C1C1C] rounded-2xl bg-[#111111]/80 text-gray-100 font-medium placeholder:text-zinc-600 focus:border-[#C8A75A]/60 focus:ring-4 focus:ring-[#C8A75A]/10 outline-none transition-all"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
@@ -135,7 +135,7 @@ export const Auth: React.FC = () => {
                         disabled={loading}
                         whileHover={{ y: -2 }}
                         whileTap={{ scale: 0.97 }}
-                        className="w-full bg-gradient-to-r from-[#C8A75A] via-[#D4AF37] to-[#A8862E] text-[#0A0A0A] p-4 rounded-2xl font-black uppercase tracking-widest shadow-[0_10px_30px_rgba(200,167,90,0.18),0_2px_8px_rgba(0,0,0,0.4)] transition-shadow hover:shadow-[0_14px_36px_rgba(200,167,90,0.28),0_2px_10px_rgba(0,0,0,0.5)] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
+                        className="w-full bg-gradient-to-r from-[#C8A75A] via-[#D4AF37] to-[#A8862E] text-[#0A0A0A] p-3 sm:p-4 rounded-2xl font-black uppercase tracking-widest shadow-[0_10px_30px_rgba(200,167,90,0.18),0_2px_8px_rgba(0,0,0,0.4)] transition-shadow hover:shadow-[0_14px_36px_rgba(200,167,90,0.28),0_2px_10px_rgba(0,0,0,0.5)] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
                     >
                         {loading ? (
                             <div className="w-5 h-5 border-2 border-[#0A0A0A]/30 border-t-[#0A0A0A] rounded-full animate-spin" />
@@ -148,7 +148,7 @@ export const Auth: React.FC = () => {
                     </motion.button>
                 </motion.form>
 
-                <motion.div variants={item} className="my-8 relative flex items-center justify-center">
+                <motion.div variants={item} className="my-4 sm:my-8 relative flex items-center justify-center">
                     <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-[#1C1C1C]"></div>
                     </div>
@@ -161,7 +161,7 @@ export const Auth: React.FC = () => {
                     variants={item}
                     onClick={handleGoogleLogin}
                     whileTap={{ scale: 0.97 }}
-                    className="w-full bg-[#1C1C1C] hover:bg-[#242424] text-white p-4 rounded-2xl font-bold border border-[#2a2a2a] hover:border-[#3a3a3a] transition-all flex items-center justify-center gap-3 group"
+                    className="w-full bg-[#1C1C1C] hover:bg-[#242424] text-white p-3 sm:p-4 rounded-2xl font-bold border border-[#2a2a2a] hover:border-[#3a3a3a] transition-all flex items-center justify-center gap-3 group"
                 >
                     <svg className="w-5 h-5 transition-transform group-hover:scale-110" viewBox="0 0 48 48">
                         <path fill="#4285F4" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
@@ -172,7 +172,7 @@ export const Auth: React.FC = () => {
                     Google
                 </motion.button>
 
-                <motion.p variants={item} className="text-center text-zinc-500 mt-8 text-sm font-medium">
+                <motion.p variants={item} className="text-center text-zinc-500 mt-4 sm:mt-8 text-sm font-medium">
                     {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
                     <button
                         onClick={() => setIsLogin(!isLogin)}

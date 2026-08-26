@@ -78,5 +78,14 @@ export const WorkoutService = {
     async deleteTemplate(userId: string, templateId: string): Promise<void> {
         const templateRef = doc(db, `users/${userId}/templates/${templateId}`);
         await deleteDoc(templateRef);
+    },
+
+    async updateTemplate(userId: string, templateId: string, name: string, exercises: Workout['exercises']): Promise<void> {
+        const templateRef = doc(db, `users/${userId}/templates/${templateId}`);
+        await setDoc(templateRef, {
+            name,
+            exercises,
+            updatedAt: new Date().toISOString()
+        }, { merge: true });
     }
 };

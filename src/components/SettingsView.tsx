@@ -5,7 +5,9 @@ import { WorkoutService } from '../services/workoutService';
 import { auth } from '../services/firebase';
 import { EXERCISE_CATEGORIES } from '../data/exercises';
 import type { Exercise, WorkoutTemplate } from '../types';
-import { Plus, Trash2, ChevronDown, ChevronUp, ChevronLeft, Settings } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, ChevronLeft, Settings, X, Edit2 } from 'lucide-react';
+import { ExerciseSelector } from './ExerciseSelector';
+import { ExerciseCard } from './ExerciseCard';
 import { useNotification } from '../context/NotificationContext';
 
 interface SettingsViewProps {
@@ -40,6 +42,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onBack }) => {
     const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
     const [templatesSectionOpen, setTemplatesSectionOpen] = useState(false);
 
+    // Template editor state
+    const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
+    const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null);
+    const [templateNameDraft, setTemplateNameDraft] = useState('');
+    const [templateExercisesDraft, setTemplateExercisesDraft] = useState<any[]>([]);
+    const [isSelectorOpenForTemplates, setIsSelectorOpenForTemplates] = useState(false);
+    const [templateSaving, setTemplateSaving] = useState(false);
+
+    // Local exercise catalog map (name -> exercise config)
+    const [allExercisesMap, setAllExercisesMap] = useState<Record<string, any>>({});
+
     const categories = EXERCISE_CATEGORIES;
 
     const handleFieldToggle = (fieldId: string) => {
@@ -72,6 +85,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onBack }) => {
             }
         };
         loadData();
+    }, []);
+
+    // Load exercise catalog map for appropriate exercise field configuration in the template editor
+    useEffect(() => {
+        const loadExercises = async () => {
+            if (!auth.currentUser) return;
+            try {
+                const all = await ExerciseService.getAllExercises(auth.currentUser.uid);
+                const map: Record<string, any> = {};
+                for (const e of all) map[e.name] = e;
+                setAllExercisesMap(map);
+            } catch (err) {
+                console.error('Failed to load exercise catalog for settings:', err);
+            }
+        };
+        loadExercises();
     }, []);
 
     const handleAddCustom = async () => {
@@ -129,6 +158,75 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onBack }) => {
             showToast('Template deleted', 'success');
         } catch (error) {
             showToast('Failed to delete template', 'error');
+        }
+    };
+
+    // Template editor helpers
+    const openCreateTemplate = () => {
+        setEditingTemplate(null);
+        setTemplateNameDraft('');
+        setTemplateExercisesDraft([]);
+        setIsTemplateEditorOpen(true);
+    };
+
+    const openEditTemplate = (t: WorkoutTemplate) => {
+        // Deep clone exercises and ensure ids exist
+        const cloned = (t.exercises || []).map((ex: any) => ({ ...ex, id: ex.id || crypto.randomUUID(), sets: Array.isArray(ex.sets) ? ex.sets.map((s: any) => ({ ...s, id: s.id || crypto.randomUUID() })) : [] }));
+        setEditingTemplate(t);
+        setTemplateNameDraft(t.name || '');
+        setTemplateExercisesDraft(cloned);
+        setIsTemplateEditorOpen(true);
+    };
+
+    const addExerciseToDraft = (exercise: any) => {
+        setIsSelectorOpenForTemplates(false);
+        const initialSet = { id: crypto.randomUUID(), weight: 0, reps: 0, duration: 0, distance: 0, completed: false };
+        const newEx = { id: crypto.randomUUID(), name: exercise.name, sets: [initialSet] };
+        setTemplateExercisesDraft(prev => [...prev, newEx]);
+    };
+
+    const updateDraftExercise = (index: number, updated: any) => {
+        setTemplateExercisesDraft(prev => {
+            const next = [...prev];
+            next[index] = updated;
+            return next;
+        });
+    };
+
+    const removeDraftExercise = (index: number) => {
+        setTemplateExercisesDraft(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const closeTemplateEditor = () => {
+        setIsTemplateEditorOpen(false);
+        setEditingTemplate(null);
+        setTemplateNameDraft('');
+        setTemplateExercisesDraft([]);
+        setIsSelectorOpenForTemplates(false);
+    };
+
+    const saveDraftTemplate = async () => {
+        if (!auth.currentUser || !templateNameDraft.trim()) return;
+        setTemplateSaving(true);
+        try {
+            // sanitize exercises to store minimal shape (name + sets)
+            const exercisesToSave = templateExercisesDraft.map(ex => ({ ...ex, sets: Array.isArray(ex.sets) ? ex.sets : [] }));
+            if (editingTemplate && editingTemplate.id) {
+                await WorkoutService.updateTemplate(auth.currentUser.uid, editingTemplate.id, templateNameDraft.trim(), exercisesToSave);
+                showToast('Template updated', 'success');
+            } else {
+                await WorkoutService.saveTemplate(auth.currentUser.uid, templateNameDraft.trim(), exercisesToSave);
+                showToast('Template created', 'success');
+            }
+            // Refresh templates list
+            const refreshed = await WorkoutService.getTemplates(auth.currentUser.uid);
+            setTemplates(refreshed);
+            closeTemplateEditor();
+        } catch (err) {
+            console.error('Failed to save template:', err);
+            showToast('Failed to save template', 'error');
+        } finally {
+            setTemplateSaving(false);
         }
     };
 
@@ -354,24 +452,136 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onBack }) => {
                 {templatesSectionOpen && (
                     <div className="px-5 sm:px-6 pb-5 sm:pb-6 space-y-3">
                         {templates.length > 0 ? (
-                            <div className="space-y-2">
-                                {templates.map(t => (
-                                    <div key={t.id} className="flex items-center justify-between p-3.5 bg-white/5 rounded-2xl border border-white/5">
-                                        <div>
-                                            <p className="font-bold text-white text-sm">{t.name}</p>
-                                            <p className="text-[10px] text-[#94a3b8] uppercase tracking-[0.2em] font-black">{t.exercises.length} Exercises</p>
+                            <div className="space-y-3">
+                                <div className="grid grid-cols-1 gap-3">
+                                    {templates.map(t => (
+                                        <div key={t.id} className="flex items-center justify-between p-3.5 bg-white/5 rounded-2xl border border-white/5">
+                                            <div>
+                                                <p className="font-bold text-white text-sm">{t.name}</p>
+                                                <p className="text-[10px] text-[#94a3b8] uppercase tracking-[0.2em] font-black">{t.exercises.length} Exercises</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => openEditTemplate(t)}
+                                                    className="p-2 text-white/20 hover:text-[#22D3EE] transition-colors"
+                                                    aria-label={`Edit ${t.name}`}
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteTemplate(t.id, t.name)}
+                                                    className="p-2 text-white/10 hover:text-[#F97316] transition-colors"
+                                                    aria-label={`Delete ${t.name}`}
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
                                         </div>
-                                        <button
-                                            onClick={() => handleDeleteTemplate(t.id, t.name)}
-                                            className="p-2 text-white/10 hover:text-[#F97316] transition-colors"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={openCreateTemplate}
+                                    className="w-full flex items-center justify-center gap-2 p-4 border-2 border-dashed border-white/5 rounded-2xl text-[#94a3b8]/40 hover:border-[#22D3EE]/30 hover:text-[#22D3EE] transition-all text-[10px] font-black uppercase tracking-[0.2em]"
+                                >
+                                    <Plus size={16} strokeWidth={3} />
+                                    Add Template
+                                </button>
                             </div>
                         ) : (
-                            <p className="text-sm text-[#94a3b8] text-center py-4 font-bold uppercase tracking-widest opacity-40">No templates yet</p>
+                            <div className="py-4">
+                                <button
+                                    onClick={openCreateTemplate}
+                                    className="w-full flex items-center justify-center gap-2 p-6 border-2 border-dashed border-white/5 rounded-2xl text-[#94a3b8]/40 hover:border-[#22D3EE]/30 hover:text-[#22D3EE] transition-all text-[12px] font-black uppercase tracking-[0.2em]"
+                                >
+                                    <Plus size={18} strokeWidth={3} />
+                                    + ADD TEMPLATE
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Template Editor Modal */}
+                        {isTemplateEditorOpen && (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fade-in_0.2s]">
+                                <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border dark:border-zinc-800 w-full max-w-3xl p-6 relative">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-xl font-black dark:text-white uppercase tracking-tight">{editingTemplate ? 'Edit Template' : 'Create Template'}</h3>
+                                        <button onClick={closeTemplateEditor} className="text-zinc-400 hover:text-white">
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+
+                                    <input
+                                        type="text"
+                                        placeholder="Template name"
+                                        className="w-full p-4 bg-zinc-50 dark:bg-zinc-800 rounded-xl border dark:border-zinc-700 dark:text-white font-bold outline-none focus:ring-2 focus:ring-cyan-500 mb-4"
+                                        value={templateNameDraft}
+                                        onChange={(e) => setTemplateNameDraft(e.target.value)}
+                                        autoFocus
+                                    />
+
+                                    <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                                        {templateExercisesDraft.length === 0 ? (
+                                            <div className="p-6 text-center text-zinc-500 font-bold">No exercises yet. Add from the selector below.</div>
+                                        ) : (
+                                            templateExercisesDraft.map((ex, idx) => (
+                                                <ExerciseCard
+                                                    key={ex.id}
+                                                    exercise={ex}
+                                                    index={idx}
+                                                    onUpdate={(updatedEx: any) => updateDraftExercise(idx, updatedEx)}
+                                                    onRemove={() => removeDraftExercise(idx)}
+                                                    isPR={false}
+                                                    exerciseFields={
+                                                        (() => {
+                                                            const cfg = allExercisesMap[ex.name];
+                                                            if (!cfg) return ['sets', 'reps', 'weight'];
+                                                            const fieldsSet = new Set<string>(cfg.fields || []);
+                                                            if (cfg.trackingModes) {
+                                                                cfg.trackingModes.forEach((mode: string) => {
+                                                                    if (mode === 'weight') fieldsSet.add('weight');
+                                                                    if (mode === 'reps') fieldsSet.add('reps');
+                                                                    if (mode === 'duration' || mode === 'holdDuration' || mode === 'stretchTime') fieldsSet.add('duration');
+                                                                    if (mode === 'distance') fieldsSet.add('distance');
+                                                                });
+                                                            }
+                                                            return Array.from(fieldsSet);
+                                                        })()
+                                                    }
+                                                    restTimerEnabled={false}
+                                                    onStartRestTimer={() => { /* noop in template editor */ }}
+                                                />
+                                            ))
+                                        )}
+                                    </div>
+
+                                    <div className="mt-4 flex gap-3">
+                                        <button
+                                            onClick={() => setIsSelectorOpenForTemplates(true)}
+                                            className="flex-1 p-3 bg-white/5 text-[#94a3b8] rounded-xl font-black uppercase tracking-widest hover:bg-white/10"
+                                        >
+                                            Add Exercise
+                                        </button>
+                                        <button
+                                            onClick={closeTemplateEditor}
+                                            className="flex-1 p-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 font-bold rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={saveDraftTemplate}
+                                            disabled={!templateNameDraft.trim() || templateSaving}
+                                            className="flex-1 p-3 bg-cyan-500 text-white font-black uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                                        >
+                                            {templateSaving ? 'Saving...' : (editingTemplate ? 'Save Changes' : 'Save Template')}
+                                        </button>
+                                    </div>
+
+                                    {isSelectorOpenForTemplates && (
+                                        <ExerciseSelector onSelect={addExerciseToDraft} onClose={() => setIsSelectorOpenForTemplates(false)} />
+                                    )}
+                                </div>
+                            </div>
                         )}
                     </div>
                 )}

@@ -1,5 +1,45 @@
-I think the app doesnt need a seperate upload page, in the dashboard create a CTA button to upload, and a pop-up screen comes for uploading the document and related input fields appear.
-Secondly the showcase navigation isn't needed. instead of it, in library give a button called display all, which leads to a new page that has all the certificates, with thumbnail preview and also view option for each certificate. this will be the page where we showcase the certs. 
-Thirdly i feel the Tags page is useless. Remove it, we dont neeed to predefine a tag , defining a tag when uploading is fine.
-Fourthly move backup and Restore to setting page, no need for seperate navigation to it directly. 
-So summary is that, there will be these navigations only"Dashboard,Library,Category,Settings. and include something if i missing it
+import { promises as fs } from 'fs';
+import path from 'path';
+
+const requiredEnvVars = [
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_AUTH_DOMAIN',
+  'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_STORAGE_BUCKET',
+  'VITE_FIREBASE_MESSAGING_SENDER_ID',
+  'VITE_FIREBASE_APP_ID',
+  'VITE_FIREBASE_MEASUREMENT_ID'
+];
+
+for (const varName of requiredEnvVars) {
+  if (!process.env[varName]) {
+    console.error(`Error: Missing required environment variable "${varName}".`);
+    process.exit(1); // Exit with an error code to fail the build
+  }
+}
+
+const config = `
+const firebaseConfig = {
+  apiKey: "${process.env.VITE_FIREBASE_API_KEY}",
+  authDomain: "${process.env.VITE_FIREBASE_AUTH_DOMAIN}",
+  projectId: "${process.env.VITE_FIREBASE_PROJECT_ID}",
+  storageBucket: "${process.env.VITE_FIREBASE_STORAGE_BUCKET}",
+  messagingSenderId: "${process.env.VITE_FIREBASE_MESSAGING_SENDER_ID}",
+  appId: "${process.env.VITE_FIREBASE_APP_ID}",
+  measurementId: "${process.env.VITE_FIREBASE_MEASUREMENT_ID}"
+};
+`;
+
+const targetPath = path.join(process.cwd(), 'public', 'firebase-config.js');
+
+async function createConfig() {
+  try {
+    await fs.writeFile(targetPath, config);
+    console.log('Successfully created firebase-config.js');
+  } catch (err) {
+    console.error('Error creating firebase-config.js:', err);
+    process.exit(1); // Exit with an error code
+  }
+}
+
+createConfig();
