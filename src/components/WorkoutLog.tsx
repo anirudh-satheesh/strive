@@ -495,7 +495,15 @@ export const WorkoutLog: React.FC<WorkoutLogProps> = ({ initialDate }) => {
     };
 
     const applyTemplate = (template: WorkoutTemplate) => {
-        const deepClonedExercises = template.exercises.map(ex => ({ ...ex, id: ex.id || crypto.randomUUID() }));
+        const deepClonedExercises = (Array.isArray(template.exercises) ? template.exercises : []).map(ex => ({
+            ...ex,
+            id: crypto.randomUUID(),
+            sets: (Array.isArray(ex.sets) ? ex.sets : []).map(set => ({
+                ...set,
+                id: crypto.randomUUID(),
+                completed: false
+            }))
+        }));
         setWorkout(prev => ({
             ...prev,
             exercises: deepClonedExercises,
